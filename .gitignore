@@ -1,0 +1,27 @@
+# Gitignore — Ponzivenzo Smart Tracker
+# ============================================================
+
+# Environment variables (NEVER commit)
+.env
+.env.local
+.env.*.local
+
+# Temporary workbench
+.tmp/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Node / Next.js
+hub/node_modules/
+hub/.next/
+hub/out/
+hub/.vercel
+
+# OS
+.DS_Store
+Thumbs.db
