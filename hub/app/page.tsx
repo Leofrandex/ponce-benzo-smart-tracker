@@ -4,10 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
-import { DEMO_EMAIL, DEMO_PASSWORD } from "./lib/auth-context";
+import { DEMO_EMAIL, DEMO_PASSWORD, useAuth } from "./lib/auth-context";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { signIn } = useAuth();
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading]   = useState(false);
@@ -25,7 +26,7 @@ export default function LoginPage() {
     setLoading(true);
 
     if (email.trim().toLowerCase() === DEMO_EMAIL && password.trim() === DEMO_PASSWORD) {
-      localStorage.setItem("pv_demo_mode", "true");
+      signIn();
       router.push("/select");
       return;
     }

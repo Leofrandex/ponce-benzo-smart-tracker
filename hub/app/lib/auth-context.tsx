@@ -18,12 +18,14 @@ const DEMO_PROFILE: User = {
 interface AuthContextType {
   profile: User | null;
   loading: boolean;
+  signIn: () => void;
   signOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
+  signIn: () => {},
   signOut: () => {},
 });
 
@@ -39,13 +41,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
+  const signIn = () => {
+    localStorage.setItem("pv_demo_mode", "true");
+    setProfile(DEMO_PROFILE);
+  };
+
   const signOut = () => {
     localStorage.removeItem("pv_demo_mode");
     setProfile(null);
   };
 
   return (
-    <AuthContext.Provider value={{ profile, loading, signOut }}>
+    <AuthContext.Provider value={{ profile, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
