@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { CheckCircle2, AlertTriangle, ShieldAlert, Clock, MapPin, CloudOff, ClipboardList } from "lucide-react";
-import { mockStores, type VisitRecord, type StoreStatus } from "@/app/lib/mock-data";
+import type { VisitRecord, StoreStatus } from "@/app/lib/types";
+import { mockStores } from "@/app/lib/mock-data";
 
 const STATUS_CONFIG = {
   completed: { label: "Completado", Icon: CheckCircle2,  badge: "badge-success" },
@@ -11,11 +12,16 @@ const STATUS_CONFIG = {
   pending:   { label: "Pendiente", Icon: Clock,          badge: "badge-pending" },
 } as const;
 
+// Resolve store names from mock data
+const STORE_NAMES: Record<string, string> = Object.fromEntries(
+  mockStores.map((s) => [s.store_id, s.name])
+);
+
 export default function HistorialPage() {
   const [visits, setVisits] = useState<VisitRecord[]>([]);
 
   useEffect(() => {
-    const saved = JSON.parse(sessionStorage.getItem("pv_visits") || "[]");
+    const saved: VisitRecord[] = JSON.parse(sessionStorage.getItem("pv_visits") || "[]");
     setVisits(saved);
   }, []);
 
@@ -62,7 +68,7 @@ export default function HistorialPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <span className="section-title">{visits.length} visitas registradas</span>
           {visits.map((visit) => {
-            const store = mockStores.find((s) => s.store_id === visit.store_id);
+            const storeName = STORE_NAMES[visit.store_id] ?? visit.store_id;
             const cfg = STATUS_CONFIG[visit.status as StoreStatus];
             const Icon = cfg.Icon;
             const time = new Date(visit.check_in_time).toLocaleTimeString("es-VE", {
@@ -74,7 +80,7 @@ export default function HistorialPage() {
               <div key={visit.visit_id} className="card" style={{ padding: "14px 16px" }}>
                 <div className="flex items-center justify-between" style={{ marginBottom: "8px" }}>
                   <span style={{ fontSize: "15px", fontWeight: 600 }}>
-                    {store?.name ?? "Tienda desconocida"}
+                    {storeName}
                   </span>
                   <span className={`badge ${cfg.badge}`}>
                     <Icon size={11} />

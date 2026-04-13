@@ -4,35 +4,64 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Camera, Navigation2, CheckCircle2, AlertTriangle,
-  ShieldAlert, Loader2, MapPin, CloudOff, ArrowLeftCircle,
+  ShieldAlert, Loader2, MapPin, CloudOff,
 } from "lucide-react";
-import { mockStores, type VisitRecord } from "@/app/lib/mock-data";
+import type { VisitRecord } from "@/app/lib/types";
+import { mockStores } from "@/app/lib/mock-data";
 
 type GeoState = "idle" | "searching" | "granted" | "denied";
 type Status = "completed" | "skipped" | "anomaly";
+
+interface StoreInfo {
+  store_id: string;
+  name: string;
+  address: string | null;
+}
 
 const isMobileDevice = () =>
   typeof window !== "undefined" &&
   /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
+function resolveStore(storeId: string): StoreInfo | null {
+  // Check mock stores first
+  const mock = mockStores.find((s) => s.store_id === storeId);
+  if (mock) return { store_id: mock.store_id, name: mock.name, address: mock.address };
+
+  // Check sessionStorage extra stores
+  const extras: StoreInfo[] = JSON.parse(
+    typeof window !== "undefined" ? sessionStorage.getItem("pv_extra_stores") || "[]" : "[]"
+  );
+  return extras.find((s) => s.store_id === storeId) ?? null;
+}
+
 export default function CheckInPage({ params }: { params: { storeId: string } }) {
   const { storeId } = params;
   const router = useRouter();
-  const store = mockStores.find((s) => s.store_id === storeId);
 
-  const [geoState, setGeoState] = useState<GeoState>("searching");
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [store, setStore]           = useState<StoreInfo | null | undefined>(undefined);
+  const [geoState, setGeoState]     = useState<GeoState>("searching");
+  const [coords, setCoords]         = useState<{ lat: number; lng: number } | null>(null);
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const [observations, setObservations] = useState("");
-  const [status, setStatus] = useState<Status>("completed");
+  const [status, setStatus]         = useState<Status>("completed");
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted]   = useState(false);
   const [showWebcam, setShowWebcam] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const videoRef    = useRef<HTMLVideoElement>(null);
+  const canvasRef   = useRef<HTMLCanvasElement>(null);
+  const streamRef   = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Resolve store from mock data or sessionStorage extra stores
+    const extras: StoreInfo[] = JSON.parse(sessionStorage.getItem("pv_extra_stores") || "[]");
+    const extraMatch = extras.find((s) => s.store_id === storeId);
+    if (extraMatch) { setStore(extraMatch); return; }
+
+    const mock = mockStores.find((s) => s.store_id === storeId);
+    setStore(mock ? { store_id: mock.store_id, name: mock.name, address: mock.address } : null);
+  }, [storeId]);
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
@@ -46,10 +75,19 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
   }, []);
 
   useEffect(() => {
-    return () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-    };
+    return () => { streamRef.current?.getTracks().forEach((t) => t.stop()); };
   }, []);
+
+  if (store === undefined) {
+    return (
+      <div className="app-shell">
+        <div className="empty-state">
+          <Loader2 size={36} color="var(--accent-light)" style={{ animation: "spin 0.7s linear infinite" }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
 
   if (!store) {
     return (
@@ -57,9 +95,7 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
         <div className="empty-state">
           <MapPin size={52} color="var(--text-muted)" strokeWidth={1} />
           <div className="empty-title">Tienda no encontrada</div>
-          <button className="btn btn-secondary btn-sm" onClick={() => router.back()}>
-            Volver
-          </button>
+          <button className="btn btn-secondary btn-sm" onClick={() => router.back()}>Volver</button>
         </div>
       </div>
     );
@@ -102,8 +138,7 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d")?.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-    setPhotoDataUrl(dataUrl);
+    setPhotoDataUrl(canvas.toDataURL("image/jpeg", 0.85));
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     setShowWebcam(false);
@@ -115,7 +150,7 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
     setShowWebcam(false);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!photoDataUrl) {
       alert("La foto del punto de venta es obligatoria. Captura una imagen para continuar.");
       return;
@@ -123,13 +158,13 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
     setSubmitting(true);
 
     const visitRecord: VisitRecord = {
-      visit_id: crypto.randomUUID(),
-      store_id: storeId,
-      check_in_time: new Date().toISOString(),
+      visit_id:          crypto.randomUUID(),
+      store_id:          storeId,
+      check_in_time:     new Date().toISOString(),
       check_in_location: coords,
       observations,
       status,
-      synced: false,
+      synced:            false, // will sync when Supabase is wired up
     };
 
     const existing = JSON.parse(sessionStorage.getItem("pv_visits") || "[]");
@@ -139,12 +174,10 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
     statuses[storeId] = status;
     sessionStorage.setItem("pv_store_statuses", JSON.stringify(statuses));
 
-    await new Promise((r) => setTimeout(r, 800));
     setSubmitting(false);
     setSubmitted(true);
   };
 
-  /* ── Success ── */
   if (submitted) {
     const StatusIcon = { completed: CheckCircle2, skipped: AlertTriangle, anomaly: ShieldAlert }[status];
     const statusColor = { completed: "var(--success)", skipped: "var(--warning)", anomaly: "var(--danger)" }[status];
@@ -161,7 +194,7 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
           </p>
           <div className="sync-banner" style={{ maxWidth: "100%" }}>
             <CloudOff size={14} />
-            Pendiente de sincronización — se enviará al recuperar conexión.
+            Guardado localmente — se sincronizará al conectar Supabase.
           </div>
           <button
             id="btn-back-to-route"
@@ -177,16 +210,11 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
     );
   }
 
-  /* ── Main Form ── */
-  const statusOptions: { value: Status; Icon: React.ElementType; label: string; color: string }[] = [
-    { value: "completed", Icon: CheckCircle2,  label: "Completado", color: "var(--success)" },
-    { value: "skipped",   Icon: AlertTriangle, label: "Omitido",    color: "var(--warning)" },
-    { value: "anomaly",   Icon: ShieldAlert,   label: "Anomalía",   color: "var(--danger)"  },
+  const statusOptions: { value: Status; Icon: React.ElementType; label: string }[] = [
+    { value: "completed", Icon: CheckCircle2,  label: "Completado" },
+    { value: "skipped",   Icon: AlertTriangle, label: "Omitido"    },
+    { value: "anomaly",   Icon: ShieldAlert,   label: "Anomalía"   },
   ];
-
-  const gpsChipClass =
-    geoState === "searching" ? "gps-searching" :
-    geoState === "denied"    ? "gps-error" : "";
 
   const gpsLabel =
     geoState === "searching" ? "Obteniendo GPS..." :
@@ -209,7 +237,6 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
       </header>
 
       <main className="main-content">
-        {/* Store Info */}
         <div className="card">
           <div style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "4px" }}>
             Registrando visita en
@@ -221,16 +248,14 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
           </div>
         </div>
 
-        {/* GPS */}
         <div className="flex items-center gap-2">
-          <span className={`gps-chip ${gpsChipClass}`}>
+          <span className={`gps-chip ${geoState === "searching" ? "gps-searching" : geoState === "denied" ? "gps-error" : ""}`}>
             <span className="gps-dot" />
             <Navigation2 size={12} />
             {gpsLabel}
           </span>
         </div>
 
-        {/* Camera */}
         <div className="form-group">
           <label className="form-label">Foto del punto de venta *</label>
 
@@ -243,7 +268,6 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
             onChange={handleMobilePhotoChange}
           />
 
-          {/* Webcam modal */}
           {showWebcam && (
             <div className="modal-overlay">
               <div className="modal-sheet" style={{ maxHeight: "90vh", overflow: "hidden" }}>
@@ -257,9 +281,7 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
                   <Camera size={16} />
                   Capturar foto
                 </button>
-                <button className="btn btn-secondary" onClick={handleCloseWebcam}>
-                  Cancelar
-                </button>
+                <button className="btn btn-secondary" onClick={handleCloseWebcam}>Cancelar</button>
               </div>
             </div>
           )}
@@ -290,7 +312,6 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
           </div>
         </div>
 
-        {/* Status */}
         <div className="form-group">
           <label className="form-label">Estado de la visita</label>
           <div className="status-grid">
@@ -312,7 +333,6 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
           </div>
         </div>
 
-        {/* Observations */}
         <div className="form-group">
           <label className="form-label" htmlFor="observations">Observaciones (opcional)</label>
           <textarea
@@ -324,7 +344,6 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
           />
         </div>
 
-        {/* Submit */}
         <button
           id="btn-submit-checkin"
           className="btn btn-primary"
@@ -340,7 +359,7 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
         </button>
 
         <p className="text-xs text-muted" style={{ textAlign: "center" }}>
-          Si no hay conexión, la visita se guardará localmente y se sincronizará automáticamente.
+          La visita se guarda localmente y se sincronizará cuando Supabase esté conectado.
         </p>
       </main>
 

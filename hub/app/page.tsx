@@ -2,16 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Map, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import Image from "next/image";
+import { DEMO_EMAIL, DEMO_PASSWORD } from "./lib/auth-context";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState("");
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -22,28 +24,30 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    // MOCK: Simulate login — swap for Supabase Auth later
-    await new Promise((res) => setTimeout(res, 1200));
-
-    if (email === "demo@ponzivenzo.com" && password === "demo123") {
-      router.push("/ruta");
-    } else {
-      setError("Credenciales incorrectas. Intenta con demo@ponzivenzo.com / demo123");
-      setLoading(false);
+    if (email.trim().toLowerCase() === DEMO_EMAIL && password.trim() === DEMO_PASSWORD) {
+      localStorage.setItem("pv_demo_mode", "true");
+      router.push("/select");
+      return;
     }
+
+    // Any other credentials are rejected in demo mode
+    setLoading(false);
+    setError("Credenciales incorrectas. Usa demo@ponzivenzo.com / demo123.");
   };
 
   return (
     <div className="login-screen">
       {/* Logo */}
       <div className="login-logo">
-        <div className="login-logo-mark">
-          <Map size={36} color="white" strokeWidth={1.5} />
-        </div>
-        <div>
-          <div className="login-app-name">PV Tracker</div>
-          <div className="login-tagline">Ponzivenzo Smart Tracker</div>
-        </div>
+        <Image
+          src="/pb_logo.png"
+          alt="Ponce & Benzo"
+          width={220}
+          height={120}
+          className="login-logo-img"
+          priority
+        />
+        <div className="login-tagline">Smart Tracker</div>
       </div>
 
       {/* Login Card */}
@@ -61,11 +65,11 @@ export default function LoginPage() {
           <div
             style={{
               padding: "12px 14px",
-              background: "var(--danger-bg)",
+              background: "rgba(244,63,94,0.08)",
               border: "1px solid rgba(244,63,94,0.25)",
               borderRadius: "var(--radius-md)",
               fontSize: "13px",
-              color: "var(--danger)",
+              color: "#f43f5e",
               fontWeight: 500,
             }}
           >
@@ -81,7 +85,7 @@ export default function LoginPage() {
             id="email"
             className="form-input"
             type="email"
-            placeholder="usuario@ponzivenzo.com"
+            placeholder="demo@ponzivenzo.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
@@ -122,7 +126,7 @@ export default function LoginPage() {
         </button>
 
         <p className="text-muted text-xs" style={{ textAlign: "center" }}>
-          Problemas para acceder? Contacta a tu supervisor.
+          ¿Problemas para acceder? Contacta a tu supervisor.
         </p>
       </form>
 

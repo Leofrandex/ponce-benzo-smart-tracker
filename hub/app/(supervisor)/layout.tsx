@@ -3,10 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Route, ClipboardList, LogOut } from "lucide-react";
+import { LogOut, LayoutDashboard, ClipboardList, Map, Building2 } from "lucide-react";
 import PageTransition from "@/app/components/PageTransition";
 
-export default function HubLayout({
+export default function SupervisorLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -15,8 +15,10 @@ export default function HubLayout({
   const router = useRouter();
 
   const navItems = [
-    { href: "/ruta",      icon: Route,        label: "Mi Ruta"   },
-    { href: "/historial", icon: ClipboardList, label: "Historial" },
+    { href: "/supervisor",           icon: LayoutDashboard, label: "Panel"     },
+    { href: "/supervisor/contactos", icon: Building2,       label: "Contactos" },
+    { href: "/supervisor/tareas",    icon: ClipboardList,   label: "Tareas"    },
+    { href: "/supervisor/mapa",      icon: Map,             label: "Mapa"      },
   ];
 
   const dateStr = new Date().toLocaleDateString("es-VE", {
@@ -33,12 +35,15 @@ export default function HubLayout({
           <Image src="/pb_logo.png" alt="Ponce & Benzo" width={120} height={60} style={{ objectFit: "contain" }} />
         </div>
 
-        <div className="sidebar-section-label">Mercaderista</div>
+        <div className="sidebar-section-label">Supervisor</div>
 
         <nav className="sidebar-nav">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const active = pathname.startsWith(item.href);
+            const active =
+              item.href === "/supervisor"
+                ? pathname === "/supervisor"
+                : pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}
@@ -65,9 +70,8 @@ export default function HubLayout({
         </div>
       </aside>
 
-      {/* ── MAIN WRAPPER (header + content) ── */}
+      {/* ── MAIN WRAPPER ── */}
       <div className="main-wrapper">
-        {/* Header */}
         <header className="header">
           <div className="header-logo">
             <Image src="/pb_logo.png" alt="Ponce & Benzo" width={90} height={44} style={{ objectFit: "contain" }} />
@@ -104,12 +108,14 @@ export default function HubLayout({
         <nav className="bottom-nav">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const active = pathname.startsWith(item.href);
+            const active =
+              item.href === "/supervisor"
+                ? pathname === "/supervisor"
+                : pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                id={`nav-${item.label.toLowerCase().replace(" ", "-")}`}
                 className={`nav-item ${active ? "active" : ""}`}
               >
                 <Icon size={22} strokeWidth={active ? 2.2 : 1.8} />

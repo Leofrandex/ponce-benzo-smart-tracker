@@ -1,19 +1,20 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { AuthProvider } from "./lib/auth-context";
 
 export const metadata: Metadata = {
-  title: "Ponzivenzo Smart Tracker",
+  title: "Ponce & Benzo Smart Tracker",
   description: "Hub del Mercaderista — Gestión de rutas y visitas en campo",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "PV Tracker",
+    statusBarStyle: "default",
+    title: "P&B Tracker",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#6c47ff",
+  themeColor: "#00205C",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -32,7 +33,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

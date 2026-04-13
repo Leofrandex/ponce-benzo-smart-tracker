@@ -88,6 +88,13 @@ ALTER TABLE routes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE visits ENABLE ROW LEVEL SECURITY;
 
+-- Drop policies first so this script is safe to re-run
+DROP POLICY IF EXISTS "stores_read_authenticated" ON stores;
+DROP POLICY IF EXISTS "users_own_profile" ON users;
+DROP POLICY IF EXISTS "routes_own" ON routes;
+DROP POLICY IF EXISTS "sessions_own" ON sessions;
+DROP POLICY IF EXISTS "visits_own" ON visits;
+
 -- stores: All authenticated users can read
 CREATE POLICY "stores_read_authenticated" ON stores
   FOR SELECT TO authenticated USING (TRUE);
@@ -116,3 +123,5 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_visits_session ON visits(session_id);
 CREATE INDEX IF NOT EXISTS idx_visits_store ON visits(store_id);
 CREATE INDEX IF NOT EXISTS idx_visits_synced ON visits(synced) WHERE synced = FALSE;
+
+
