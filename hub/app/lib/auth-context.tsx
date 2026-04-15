@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { User } from "./types";
 
-export const DEMO_EMAIL    = "demo@ponzivenzo.com";
+export const DEMO_EMAIL    = "demo@poncebenzo.com";
 export const DEMO_PASSWORD = "demo123";
 
 const DEMO_PROFILE: User = {

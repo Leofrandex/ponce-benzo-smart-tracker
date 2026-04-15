@@ -164,7 +164,7 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
       check_in_location: coords,
       observations,
       status,
-      synced:            false, // will sync when Supabase is wired up
+      synced:            false,
     };
 
     const existing = JSON.parse(sessionStorage.getItem("pv_visits") || "[]");
@@ -194,7 +194,7 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
           </p>
           <div className="sync-banner" style={{ maxWidth: "100%" }}>
             <CloudOff size={14} />
-            Guardado localmente — se sincronizará al conectar Supabase.
+            Guardado localmente — pendiente de sincronización.
           </div>
           <button
             id="btn-back-to-route"
@@ -359,7 +359,7 @@ export default function CheckInPage({ params }: { params: { storeId: string } })
         </button>
 
         <p className="text-xs text-muted" style={{ textAlign: "center" }}>
-          La visita se guarda localmente y se sincronizará cuando Supabase esté conectado.
+          La visita se guarda localmente y se sincronizará al conectar.
         </p>
       </main>
 

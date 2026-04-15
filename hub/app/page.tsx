@@ -33,7 +33,7 @@ export default function LoginPage() {
 
     // Any other credentials are rejected in demo mode
     setLoading(false);
-    setError("Credenciales incorrectas. Usa demo@ponzivenzo.com / demo123.");
+    setError("Credenciales incorrectas. Usa demo@poncebenzo.com / demo123.");
   };
 
   return (
@@ -86,7 +86,7 @@ export default function LoginPage() {
             id="email"
             className="form-input"
             type="email"
-            placeholder="demo@ponzivenzo.com"
+            placeholder="demo@poncebenzo.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"

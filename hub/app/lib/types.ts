@@ -1,4 +1,4 @@
-// Database types matching tools/supabase_schema.sql
+// App domain types
 
 export interface Store {
   store_id: string;

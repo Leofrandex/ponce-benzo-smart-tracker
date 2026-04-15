@@ -403,7 +403,7 @@ export default function MapaPage() {
             <h4 style={{ fontWeight: 700, fontSize: "14px", marginBottom: "4px" }}>Modo Supervisor Activo</h4>
             <p className="text-xs text-muted" style={{ lineHeight: 1.5 }}>
               Estás visualizando el rastro GPS capturado por cada dispositivo. Los puntos se actualizan
-              automáticamente vía Supabase Realtime.
+              automáticamente al sincronizar.
             </p>
           </div>
         </div>
