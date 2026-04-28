@@ -27,7 +27,7 @@ export default function LoginPage() {
 
     if (email.trim().toLowerCase() === DEMO_EMAIL && password.trim() === DEMO_PASSWORD) {
       signIn();
-      router.push("/select");
+      router.push("/supervisor");
       return;
     }
 

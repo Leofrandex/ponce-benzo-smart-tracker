@@ -21,6 +21,18 @@ hub/node_modules/
 hub/.next/
 hub/out/
 hub/.vercel
+node_modules/
+mobile/node_modules/
+
+# Expo
+mobile/.expo/
+
+# Claude Code / AI tooling (local only)
+.claude/
+hub/.claude/
+.agents/
+skills-lock.json
+superpowers/
 
 # OS
 .DS_Store
