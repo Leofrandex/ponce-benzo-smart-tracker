@@ -196,6 +196,39 @@ CREATE TRIGGER trg_visit_anomaly_task
   FOR EACH ROW EXECUTE FUNCTION fn_create_task_from_anomaly();
 
 -- ============================================================
+-- TABLE: competitor_brands (lookup editable de marcas competidoras)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS competitor_brands (
+  brand_id  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name      TEXT NOT NULL UNIQUE,
+  active    BOOLEAN DEFAULT TRUE
+);
+
+-- ============================================================
+-- TABLE: competition_reports (reportaje de competencia en campo)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS competition_reports (
+  report_id       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  session_id      UUID REFERENCES sessions(session_id) ON DELETE CASCADE,
+  store_id        UUID REFERENCES stores(store_id) ON DELETE SET NULL,
+  user_id         UUID REFERENCES users(id) ON DELETE CASCADE,
+  brand_id        UUID REFERENCES competitor_brands(brand_id) ON DELETE SET NULL,
+  activation_type TEXT CHECK (activation_type IN
+    ('promocion','material_pop','espacios_exhibiciones','impulso_activacion','degustacion','otro')),
+  photo_urls      TEXT[] DEFAULT '{}',
+  notes           TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  synced          BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE INDEX IF NOT EXISTS idx_comp_reports_session ON competition_reports(session_id);
+CREATE INDEX IF NOT EXISTS idx_comp_reports_store   ON competition_reports(store_id);
+
+-- Seed editable (no-op si ya existen)
+INSERT INTO competitor_brands (name) VALUES
+  ('Genérico / Sin marca')
+ON CONFLICT (name) DO NOTHING;
+
+-- ============================================================
 -- ROW LEVEL SECURITY (RLS) Policies
 -- ============================================================
 
