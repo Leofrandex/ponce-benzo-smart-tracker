@@ -105,6 +105,9 @@ export interface StoreKPIs {
 
 // ── Supervisor types (no DB tables yet — backed by mock data) ─────────────────
 
+// NOTE: TaskType / TaskStatus / SupervisorTask below are MOCK-ONLY UI types (English
+// vocabulary), kept until the CRM UI is reconciled with the live `tasks` table.
+// For DB-backed tasks use `Task` + `DbTaskType` (Spanish DB vocabulary) instead.
 export type TaskType =
   | "restock"
   | "contact_manager"
@@ -169,6 +172,8 @@ export interface ContactEngagement {
   created_at: string;
 }
 
+// DB-backed task types (mirror tasks.task_type values produced by the anomaly trigger).
+// Distinct from the mock-only `TaskType` above — see note there.
 export type DbTaskType =
   | "reponer_stock" | "contactar_comprador" | "contactar_gerente" | "revisar_anomalia";
 
@@ -178,7 +183,7 @@ export interface Task {
   created_by_user_id: string | null;
   store_id: string | null;
   source_visit_id: string | null;
-  task_type: DbTaskType | string;
+  task_type: DbTaskType | (string & {});
   title: string | null;
   status: "pending" | "in_progress" | "done";
   created_at: string;

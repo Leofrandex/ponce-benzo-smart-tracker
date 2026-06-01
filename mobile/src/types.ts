@@ -113,6 +113,7 @@ export interface ContactEngagement {
   created_at: string;
 }
 
+// DB-backed task types (mirror tasks.task_type values from the anomaly trigger).
 export type DbTaskType =
   | 'reponer_stock' | 'contactar_comprador' | 'contactar_gerente' | 'revisar_anomalia';
 
@@ -122,7 +123,7 @@ export interface Task {
   created_by_user_id: string | null;
   store_id: string | null;
   source_visit_id: string | null;
-  task_type: DbTaskType | string;
+  task_type: DbTaskType | (string & {});
   title: string | null;
   status: 'pending' | 'in_progress' | 'done';
   created_at: string;
