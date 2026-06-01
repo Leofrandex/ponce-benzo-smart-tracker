@@ -97,6 +97,9 @@ CREATE TABLE IF NOT EXISTS routes (
   UNIQUE (user_id, route_date)
 );
 
+-- ── routes: marca de ruta especial (ej. 24/31 dic) ──
+ALTER TABLE routes ADD COLUMN IF NOT EXISTS is_special BOOLEAN NOT NULL DEFAULT FALSE;
+
 -- ============================================================
 -- TABLE: sessions (Route session tracking)
 -- ============================================================
