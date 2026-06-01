@@ -23,6 +23,18 @@ CREATE TABLE IF NOT EXISTS stores (
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ── stores: segmentación CRM (zona, canal, clasificación) ──
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS estado           TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS municipio        TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS urbanizacion     TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS business_channel TEXT
+  CHECK (business_channel IN ('drogueria','farmacia','supermercado','autoservicio','mayorista','otro'));
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS classification   TEXT
+  CHECK (classification IN ('A','B','C'));
+CREATE INDEX IF NOT EXISTS idx_stores_estado         ON stores(estado);
+CREATE INDEX IF NOT EXISTS idx_stores_channel        ON stores(business_channel);
+CREATE INDEX IF NOT EXISTS idx_stores_classification ON stores(classification);
+
 -- ============================================================
 -- TABLE: users (Merchandiser profiles — linked to Supabase Auth)
 -- ============================================================
