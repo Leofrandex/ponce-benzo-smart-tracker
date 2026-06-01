@@ -136,6 +136,23 @@ ALTER TABLE visits ADD COLUMN IF NOT EXISTS last_restock_date DATE;
 CREATE INDEX IF NOT EXISTS idx_visits_last_restock ON visits(store_id, last_restock_date);
 
 -- ============================================================
+-- TABLE: tasks (tareas; asignadas al supervisor del vendedor)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS tasks (
+  task_id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  assignee_user_id   UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  store_id           UUID REFERENCES stores(store_id) ON DELETE SET NULL,
+  source_visit_id    UUID REFERENCES visits(visit_id) ON DELETE SET NULL,
+  task_type          TEXT NOT NULL,
+  title              TEXT,
+  status             TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','in_progress','done')),
+  created_at         TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_store    ON tasks(store_id);
+
+-- ============================================================
 -- ROW LEVEL SECURITY (RLS) Policies
 -- ============================================================
 
