@@ -157,7 +157,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_store    ON tasks(store_id);
 
 -- ── Generación automática de tareas desde anomalías ──
 CREATE OR REPLACE FUNCTION fn_task_type_from_anomaly(p_anomaly TEXT)
-RETURNS TEXT LANGUAGE sql IMMUTABLE AS $$
+RETURNS TEXT LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
   SELECT CASE p_anomaly
     WHEN 'sin_stock'          THEN 'reponer_stock'
     WHEN 'cambio_planograma'  THEN 'contactar_comprador'
@@ -167,24 +167,27 @@ RETURNS TEXT LANGUAGE sql IMMUTABLE AS $$
   END;
 $$;
 
+-- INVARIANTE: el cliente debe escribir status='anomaly' y anomaly_type en el MISMO INSERT
+-- (regla "Payload Completa"). El trigger lee NEW.anomaly_type en el AFTER INSERT; no hay
+-- upgrade del task_type si anomaly_type se actualiza después.
 CREATE OR REPLACE FUNCTION fn_create_task_from_anomaly()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = '' AS $$
 DECLARE
   v_supervisor UUID;
 BEGIN
   IF NEW.status = 'anomaly' THEN
     -- no duplicar si ya existe tarea para esta visita
-    IF EXISTS (SELECT 1 FROM tasks WHERE source_visit_id = NEW.visit_id) THEN
+    IF EXISTS (SELECT 1 FROM public.tasks WHERE source_visit_id = NEW.visit_id) THEN
       RETURN NEW;
     END IF;
-    SELECT supervisor_id INTO v_supervisor FROM users WHERE id = NEW.user_id;
-    INSERT INTO tasks (assignee_user_id, created_by_user_id, store_id, source_visit_id, task_type, title, status)
+    SELECT supervisor_id INTO v_supervisor FROM public.users WHERE id = NEW.user_id;
+    INSERT INTO public.tasks (assignee_user_id, created_by_user_id, store_id, source_visit_id, task_type, title, status)
     VALUES (
       v_supervisor,
       NEW.user_id,
       NEW.store_id,
       NEW.visit_id,
-      fn_task_type_from_anomaly(NEW.anomaly_type),
+      public.fn_task_type_from_anomaly(NEW.anomaly_type),
       'Anomalía: ' || COALESCE(NEW.anomaly_type, 'otro'),
       'pending'
     );
@@ -302,7 +305,8 @@ CREATE POLICY "engagements_write_auth" ON contact_engagements
   FOR ALL TO authenticated
   USING (author_user_id = auth.uid()
          OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('supervisor','admin')))
-  WITH CHECK (TRUE);
+  WITH CHECK (author_user_id = auth.uid()
+              OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('supervisor','admin')));
 
 -- tasks: el asignado ve/edita sus tareas; supervisor ve las de sus vendedores
 CREATE POLICY "tasks_assignee" ON tasks
