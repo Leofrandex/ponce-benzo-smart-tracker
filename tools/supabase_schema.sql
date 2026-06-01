@@ -36,6 +36,40 @@ CREATE INDEX IF NOT EXISTS idx_stores_channel        ON stores(business_channel)
 CREATE INDEX IF NOT EXISTS idx_stores_classification ON stores(classification);
 
 -- ============================================================
+-- TABLE: contacts (varios contactos por tienda — CRM)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS contacts (
+  contact_id  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  store_id    UUID NOT NULL REFERENCES stores(store_id) ON DELETE CASCADE,
+  full_name   TEXT NOT NULL,
+  role_title  TEXT,
+  phone       TEXT,
+  email       TEXT,
+  birthday    DATE,
+  is_primary  BOOLEAN DEFAULT FALSE,
+  active      BOOLEAN DEFAULT TRUE,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_contacts_store ON contacts(store_id);
+
+-- ============================================================
+-- TABLE: contact_engagements (bitácora estructurada: notas + to-dos)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS contact_engagements (
+  engagement_id  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  store_id       UUID NOT NULL REFERENCES stores(store_id) ON DELETE CASCADE,
+  contact_id     UUID REFERENCES contacts(contact_id) ON DELETE SET NULL,
+  author_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  type           TEXT NOT NULL CHECK (type IN ('note','todo')),
+  body           TEXT NOT NULL,
+  status         TEXT CHECK (status IN ('open','done')),
+  due_date       DATE,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_engagements_store   ON contact_engagements(store_id);
+CREATE INDEX IF NOT EXISTS idx_engagements_contact ON contact_engagements(contact_id);
+
+-- ============================================================
 -- TABLE: users (Merchandiser profiles — linked to Supabase Auth)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS users (
