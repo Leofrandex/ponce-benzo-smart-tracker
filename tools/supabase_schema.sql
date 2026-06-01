@@ -152,6 +152,49 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_store    ON tasks(store_id);
 
+-- ── Generación automática de tareas desde anomalías ──
+CREATE OR REPLACE FUNCTION fn_task_type_from_anomaly(p_anomaly TEXT)
+RETURNS TEXT LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE p_anomaly
+    WHEN 'sin_stock'          THEN 'reponer_stock'
+    WHEN 'cambio_planograma'  THEN 'contactar_comprador'
+    WHEN 'diferencia_precios' THEN 'contactar_comprador'
+    WHEN 'producto_danado'    THEN 'contactar_gerente'
+    ELSE 'revisar_anomalia'
+  END;
+$$;
+
+CREATE OR REPLACE FUNCTION fn_create_task_from_anomaly()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+DECLARE
+  v_supervisor UUID;
+BEGIN
+  IF NEW.status = 'anomaly' THEN
+    -- no duplicar si ya existe tarea para esta visita
+    IF EXISTS (SELECT 1 FROM tasks WHERE source_visit_id = NEW.visit_id) THEN
+      RETURN NEW;
+    END IF;
+    SELECT supervisor_id INTO v_supervisor FROM users WHERE id = NEW.user_id;
+    INSERT INTO tasks (assignee_user_id, created_by_user_id, store_id, source_visit_id, task_type, title, status)
+    VALUES (
+      v_supervisor,
+      NEW.user_id,
+      NEW.store_id,
+      NEW.visit_id,
+      fn_task_type_from_anomaly(NEW.anomaly_type),
+      'Anomalía: ' || COALESCE(NEW.anomaly_type, 'otro'),
+      'pending'
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_visit_anomaly_task ON visits;
+CREATE TRIGGER trg_visit_anomaly_task
+  AFTER INSERT OR UPDATE OF status ON visits
+  FOR EACH ROW EXECUTE FUNCTION fn_create_task_from_anomaly();
+
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS) Policies
 -- ============================================================
