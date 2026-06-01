@@ -127,6 +127,14 @@ CREATE TABLE IF NOT EXISTS visits (
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ── visits: anomalías tipificadas, motivo de omisión, última reposición ──
+ALTER TABLE visits ADD COLUMN IF NOT EXISTS anomaly_type      TEXT
+  CHECK (anomaly_type IN ('sin_stock','cambio_planograma','diferencia_precios','producto_danado','otro'));
+ALTER TABLE visits ADD COLUMN IF NOT EXISTS skip_reason       TEXT
+  CHECK (skip_reason IN ('fuera_de_ruta','sin_acceso','otro'));
+ALTER TABLE visits ADD COLUMN IF NOT EXISTS last_restock_date DATE;
+CREATE INDEX IF NOT EXISTS idx_visits_last_restock ON visits(store_id, last_restock_date);
+
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS) Policies
 -- ============================================================
