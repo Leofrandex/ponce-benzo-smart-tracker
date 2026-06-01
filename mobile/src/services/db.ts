@@ -51,6 +51,7 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
       created_at      TEXT NOT NULL,
       synced          INTEGER NOT NULL DEFAULT 0
     );
+    -- TODO: writer + sync functions pending CRM competition-report feature
   `);
 
   // Migraciones idempotentes de columnas (SQLite no soporta ADD COLUMN IF NOT EXISTS)
@@ -61,11 +62,13 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
     ['skip_reason', 'TEXT'],
     ['last_restock_date', 'TEXT'],
   ];
-  for (const [col, type] of toAdd) {
-    if (!have.has(col)) {
-      await db.execAsync(`ALTER TABLE visits ADD COLUMN ${col} ${type}`);
+  await db.withTransactionAsync(async () => {
+    for (const [col, type] of toAdd) {
+      if (!have.has(col)) {
+        await db.execAsync(`ALTER TABLE visits ADD COLUMN ${col} ${type}`);
+      }
     }
-  }
+  });
 }
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
