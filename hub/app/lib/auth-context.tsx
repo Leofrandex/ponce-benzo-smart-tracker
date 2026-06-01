@@ -7,12 +7,13 @@ export const DEMO_EMAIL    = "demo@poncebenzo.com";
 export const DEMO_PASSWORD = "demo123";
 
 const DEMO_PROFILE: User = {
-  id:         "demo-supervisor-001",
-  full_name:  "Ana Martínez",
-  email:      DEMO_EMAIL,
-  role:       "supervisor",
-  active:     true,
-  created_at: "2024-01-01T00:00:00Z",
+  id:            "demo-supervisor-001",
+  full_name:     "Ana Martínez",
+  email:         DEMO_EMAIL,
+  role:          "supervisor",
+  active:        true,
+  created_at:    "2024-01-01T00:00:00Z",
+  supervisor_id: null,
 };
 
 interface AuthContextType {

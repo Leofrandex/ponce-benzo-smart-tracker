@@ -11,6 +11,13 @@ export interface Store {
   contact_name: string | null;
   contact_phone: string | null;
   contact_email: string | null;
+  estado: string | null;
+  municipio: string | null;
+  urbanizacion: string | null;
+  business_channel:
+    | "drogueria" | "farmacia" | "supermercado"
+    | "autoservicio" | "mayorista" | "otro" | null;
+  classification: "A" | "B" | "C" | null;
 }
 
 export interface User {
@@ -20,6 +27,7 @@ export interface User {
   role: "merchandiser" | "supervisor" | "admin";
   active: boolean;
   created_at: string;
+  supervisor_id: string | null;
 }
 
 export interface Route {
@@ -28,6 +36,7 @@ export interface Route {
   route_date: string; // ISO date string "YYYY-MM-DD"
   store_ids: string[];
   created_at: string;
+  is_special: boolean;
 }
 
 export interface Session {
@@ -52,6 +61,11 @@ export interface Visit {
   status: "completed" | "skipped" | "anomaly";
   synced: boolean;
   created_at: string;
+  anomaly_type:
+    | "sin_stock" | "cambio_planograma" | "diferencia_precios"
+    | "producto_danado" | "otro" | null;
+  skip_reason: "fuera_de_ruta" | "sin_acceso" | "otro" | null;
+  last_restock_date: string | null;
 }
 
 // Client-only status (pending = no visit recorded yet)
@@ -128,4 +142,65 @@ export interface SupervisorReport {
   photos_count: number;
   location_verified: boolean;
   tasks_count: number;
+}
+
+export interface Contact {
+  contact_id: string;
+  store_id: string;
+  full_name: string;
+  role_title: string | null;
+  phone: string | null;
+  email: string | null;
+  birthday: string | null;
+  is_primary: boolean;
+  active: boolean;
+  created_at: string;
+}
+
+export interface ContactEngagement {
+  engagement_id: string;
+  store_id: string;
+  contact_id: string | null;
+  author_user_id: string | null;
+  type: "note" | "todo";
+  body: string;
+  status: "open" | "done" | null;
+  due_date: string | null;
+  created_at: string;
+}
+
+export type DbTaskType =
+  | "reponer_stock" | "contactar_comprador" | "contactar_gerente" | "revisar_anomalia";
+
+export interface Task {
+  task_id: string;
+  assignee_user_id: string | null;
+  created_by_user_id: string | null;
+  store_id: string | null;
+  source_visit_id: string | null;
+  task_type: DbTaskType | string;
+  title: string | null;
+  status: "pending" | "in_progress" | "done";
+  created_at: string;
+}
+
+export interface CompetitorBrand {
+  brand_id: string;
+  name: string;
+  active: boolean;
+}
+
+export interface CompetitionReport {
+  report_id: string;
+  session_id: string | null;
+  store_id: string | null;
+  user_id: string;
+  brand_id: string | null;
+  activation_type:
+    | "promocion" | "material_pop" | "espacios_exhibiciones"
+    | "impulso_activacion" | "degustacion" | "otro" | null;
+  photo_urls: string[];
+  notes: string | null;
+  created_at: string;
+  synced: boolean;
 }
