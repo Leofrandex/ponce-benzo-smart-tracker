@@ -269,6 +269,70 @@ CREATE POLICY "sessions_own" ON sessions
 CREATE POLICY "visits_own" ON visits
   FOR ALL TO authenticated USING (auth.uid() = user_id);
 
+-- ── RLS de tablas nuevas + visibilidad de supervisor ──
+ALTER TABLE contacts            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contact_engagements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tasks               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE competitor_brands   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE competition_reports ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "contacts_read_auth"        ON contacts;
+DROP POLICY IF EXISTS "contacts_write_staff"      ON contacts;
+DROP POLICY IF EXISTS "engagements_read_auth"     ON contact_engagements;
+DROP POLICY IF EXISTS "engagements_write_auth"    ON contact_engagements;
+DROP POLICY IF EXISTS "tasks_assignee"            ON tasks;
+DROP POLICY IF EXISTS "brands_read_auth"          ON competitor_brands;
+DROP POLICY IF EXISTS "comp_reports_own"          ON competition_reports;
+DROP POLICY IF EXISTS "users_supervisor_read"     ON users;
+DROP POLICY IF EXISTS "routes_supervisor_read"    ON routes;
+DROP POLICY IF EXISTS "visits_supervisor_read"    ON visits;
+
+-- contacts: lectura autenticada; escritura supervisor/admin
+CREATE POLICY "contacts_read_auth" ON contacts
+  FOR SELECT TO authenticated USING (TRUE);
+CREATE POLICY "contacts_write_staff" ON contacts
+  FOR ALL TO authenticated
+  USING (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('supervisor','admin')))
+  WITH CHECK (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('supervisor','admin')));
+
+-- engagements: lectura autenticada; cualquiera autenticado puede registrar (autor)
+CREATE POLICY "engagements_read_auth" ON contact_engagements
+  FOR SELECT TO authenticated USING (TRUE);
+CREATE POLICY "engagements_write_auth" ON contact_engagements
+  FOR ALL TO authenticated
+  USING (author_user_id = auth.uid()
+         OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('supervisor','admin')))
+  WITH CHECK (TRUE);
+
+-- tasks: el asignado ve/edita sus tareas; supervisor ve las de sus vendedores
+CREATE POLICY "tasks_assignee" ON tasks
+  FOR ALL TO authenticated
+  USING (assignee_user_id = auth.uid()
+         OR created_by_user_id = auth.uid()
+         OR EXISTS (SELECT 1 FROM users u WHERE u.id = created_by_user_id AND u.supervisor_id = auth.uid()))
+  WITH CHECK (TRUE);
+
+-- competitor_brands: lectura global autenticada
+CREATE POLICY "brands_read_auth" ON competitor_brands
+  FOR SELECT TO authenticated USING (TRUE);
+
+-- competition_reports: el autor gestiona; supervisor lee las de sus vendedores
+CREATE POLICY "comp_reports_own" ON competition_reports
+  FOR ALL TO authenticated
+  USING (user_id = auth.uid()
+         OR EXISTS (SELECT 1 FROM users u WHERE u.id = competition_reports.user_id AND u.supervisor_id = auth.uid()))
+  WITH CHECK (user_id = auth.uid());
+
+-- Visibilidad de supervisor sobre sus vendedores (ADITIVA a las políticas "_own" existentes)
+CREATE POLICY "users_supervisor_read" ON users
+  FOR SELECT TO authenticated USING (supervisor_id = auth.uid());
+CREATE POLICY "routes_supervisor_read" ON routes
+  FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM users u WHERE u.id = routes.user_id AND u.supervisor_id = auth.uid()));
+CREATE POLICY "visits_supervisor_read" ON visits
+  FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM users u WHERE u.id = visits.user_id AND u.supervisor_id = auth.uid()));
+
 -- ============================================================
 -- INDEXES for performance
 -- ============================================================
