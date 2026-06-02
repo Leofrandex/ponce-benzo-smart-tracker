@@ -5,6 +5,8 @@ import type {
   SupervisorTask,
   SupervisorReport,
   Store,
+  Contact,           // NEW
+  ContactEngagement, // NEW
 } from "./types";
 
 export type {
@@ -18,18 +20,18 @@ export type {
 } from "./types";
 
 export const mockStores: Store[] = [
-  { store_id: "store-001", name: "Farmatodo Las Mercedes",       address: "Av. Las Mercedes, Caracas",                   master_lat: 10.4920, master_lng: -66.8557, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Mónica Rubio",      contact_phone: "(212) 949-8188", contact_email: "proveedores@farmatodo.com",         estado: null, municipio: null, urbanizacion: null, business_channel: "farmacia",      classification: "A" },
-  { store_id: "store-002", name: "Farmatodo Chacao",             address: "Calle Mohedano, El Rosal",                    master_lat: 10.4904, master_lng: -66.8541, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Dayana Villalobos", contact_phone: "(212) 949-8200", contact_email: "dayana.villalobos@farmatodo.com",   estado: null, municipio: null, urbanizacion: null, business_channel: "farmacia",      classification: "A" },
-  { store_id: "store-003", name: "Farmatodo La Trinidad",        address: "C.C. La Trinidad, Caracas",                   master_lat: 10.4751, master_lng: -66.8367, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Andrea Meserón",    contact_phone: "(212) 944-4454", contact_email: "compras.trinidad@farmatodo.com",    estado: null, municipio: null, urbanizacion: null, business_channel: "farmacia",      classification: "B" },
-  { store_id: "store-004", name: "Farmatodo Altamira",           address: "Av. Luis Roche, Altamira",                    master_lat: 10.4958, master_lng: -66.8499, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Omar Espinosa",     contact_phone: "(212) 944-5510", contact_email: "compras.altamira@farmatodo.com",    estado: null, municipio: null, urbanizacion: null, business_channel: "farmacia",      classification: "A" },
-  { store_id: "store-005", name: "Farmatodo Chuao",              address: "Av. Río de Janeiro, Chuao",                   master_lat: 10.4880, master_lng: -66.8604, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Migderis Reina",    contact_phone: "(414) 161-0680", contact_email: "compras.chuao@farmatodo.com",       estado: null, municipio: null, urbanizacion: null, business_channel: "farmacia",      classification: "B" },
-  { store_id: "store-g01", name: "Gama Los Palos Grandes",       address: "Av. Francisco de Miranda, Los Palos Grandes", master_lat: 10.4994, master_lng: -66.8439, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Yanelvis Noria",    contact_phone: "(212) 205-4322", contact_email: "jfrontado@excelsiorgama.com",       estado: null, municipio: null, urbanizacion: null, business_channel: "supermercado",  classification: "A" },
-  { store_id: "store-g02", name: "Gama Bello Campo",             address: "Av. Luis Roche, Bello Campo",                 master_lat: 10.4965, master_lng: -66.8512, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Yesika Toro",       contact_phone: "(414) 161-0680", contact_email: "comprasfrescomarket@gmail.com",     estado: null, municipio: null, urbanizacion: null, business_channel: "supermercado",  classification: "B" },
-  { store_id: "store-g03", name: "Gama La Castellana",           address: "Av. Principal de La Castellana",              master_lat: 10.5013, master_lng: -66.8561, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Jotfren Crespo",    contact_phone: "(212) 362-3984", contact_email: "drogueriacedis@excelsiorgama.com", estado: null, municipio: null, urbanizacion: null, business_channel: "supermercado",  classification: "B" },
-  { store_id: "store-l01", name: "Locatel El Rosal",             address: "Calle La Guairita, El Rosal",                 master_lat: 10.4897, master_lng: -66.8530, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Laris Locatel",     contact_phone: "(212) 203-4565", contact_email: "compras2.elparaiso@locatelve.com", estado: null, municipio: null, urbanizacion: null, business_channel: "drogueria",     classification: "A" },
-  { store_id: "store-l02", name: "Locatel Sambil",               address: "C.C. Sambil, Chacao",                         master_lat: 10.4923, master_lng: -66.8481, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Thailyn López",     contact_phone: "(212) 203-4565", contact_email: "compras1.petare@locatelve.com",    estado: null, municipio: null, urbanizacion: null, business_channel: "drogueria",     classification: "B" },
-  { store_id: "store-s01", name: "Farmacias SAAS Macaracuay",    address: "Av. Principal de Macaracuay",                 master_lat: 10.5041, master_lng: -66.8298, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Angie Labrador",    contact_phone: "(424) 218-6022", contact_email: null,                               estado: null, municipio: null, urbanizacion: null, business_channel: "farmacia",      classification: "C" },
-  { store_id: "store-s02", name: "Farmacias SAAS La Candelaria", address: "Av. Este 2, La Candelaria",                   master_lat: 10.5107, master_lng: -66.9012, active: false, created_at: "2024-01-01T00:00:00Z", contact_name: null,                contact_phone: null,             contact_email: null,                               estado: null, municipio: null, urbanizacion: null, business_channel: null,            classification: null },
+  { store_id: "store-001", name: "Farmatodo Las Mercedes",       address: "Av. Las Mercedes, Caracas",                   master_lat: 10.4920, master_lng: -66.8557, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Mónica Rubio",      contact_phone: "(212) 949-8188", contact_email: "proveedores@farmatodo.com",         estado: "Miranda",          municipio: "Baruta",     urbanizacion: "Las Mercedes",    business_channel: "farmacia",      classification: "A" },
+  { store_id: "store-002", name: "Farmatodo Chacao",             address: "Calle Mohedano, El Rosal",                    master_lat: 10.4904, master_lng: -66.8541, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Dayana Villalobos", contact_phone: "(212) 949-8200", contact_email: "dayana.villalobos@farmatodo.com",   estado: "Miranda",          municipio: "Chacao",     urbanizacion: "El Rosal",        business_channel: "farmacia",      classification: "A" },
+  { store_id: "store-003", name: "Farmatodo La Trinidad",        address: "C.C. La Trinidad, Caracas",                   master_lat: 10.4751, master_lng: -66.8367, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Andrea Meserón",    contact_phone: "(212) 944-4454", contact_email: "compras.trinidad@farmatodo.com",    estado: "Miranda",          municipio: "Baruta",     urbanizacion: "La Trinidad",     business_channel: "farmacia",      classification: "B" },
+  { store_id: "store-004", name: "Farmatodo Altamira",           address: "Av. Luis Roche, Altamira",                    master_lat: 10.4958, master_lng: -66.8499, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Omar Espinosa",     contact_phone: "(212) 944-5510", contact_email: "compras.altamira@farmatodo.com",    estado: "Miranda",          municipio: "Chacao",     urbanizacion: "Altamira",        business_channel: "farmacia",      classification: "A" },
+  { store_id: "store-005", name: "Farmatodo Chuao",              address: "Av. Río de Janeiro, Chuao",                   master_lat: 10.4880, master_lng: -66.8604, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Migderis Reina",    contact_phone: "(414) 161-0680", contact_email: "compras.chuao@farmatodo.com",       estado: "Miranda",          municipio: "Baruta",     urbanizacion: "Chuao",           business_channel: "farmacia",      classification: "B" },
+  { store_id: "store-g01", name: "Gama Los Palos Grandes",       address: "Av. Francisco de Miranda, Los Palos Grandes", master_lat: 10.4994, master_lng: -66.8439, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Yanelvis Noria",    contact_phone: "(212) 205-4322", contact_email: "jfrontado@excelsiorgama.com",       estado: "Miranda",          municipio: "Chacao",     urbanizacion: "Los Palos Grandes", business_channel: "supermercado",  classification: "A" },
+  { store_id: "store-g02", name: "Gama Bello Campo",             address: "Av. Luis Roche, Bello Campo",                 master_lat: 10.4965, master_lng: -66.8512, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Yesika Toro",       contact_phone: "(414) 161-0680", contact_email: "comprasfrescomarket@gmail.com",     estado: "Miranda",          municipio: "Chacao",     urbanizacion: "Bello Campo",     business_channel: "supermercado",  classification: "B" },
+  { store_id: "store-g03", name: "Gama La Castellana",           address: "Av. Principal de La Castellana",              master_lat: 10.5013, master_lng: -66.8561, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Jotfren Crespo",    contact_phone: "(212) 362-3984", contact_email: "drogueriacedis@excelsiorgama.com", estado: "Miranda",          municipio: "Chacao",     urbanizacion: "La Castellana",   business_channel: "supermercado",  classification: "B" },
+  { store_id: "store-l01", name: "Locatel El Rosal",             address: "Calle La Guairita, El Rosal",                 master_lat: 10.4897, master_lng: -66.8530, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Laris Locatel",     contact_phone: "(212) 203-4565", contact_email: "compras2.elparaiso@locatelve.com", estado: "Miranda",          municipio: "Chacao",     urbanizacion: "El Rosal",        business_channel: "drogueria",     classification: "A" },
+  { store_id: "store-l02", name: "Locatel Sambil",               address: "C.C. Sambil, Chacao",                         master_lat: 10.4923, master_lng: -66.8481, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Thailyn López",     contact_phone: "(212) 203-4565", contact_email: "compras1.petare@locatelve.com",    estado: "Miranda",          municipio: "Chacao",     urbanizacion: "Sambil",          business_channel: "drogueria",     classification: "B" },
+  { store_id: "store-s01", name: "Farmacias SAAS Macaracuay",    address: "Av. Principal de Macaracuay",                 master_lat: 10.5041, master_lng: -66.8298, active: true,  created_at: "2024-01-01T00:00:00Z", contact_name: "Angie Labrador",    contact_phone: "(424) 218-6022", contact_email: null,                               estado: "Miranda",          municipio: "Sucre",      urbanizacion: "Macaracuay",      business_channel: "farmacia",      classification: "C" },
+  { store_id: "store-s02", name: "Farmacias SAAS La Candelaria", address: "Av. Este 2, La Candelaria",                   master_lat: 10.5107, master_lng: -66.9012, active: false, created_at: "2024-01-01T00:00:00Z", contact_name: null,                contact_phone: null,             contact_email: null,                               estado: "Distrito Capital", municipio: "Libertador", urbanizacion: "La Candelaria",   business_channel: null,            classification: null },
 ];
 
 export const mockSupervisor = {
@@ -218,6 +220,13 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 4,
     location_verified: true,
     tasks_count: 1,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-001-1/400/300",
+      "https://picsum.photos/seed/visit-001-2/400/300",
+      "https://picsum.photos/seed/visit-001-3/400/300",
+      "https://picsum.photos/seed/visit-001-4/400/300",
+    ],
+    last_restock_date: "2026-05-30",
   },
   {
     visit_id: "visit-002",
@@ -233,6 +242,15 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 6,
     location_verified: true,
     tasks_count: 1,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-002-1/400/300",
+      "https://picsum.photos/seed/visit-002-2/400/300",
+      "https://picsum.photos/seed/visit-002-3/400/300",
+      "https://picsum.photos/seed/visit-002-4/400/300",
+      "https://picsum.photos/seed/visit-002-5/400/300",
+      "https://picsum.photos/seed/visit-002-6/400/300",
+    ],
+    last_restock_date: "2026-05-29",
   },
   {
     visit_id: "visit-003",
@@ -248,6 +266,12 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 3,
     location_verified: true,
     tasks_count: 0,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-003-1/400/300",
+      "https://picsum.photos/seed/visit-003-2/400/300",
+      "https://picsum.photos/seed/visit-003-3/400/300",
+    ],
+    last_restock_date: "2026-05-28",
   },
   {
     visit_id: "visit-004",
@@ -263,6 +287,14 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 5,
     location_verified: true,
     tasks_count: 1,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-004-1/400/300",
+      "https://picsum.photos/seed/visit-004-2/400/300",
+      "https://picsum.photos/seed/visit-004-3/400/300",
+      "https://picsum.photos/seed/visit-004-4/400/300",
+      "https://picsum.photos/seed/visit-004-5/400/300",
+    ],
+    last_restock_date: "2026-05-27",
   },
   {
     visit_id: "visit-005",
@@ -278,6 +310,10 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 1,
     location_verified: false,
     tasks_count: 0,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-005-1/400/300",
+    ],
+    last_restock_date: null,
   },
   {
     visit_id: "visit-006",
@@ -293,6 +329,13 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 4,
     location_verified: true,
     tasks_count: 0,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-006-1/400/300",
+      "https://picsum.photos/seed/visit-006-2/400/300",
+      "https://picsum.photos/seed/visit-006-3/400/300",
+      "https://picsum.photos/seed/visit-006-4/400/300",
+    ],
+    last_restock_date: "2026-05-26",
   },
   {
     visit_id: "visit-007",
@@ -308,6 +351,12 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 3,
     location_verified: true,
     tasks_count: 1,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-007-1/400/300",
+      "https://picsum.photos/seed/visit-007-2/400/300",
+      "https://picsum.photos/seed/visit-007-3/400/300",
+    ],
+    last_restock_date: "2026-05-25",
   },
   // ── Gama ──
   {
@@ -324,6 +373,14 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 5,
     location_verified: true,
     tasks_count: 1,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-008-1/400/300",
+      "https://picsum.photos/seed/visit-008-2/400/300",
+      "https://picsum.photos/seed/visit-008-3/400/300",
+      "https://picsum.photos/seed/visit-008-4/400/300",
+      "https://picsum.photos/seed/visit-008-5/400/300",
+    ],
+    last_restock_date: "2026-05-30",
   },
   {
     visit_id: "visit-009",
@@ -339,6 +396,11 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 2,
     location_verified: true,
     tasks_count: 0,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-009-1/400/300",
+      "https://picsum.photos/seed/visit-009-2/400/300",
+    ],
+    last_restock_date: "2026-05-27",
   },
   {
     visit_id: "visit-010",
@@ -354,6 +416,13 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 4,
     location_verified: true,
     tasks_count: 1,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-010-1/400/300",
+      "https://picsum.photos/seed/visit-010-2/400/300",
+      "https://picsum.photos/seed/visit-010-3/400/300",
+      "https://picsum.photos/seed/visit-010-4/400/300",
+    ],
+    last_restock_date: "2026-05-22",
   },
   {
     visit_id: "visit-011",
@@ -369,6 +438,11 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 2,
     location_verified: true,
     tasks_count: 0,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-011-1/400/300",
+      "https://picsum.photos/seed/visit-011-2/400/300",
+    ],
+    last_restock_date: "2026-05-21",
   },
   // ── Locatel ──
   {
@@ -385,6 +459,12 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 3,
     location_verified: true,
     tasks_count: 1,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-012-1/400/300",
+      "https://picsum.photos/seed/visit-012-2/400/300",
+      "https://picsum.photos/seed/visit-012-3/400/300",
+    ],
+    last_restock_date: "2026-05-28",
   },
   {
     visit_id: "visit-013",
@@ -400,6 +480,13 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 4,
     location_verified: true,
     tasks_count: 0,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-013-1/400/300",
+      "https://picsum.photos/seed/visit-013-2/400/300",
+      "https://picsum.photos/seed/visit-013-3/400/300",
+      "https://picsum.photos/seed/visit-013-4/400/300",
+    ],
+    last_restock_date: "2026-05-25",
   },
   {
     visit_id: "visit-014",
@@ -415,6 +502,11 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 2,
     location_verified: true,
     tasks_count: 0,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-014-1/400/300",
+      "https://picsum.photos/seed/visit-014-2/400/300",
+    ],
+    last_restock_date: "2026-05-20",
   },
   // ── Farmacias SAAS ──
   {
@@ -431,6 +523,14 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 5,
     location_verified: true,
     tasks_count: 1,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-015-1/400/300",
+      "https://picsum.photos/seed/visit-015-2/400/300",
+      "https://picsum.photos/seed/visit-015-3/400/300",
+      "https://picsum.photos/seed/visit-015-4/400/300",
+      "https://picsum.photos/seed/visit-015-5/400/300",
+    ],
+    last_restock_date: "2026-05-27",
   },
   {
     visit_id: "visit-016",
@@ -446,6 +546,12 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 3,
     location_verified: true,
     tasks_count: 0,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-016-1/400/300",
+      "https://picsum.photos/seed/visit-016-2/400/300",
+      "https://picsum.photos/seed/visit-016-3/400/300",
+    ],
+    last_restock_date: "2026-05-19",
   },
   {
     visit_id: "visit-017",
@@ -461,5 +567,60 @@ export const mockReports: SupervisorReport[] = [
     photos_count: 2,
     location_verified: true,
     tasks_count: 1,
+    photo_urls: [
+      "https://picsum.photos/seed/visit-017-1/400/300",
+      "https://picsum.photos/seed/visit-017-2/400/300",
+    ],
+    last_restock_date: "2026-05-13",
   },
 ];
+
+export const mockContacts: Contact[] = [
+  // store-001
+  { contact_id: "c-001a", store_id: "store-001", full_name: "Mónica Rubio",      role_title: "Encargada de tienda", phone: "(212) 949-8188", email: "monica.rubio@farmatodo.com",   birthday: "1988-03-14", is_primary: true,  active: true, created_at: "2024-01-01T00:00:00Z" },
+  { contact_id: "c-001b", store_id: "store-001", full_name: "José Pacheco",       role_title: "Comprador",           phone: "(212) 949-8190", email: "jose.pacheco@farmatodo.com",    birthday: "1979-11-02", is_primary: false, active: true, created_at: "2024-01-01T00:00:00Z" },
+  { contact_id: "c-001c", store_id: "store-001", full_name: "Luisa Ortega",       role_title: "Gerente regional",    phone: "(212) 949-8191", email: "luisa.ortega@farmatodo.com",    birthday: "1985-06-21", is_primary: false, active: true, created_at: "2024-01-01T00:00:00Z" },
+  // store-002
+  { contact_id: "c-002a", store_id: "store-002", full_name: "Dayana Villalobos",  role_title: "Encargada de tienda", phone: "(212) 949-8200", email: "dayana.villalobos@farmatodo.com", birthday: "1990-09-09", is_primary: true,  active: true, created_at: "2024-01-01T00:00:00Z" },
+  { contact_id: "c-002b", store_id: "store-002", full_name: "Andrés Salas",       role_title: "Comprador",           phone: "(212) 949-8201", email: "andres.salas@farmatodo.com",      birthday: "1982-01-30", is_primary: false, active: true, created_at: "2024-01-01T00:00:00Z" },
+  // store-003
+  { contact_id: "c-003a", store_id: "store-003", full_name: "Andrea Meserón",     role_title: "Encargada de tienda", phone: "(212) 944-4454", email: "andrea.meseron@farmatodo.com",   birthday: "1991-04-18", is_primary: true,  active: true, created_at: "2024-01-01T00:00:00Z" },
+  { contact_id: "c-003b", store_id: "store-003", full_name: "Pedro Lares",        role_title: "Gerente de tienda",   phone: "(212) 944-4455", email: "pedro.lares@farmatodo.com",       birthday: "1976-12-05", is_primary: false, active: true, created_at: "2024-01-01T00:00:00Z" },
+  // store-004
+  { contact_id: "c-004a", store_id: "store-004", full_name: "Omar Espinosa",      role_title: "Comprador",           phone: "(212) 944-5510", email: "omar.espinosa@farmatodo.com",     birthday: "1983-07-23", is_primary: true,  active: true, created_at: "2024-01-01T00:00:00Z" },
+  { contact_id: "c-004b", store_id: "store-004", full_name: "Carla Niño",         role_title: "Encargada de tienda", phone: "(212) 944-5511", email: "carla.nino@farmatodo.com",        birthday: "1994-02-11", is_primary: false, active: true, created_at: "2024-01-01T00:00:00Z" },
+  // store-005
+  { contact_id: "c-005a", store_id: "store-005", full_name: "Migderis Reina",     role_title: "Encargada de tienda", phone: "(414) 161-0680", email: "migderis.reina@farmatodo.com",    birthday: "1987-10-19", is_primary: true,  active: true, created_at: "2024-01-01T00:00:00Z" },
+  // store-g01
+  { contact_id: "c-g01a", store_id: "store-g01", full_name: "Yanelvis Noria",     role_title: "Compradora",          phone: "(212) 205-4322", email: "yanelvis.noria@excelsiorgama.com", birthday: "1989-05-27", is_primary: true,  active: true, created_at: "2024-01-01T00:00:00Z" },
+  { contact_id: "c-g01b", store_id: "store-g01", full_name: "Jesús Frontado",     role_title: "Gerente de compras",  phone: "(212) 205-4323", email: "jfrontado@excelsiorgama.com",       birthday: "1975-08-14", is_primary: false, active: true, created_at: "2024-01-01T00:00:00Z" },
+  // store-g02
+  { contact_id: "c-g02a", store_id: "store-g02", full_name: "Yesika Toro",        role_title: "Encargada de tienda", phone: "(414) 161-0680", email: "yesika.toro@excelsiorgama.com",    birthday: "1992-03-03", is_primary: true,  active: true, created_at: "2024-01-01T00:00:00Z" },
+  // store-g03
+  { contact_id: "c-g03a", store_id: "store-g03", full_name: "Jotfren Crespo",     role_title: "Comprador",           phone: "(212) 362-3984", email: "jotfren.crespo@excelsiorgama.com", birthday: "1981-12-29", is_primary: true,  active: true, created_at: "2024-01-01T00:00:00Z" },
+  // store-l01
+  { contact_id: "c-l01a", store_id: "store-l01", full_name: "Laris Gómez",        role_title: "Compradora",          phone: "(212) 203-4565", email: "laris.gomez@locatelve.com",        birthday: "1986-07-07", is_primary: true,  active: true, created_at: "2024-01-01T00:00:00Z" },
+  { contact_id: "c-l01b", store_id: "store-l01", full_name: "Hugo Medina",        role_title: "Gerente de tienda",   phone: "(212) 203-4566", email: "hugo.medina@locatelve.com",        birthday: "1978-09-15", is_primary: false, active: true, created_at: "2024-01-01T00:00:00Z" },
+  // store-l02
+  { contact_id: "c-l02a", store_id: "store-l02", full_name: "Thailyn López",      role_title: "Encargada de tienda", phone: "(212) 203-4565", email: "thailyn.lopez@locatelve.com",      birthday: "1993-11-21", is_primary: true,  active: true, created_at: "2024-01-01T00:00:00Z" },
+  // store-s01
+  { contact_id: "c-s01a", store_id: "store-s01", full_name: "Angie Labrador",     role_title: "Encargada de tienda", phone: "(424) 218-6022", email: "angie.labrador@farmaciassaas.com", birthday: "1990-01-12", is_primary: true,  active: true, created_at: "2024-01-01T00:00:00Z" },
+  // store-s02 (inactive store, still has a contact)
+  { contact_id: "c-s02a", store_id: "store-s02", full_name: "Rafael Díaz",        role_title: "Gerente de tienda",   phone: "(424) 218-6099", email: "rafael.diaz@farmaciassaas.com",    birthday: "1980-04-04", is_primary: true,  active: false, created_at: "2024-01-01T00:00:00Z" },
+];
+
+export const mockEngagements: ContactEngagement[] = [
+  { engagement_id: "e-001", store_id: "store-001", contact_id: "c-001a", author_user_id: "mock-sup-001", type: "note", body: "Encargada solicitó adelantar la visita de fin de mes por inventario.", status: null,   due_date: null,         created_at: "2026-05-28T14:20:00Z" },
+  { engagement_id: "e-002", store_id: "store-001", contact_id: "c-001b", author_user_id: "mock-sup-001", type: "todo", body: "Enviar propuesta de exhibición adicional para góndola central.",      status: "open",  due_date: "2026-06-10", created_at: "2026-05-29T09:00:00Z" },
+  { engagement_id: "e-003", store_id: "store-002", contact_id: "c-002a", author_user_id: "mock-sup-001", type: "note", body: "Acceso a bodega restringido en la mañana; coordinar después de las 2pm.", status: null,   due_date: null,         created_at: "2026-05-30T16:45:00Z" },
+  { engagement_id: "e-004", store_id: "store-g01", contact_id: "c-g01a", author_user_id: "mock-sup-001", type: "todo", body: "Confirmar fecha de reabastecimiento de cuidado personal.",            status: "done",  due_date: "2026-05-25", created_at: "2026-05-20T11:30:00Z" },
+];
+
+// Derived: latest restock date across a store's reports (null if none).
+export function lastRestockForStore(storeId: string): string | null {
+  const dates = mockReports
+    .filter((r) => r.store_id === storeId && r.last_restock_date)
+    .map((r) => r.last_restock_date as string)
+    .sort(); // ISO yyyy-mm-dd sorts lexicographically
+  return dates.length > 0 ? dates[dates.length - 1] : null;
+}
