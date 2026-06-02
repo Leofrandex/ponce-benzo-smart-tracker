@@ -77,6 +77,9 @@ export interface VisitRecord {
   observations: string;
   status: StoreStatus;
   synced: boolean;
+  anomaly_type: Visit['anomaly_type'];
+  skip_reason: Visit['skip_reason'];
+  last_restock_date: string | null;
 }
 
 export type GPSState = 'idle' | 'searching' | 'found' | 'error';
@@ -148,4 +151,14 @@ export interface CompetitionReport {
   notes: string | null;
   created_at: string;
   synced: boolean;
+}
+
+// Forma del formulario de reporte de competencia en la UI móvil.
+export interface CompetitionReportRecord {
+  report_id: string;
+  store_id: string | null;
+  brand_id: string | null;
+  activation_type: CompetitionReport['activation_type'];
+  photo_uris: string[];
+  notes: string | null;
 }
