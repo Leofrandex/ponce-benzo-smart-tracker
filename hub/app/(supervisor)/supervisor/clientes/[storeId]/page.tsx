@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -150,7 +150,7 @@ export default function ContactoDetailPage() {
   if (!store) {
     return (
       <>
-        <Link href="/supervisor/contactos" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}>
+        <Link href="/supervisor/clientes" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}>
           <ArrowLeft size={15} /> Contactos
         </Link>
         <div className="empty-state">
@@ -164,7 +164,7 @@ export default function ContactoDetailPage() {
   return (
     <>
       {/* Back */}
-      <Link href="/supervisor/contactos" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}>
+      <Link href="/supervisor/clientes" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}>
         <ArrowLeft size={15} /> Contactos
       </Link>
 

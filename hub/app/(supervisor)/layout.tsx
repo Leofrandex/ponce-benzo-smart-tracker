@@ -16,7 +16,7 @@ export default function SupervisorLayout({
 
   const navItems = [
     { href: "/supervisor",           icon: LayoutDashboard, label: "Panel"     },
-    { href: "/supervisor/contactos", icon: Building2,       label: "Contactos" },
+    { href: "/supervisor/clientes",  icon: Building2,       label: "Clientes"  },
     { href: "/supervisor/tareas",    icon: ClipboardList,   label: "Tareas"    },
     { href: "/supervisor/mapa",      icon: Map,             label: "Mapa"      },
   ];

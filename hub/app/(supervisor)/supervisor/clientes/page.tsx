@@ -79,7 +79,7 @@ export default function ContactosPage() {
           {filtered.map((contact, idx) => (
             <Link
               key={contact.store_id}
-              href={`/supervisor/contactos/${contact.store_id}`}
+              href={`/supervisor/clientes/${contact.store_id}`}
               style={{ textDecoration: "none" }}
             >
               <div
