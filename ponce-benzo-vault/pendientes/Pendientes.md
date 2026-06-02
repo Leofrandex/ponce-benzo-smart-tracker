@@ -52,7 +52,12 @@ Para realizar la migración completa a producción y conectar a los vendedores r
 
 ---
 
+## 📱 Próximo bloque: Mobile
+
+- [ ] **Bloque Mobile (UI/UX):** rutas especiales, agregar sucursal a la ruta, fecha de última reposición en el check-in, dropdowns de omisión y anomalía (con react-icons, no emojis), y reportaje de competencia (panel lateral). Requisitos detallados en [[pendientes/Bloque Mobile|Bloque Mobile — Requisitos de UI/UX]].
+
 ## Enlaces Relacionados
+- [[pendientes/Bloque Mobile|Bloque Mobile — Requisitos de UI/UX]] — alcance detallado de la próxima sesión.
 - [[roadmap/Roadmap|Roadmap del Proyecto]] — Hitos del desarrollo general.
 - [[decisiones/ADR-002-Modelo-CRM|ADR-002 — Modelo de Datos CRM]] — Decisiones del esquema CRM.
 - [[resumen/Constitucion|Constitución]] — Reglas y restricciones a respetar en las soluciones.
