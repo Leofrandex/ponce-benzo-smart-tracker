@@ -1,4 +1,4 @@
-import type { Store, User, Route, RouteStoreItem } from './types';
+import type { Store, User, Route, RouteStoreItem, CompetitorBrand } from './types';
 
 export const mockStores: Store[] = [
   { store_id: 'store-001', name: 'Farmatodo Las Mercedes',    address: 'Av. Las Mercedes, Caracas',                   master_lat: 10.4920, master_lng: -66.8557, active: true,  created_at: '2024-01-01T00:00:00Z', contact_name: 'Mónica Rubio',      contact_phone: '(212) 949-8188', contact_email: 'proveedores@farmatodo.com',        estado: null, municipio: null, urbanizacion: null, business_channel: 'farmacia',     classification: 'A' },
@@ -31,3 +31,11 @@ export const getMockRouteItems = (): RouteStoreItem[] =>
     order: index + 1,
     status: 'pending',
   }));
+
+export const mockCompetitorBrands: CompetitorBrand[] = [
+  { brand_id: 'brand-001', name: 'Genomma Lab',       active: true },
+  { brand_id: 'brand-002', name: 'Bayer',             active: true },
+  { brand_id: 'brand-003', name: 'Calox',             active: true },
+  { brand_id: 'brand-004', name: 'Leti',              active: true },
+  { brand_id: 'brand-005', name: 'Otra marca',        active: true },
+];
