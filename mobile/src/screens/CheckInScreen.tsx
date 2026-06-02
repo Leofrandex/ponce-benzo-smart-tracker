@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   ScrollView, StyleSheet, Image, Platform,
@@ -56,8 +56,8 @@ const ANOMALY_TYPE_OPTIONS: SelectOption<NonNullable<Visit['anomaly_type']>>[] =
 
 function formatDate(iso: string | null): string {
   if (!iso) return '';
-  const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
 }
 
 export function CheckInScreen() {
@@ -80,6 +80,12 @@ export function CheckInScreen() {
   const [anomalySheetOpen, setAnomalySheetOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
+  // Al cambiar de estado se descartan los valores del estado anterior.
+  useEffect(() => {
+    setSkipReason(null);
+    setAnomalyType(null);
+  }, [selectedStatus]);
+
   const locationVerified = useMemo(() => {
     if (!currentLocation) return null;
     const dist = haversineMeters(
@@ -94,9 +100,9 @@ export function CheckInScreen() {
     (selectedStatus === 'skipped' && skipReason !== null) ||
     (selectedStatus === 'anomaly' && anomalyType !== null);
 
-  const canSubmit = gpsState === 'found' && photoUri !== null && statusValid;
+  const canSubmit = !submitting && gpsState === 'found' && photoUri !== null && statusValid;
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!canSubmit) return;
     setSubmitting(true);
 
@@ -114,9 +120,12 @@ export function CheckInScreen() {
       last_restock_date: lastRestockDate,
     };
 
-    recordVisit(store.store_id, record);
-    setSubmitting(false);
-    navigation.goBack();
+    try {
+      await recordVisit(store.store_id, record);
+      navigation.goBack();
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -150,7 +159,7 @@ export function CheckInScreen() {
               <Text style={[styles.fraudText, { color: locationVerified ? colors.success : colors.warning }]}>
                 {locationVerified
                   ? 'Ubicación verificada — dentro del radio de la tienda'
-                  : 'Fuera del radio de la tienda (> 200 m) — se registrará como no verificado'}
+                  : `Fuera del radio de la tienda (> ${MAX_DISTANCE_METERS} m) — se registrará como no verificado`}
               </Text>
             </View>
           )}
@@ -441,7 +450,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
   },
   dropdownText: { flex: 1, fontSize: 14, color: colors.textPrimary, ...fonts.medium },
-  dropdownPlaceholder: { color: colors.textMuted, fontWeight: '400' },
+  dropdownPlaceholder: { color: colors.textMuted, ...fonts.regular },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dateField: { flex: 1 },
   clearDateBtn: {
