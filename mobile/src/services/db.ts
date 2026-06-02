@@ -51,7 +51,7 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
       created_at      TEXT NOT NULL,
       synced          INTEGER NOT NULL DEFAULT 0
     );
-    -- TODO: writer + sync functions pending CRM competition-report feature
+    -- Writer en insertCompetitionReport (las fotos se guardan como JSON en photo_uri).
   `);
 
   // Migraciones idempotentes de columnas (SQLite no soporta ADD COLUMN IF NOT EXISTS)
@@ -192,4 +192,49 @@ export function insertLocationPingSync(
     lat,
     lng,
   );
+}
+
+// ── Competition reports ──────────────────────────────────────────────────────
+
+export interface CompetitionReportRow {
+  report_id: string;
+  session_id: string | null;
+  store_id: string | null;
+  user_id: string;
+  brand_id: string | null;
+  activation_type: string | null;
+  photo_uris: string[];
+  notes: string | null;
+  created_at: string;
+  synced: number;
+}
+
+export async function insertCompetitionReport(
+  db: SQLiteDatabase,
+  data: CompetitionReportRow,
+): Promise<void> {
+  // La columna photo_uri es TEXT; guardamos el array de fotos como JSON
+  // para soportar varias sin migrar el schema.
+  await db.runAsync(
+    `INSERT OR REPLACE INTO competition_reports
+      (report_id, session_id, store_id, user_id, brand_id, activation_type, photo_uri, notes, created_at, synced)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    data.report_id,
+    data.session_id ?? null,
+    data.store_id ?? null,
+    data.user_id,
+    data.brand_id ?? null,
+    data.activation_type ?? null,
+    JSON.stringify(data.photo_uris ?? []),
+    data.notes ?? null,
+    data.created_at,
+    data.synced,
+  );
+}
+
+export async function getUnsyncedCompetitionCount(db: SQLiteDatabase): Promise<number> {
+  const row = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM competition_reports WHERE synced = 0`,
+  );
+  return row?.count ?? 0;
 }
