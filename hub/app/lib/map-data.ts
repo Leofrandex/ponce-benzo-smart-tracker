@@ -25,16 +25,19 @@ function seeded(seed: number): () => number {
 }
 
 // Generate GPS heat points for the given merchandisers within [from, to].
-// Points cluster around each store, weighted by how many days fall in the range.
+// Each store is "covered" by one merchandiser (round-robin over the full roster);
+// when merchIds is non-empty, only stores covered by a selected merchandiser produce pings.
 export function getPingsInRange(merchIds: string[], from: Date, to: Date): [number, number][] {
-  if (to < from) return [];
+  if (isNaN(from.getTime()) || isNaN(to.getTime()) || to < from) return [];
   const days = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000) + 1);
-  const ids = merchIds.length > 0 ? merchIds : mockActiveMerchandisers.map((m) => m.id);
-  const rand = seeded(days * 31 + ids.length * 7 + from.getDate());
+  const allIds = mockActiveMerchandisers.map((m) => m.id);
+  const selected = merchIds.length > 0 ? merchIds : allIds;
+  const rand = seeded(days * 31 + selected.length * 7 + from.getDate());
   const points: [number, number][] = [];
-  // Assign each merchandiser a subset of stores to "visit".
   mockStores.forEach((store, idx) => {
-    if (idx % Math.max(1, ids.length) >= ids.length) return;
+    // Each store is covered by one merchandiser (round-robin over the full roster).
+    const coveringMerch = allIds[idx % allIds.length];
+    if (!selected.includes(coveringMerch)) return;
     const visitsPerDay = 4 + Math.floor(rand() * 6); // 4-9 pings per day per store
     const total = Math.min(60, Math.round((visitsPerDay * days) / 3));
     for (let i = 0; i < total; i++) {
