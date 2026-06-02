@@ -10,7 +10,7 @@ import {
   getUnsyncedCount,
 } from '../services/db';
 import { BACKGROUND_LOCATION_TASK } from '../tasks/locationTask';
-import { getMockRouteItems } from '../mock-data';
+import { getMockRouteItems, mockStores } from '../mock-data';
 import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState } from '../types';
 
 interface RouteContextValue {
@@ -22,6 +22,10 @@ interface RouteContextValue {
   pendingSyncCount: number;
   completedCount: number;
   totalCount: number;
+  routeMode: 'normal' | 'special';
+  setRouteMode: (mode: 'normal' | 'special') => void;
+  addStoreToRoute: (storeId: string) => void;
+  removeStoreFromRoute: (storeId: string) => void;
   startSession: () => Promise<void>;
   endSession: () => Promise<void>;
   recordVisit: (storeId: string, record: VisitRecord) => Promise<void>;
@@ -39,6 +43,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
   const [gpsState, setGpsState] = useState<GPSState>('idle');
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [routeMode, setRouteModeState] = useState<'normal' | 'special'>('normal');
 
   const locationSub = useRef<LocationSubscription | null>(null);
   const sessionId = useRef<string | null>(null);
@@ -171,6 +176,30 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     await refreshSyncCount();
   }
 
+  function setRouteMode(mode: 'normal' | 'special') {
+    setRouteModeState(mode);
+    // 'special' = ruta personalizable: arranca vacía y se arma a mano.
+    // 'normal' = restaura la ruta configurada (mock).
+    setRouteItems(mode === 'special' ? [] : getMockRouteItems());
+  }
+
+  function addStoreToRoute(storeId: string) {
+    setRouteItems((prev) => {
+      if (prev.some((item) => item.store.store_id === storeId)) return prev;
+      const store = mockStores.find((s) => s.store_id === storeId);
+      if (!store) return prev;
+      return [...prev, { store, order: prev.length + 1, status: 'pending' as const }];
+    });
+  }
+
+  function removeStoreFromRoute(storeId: string) {
+    setRouteItems((prev) =>
+      prev
+        .filter((item) => item.store.store_id !== storeId)
+        .map((item, index) => ({ ...item, order: index + 1 })),
+    );
+  }
+
   const completedCount = routeItems.filter((i) => i.status !== 'pending').length;
   const totalCount = routeItems.length;
 
@@ -185,6 +214,10 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         pendingSyncCount,
         completedCount,
         totalCount,
+        routeMode,
+        setRouteMode,
+        addStoreToRoute,
+        removeStoreFromRoute,
         startSession,
         endSession,
         recordVisit,
