@@ -162,9 +162,9 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       photo_uri: record.photo_uri ?? null,
       observations: record.observations ?? null,
       status: record.status,
-      anomaly_type: null,
-      skip_reason: null,
-      last_restock_date: null,
+      anomaly_type: record.status === 'anomaly' ? record.anomaly_type : null,
+      skip_reason: record.status === 'skipped' ? record.skip_reason : null,
+      last_restock_date: record.last_restock_date,
       synced: 0,
     });
 
