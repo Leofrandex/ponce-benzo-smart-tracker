@@ -49,7 +49,7 @@ Hemos completado el blueprint, la división de código (Split Web/Mobile) y la d
 - [x] **Sección Clientes (hub, mock-data):** renombre de "Contactos" → "Clientes"; filtros geográficos jerárquicos + canal + clasificación; ficha de cliente descompuesta en componentes aislados que visualiza múltiples contactos, cargo, última reposición y fotos de reportes. Engagements/to-dos, histórico de rotación y anaquel ideal quedan como **placeholders** (CRM funcional a futuro). Ver [[logs/Log-2026-06-02|Log-2026-06-02]].
 - [x] **Mapa de calor (hub, mock-data):** rediseño a modo claro, mapa único con pestañas En vivo/Histórico, sucursales por coordenadas, mercaderistas activos, filtros compartidos, rango de fechas en histórico, animaciones framer-motion. Eliminado el drill-down individual y el modo oscuro.
 - [ ] Diseñar el panel de tareas en el supervisor hub con sistema Kanban/Lista interactivo (consumiendo la tabla `tasks` del modelo CRM; reconciliar los tipos mock `SupervisorTask`/`TaskType` con `DbTaskType`).
-- [ ] **Bloque mobile:** rutas especiales, agregar sucursal a la ruta, dropdowns de anomalía/omisión (react-icons), `last_restock_date` en check-in, reportaje de competencia.
+- [x] **Bloque mobile (mock-data + SQLite):** rutas especiales (personalizables), agregar/quitar sucursal a la ruta, dropdowns de anomalía/omisión (Ionicons, bottom-sheet), `last_restock_date` en check-in, reportaje de competencia (slide-over). Fix de `recordVisit` (payload completa ADR-002). Ver [[logs/Log-2026-06-02-bloque-mobile|Log Bloque Mobile]].
 - [ ] Refinar las micro-animaciones y feedback visual de carga en la app móvil.
 - [ ] Incorporar el banner visual dinámico de sincronizaciones pendientes (`SyncBanner`).
 

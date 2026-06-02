@@ -52,9 +52,15 @@ Para realizar la migración completa a producción y conectar a los vendedores r
 
 ---
 
-## 📱 Próximo bloque: Mobile
+## 📱 Bloque Mobile (completado 2026-06-02)
 
-- [ ] **Bloque Mobile (UI/UX):** rutas especiales, agregar sucursal a la ruta, fecha de última reposición en el check-in, dropdowns de omisión y anomalía (con react-icons, no emojis), y reportaje de competencia (panel lateral). Requisitos detallados en [[pendientes/Bloque Mobile|Bloque Mobile — Requisitos de UI/UX]].
+- [x] **Bloque Mobile (UI/UX):** rutas especiales (personalizables), agregar/quitar sucursal, fecha de última reposición en el check-in, dropdowns de omisión y anomalía (Ionicons, bottom-sheet), y reportaje de competencia (slide-over). Implementado mock-first sobre SQLite. Ver [[logs/Log-2026-06-02-bloque-mobile|Log Bloque Mobile]] y [[pendientes/Bloque Mobile|Bloque Mobile — Requisitos]].
+- [ ] **Follow-ups menores de calidad (no bloqueantes):**
+  * `CompetitionTab` usa `top: 200` fijo — revisar alineación en pantallas chicas durante QA de dispositivos.
+  * `addStoreToRoute` hace no-op silencioso si el `storeId` no existe — agregar `console.warn` al cablear data real.
+  * Evaluar (decisión de producto) si el botón "Agregar sucursal" debe ocultarse mientras la sesión está activa (hoy se oculta sólo al finalizar la ruta).
+- [ ] **Cablear el bloque mobile a Supabase:** login real (Supabase Auth), carga de rutas y sync de visitas/pings/reportes de competencia. Requiere credenciales `.env` + ingesta de Excel (bloqueadores arriba). La columna `competition_reports.photo_uri` guarda hoy un JSON de URIs locales; al sincronizar habrá que subir las fotos y mapear a `photo_urls`.
+- [ ] **Pruebas manuales en Expo** (emulador/dispositivo) del flujo completo mobile.
 
 ## Enlaces Relacionados
 - [[pendientes/Bloque Mobile|Bloque Mobile — Requisitos de UI/UX]] — alcance detallado de la próxima sesión.

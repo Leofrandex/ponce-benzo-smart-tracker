@@ -10,6 +10,9 @@ tags:
 
 # Bloque Mobile — Requisitos de UI/UX (próxima sesión)
 
+> [!SUCCESS]
+> **Implementado el 2026-06-02** (mock-first sobre SQLite). Las seis funcionalidades y las "brechas conocidas" de abajo quedaron resueltas. Detalle en [[logs/Log-2026-06-02-bloque-mobile|Log Bloque Mobile]]. Pendiente: cablear a Supabase (ver [[pendientes/Pendientes|Pendientes]]). Esta nota se conserva como referencia de los requisitos originales.
+
 > [!NOTE]
 > Esta nota captura los **requisitos de interfaz/experiencia** del bloque mobile para que una sesión nueva tenga todo el contexto. El **modelo de datos** que soporta cada punto ya existe: ver [[arquitectura/Esquema Base Datos|Esquema de Base de Datos]] y [[decisiones/ADR-002-Modelo-CRM|ADR-002]]. El bloque hub ya se completó (ver [[logs/Log-2026-06-02|Log-2026-06-02]]).
 
