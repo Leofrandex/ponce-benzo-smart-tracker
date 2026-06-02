@@ -145,6 +145,8 @@ export interface SupervisorReport {
   photos_count: number;
   location_verified: boolean;
   tasks_count: number;
+  photo_urls: string[];            // NEW — real thumbnail URLs for the activity feed
+  last_restock_date: string | null; // NEW — restock date captured on this visit
 }
 
 export interface Contact {
