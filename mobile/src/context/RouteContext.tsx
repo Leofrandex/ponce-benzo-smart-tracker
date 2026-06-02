@@ -8,10 +8,12 @@ import {
   updateSessionEnd,
   insertVisit,
   getUnsyncedCount,
+  insertCompetitionReport,
+  getUnsyncedCompetitionCount,
 } from '../services/db';
 import { BACKGROUND_LOCATION_TASK } from '../tasks/locationTask';
 import { getMockRouteItems, mockStores } from '../mock-data';
-import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState } from '../types';
+import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState, CompetitionReportRecord } from '../types';
 
 interface RouteContextValue {
   routeItems: RouteStoreItem[];
@@ -29,6 +31,7 @@ interface RouteContextValue {
   startSession: () => Promise<void>;
   endSession: () => Promise<void>;
   recordVisit: (storeId: string, record: VisitRecord) => Promise<void>;
+  recordCompetitionReport: (record: CompetitionReportRecord) => Promise<void>;
 }
 
 const RouteContext = createContext<RouteContextValue | null>(null);
@@ -49,8 +52,11 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
   const sessionId = useRef<string | null>(null);
 
   async function refreshSyncCount() {
-    const count = await getUnsyncedCount(db);
-    setPendingSyncCount(count);
+    const [visits, reports] = await Promise.all([
+      getUnsyncedCount(db),
+      getUnsyncedCompetitionCount(db),
+    ]);
+    setPendingSyncCount(visits + reports);
   }
 
   async function startSession() {
@@ -176,6 +182,22 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     await refreshSyncCount();
   }
 
+  async function recordCompetitionReport(record: CompetitionReportRecord) {
+    await insertCompetitionReport(db, {
+      report_id: record.report_id,
+      session_id: sessionId.current ?? null,
+      store_id: record.store_id,
+      user_id: user?.id ?? 'unknown',
+      brand_id: record.brand_id,
+      activation_type: record.activation_type,
+      photo_uris: record.photo_uris,
+      notes: record.notes,
+      created_at: new Date().toISOString(),
+      synced: 0,
+    });
+    await refreshSyncCount();
+  }
+
   function setRouteMode(mode: 'normal' | 'special') {
     setRouteModeState(mode);
     // 'special' = ruta personalizable: arranca vacía y se arma a mano.
@@ -221,6 +243,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         startSession,
         endSession,
         recordVisit,
+        recordCompetitionReport,
       }}
     >
       {children}
