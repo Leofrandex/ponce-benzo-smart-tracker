@@ -11,8 +11,6 @@ import { Button } from '../components/Button';
 import { SyncBanner } from '../components/SyncBanner';
 import { RouteModeToggle } from '../components/RouteModeToggle';
 import { StorePickerSheet } from '../components/StorePickerSheet';
-import { CompetitionTab } from '../components/CompetitionTab';
-import { CompetitionPanel } from '../components/CompetitionPanel';
 import { colors, radii, fonts } from '../theme';
 import type { RouteStoreItem } from '../types';
 import { useRouteCtx } from '../context/RouteContext';
@@ -43,11 +41,9 @@ export function RouteScreen() {
     setRouteMode,
     addStoreToRoute,
     removeStoreFromRoute,
-    recordCompetitionReport,
   } = useRouteCtx();
 
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [competitionOpen, setCompetitionOpen] = useState(false);
 
   const progress = totalCount > 0 ? completedCount / totalCount : 0;
 
@@ -128,14 +124,6 @@ export function RouteScreen() {
           </View>
         }
       />
-      {!sessionEnded && <CompetitionTab onPress={() => setCompetitionOpen(true)} />}
-
-      <CompetitionPanel
-        visible={competitionOpen}
-        onClose={() => setCompetitionOpen(false)}
-        onSave={recordCompetitionReport}
-      />
-
       <StorePickerSheet
         visible={pickerOpen}
         excludeStoreIds={routeItems.map((i) => i.store.store_id)}

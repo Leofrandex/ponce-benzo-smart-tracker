@@ -13,9 +13,12 @@ import { Button } from '../components/Button';
 import { BottomSheetSelect, type SelectOption } from '../components/BottomSheetSelect';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { StatusBadge } from '../components/StatusBadge';
+import { CompetitionTab } from '../components/CompetitionTab';
+import { CompetitionPanel } from '../components/CompetitionPanel';
 import { colors, radii, fonts } from '../theme';
 import { useRouteCtx } from '../context/RouteContext';
 import type { StoreStatus, VisitRecord, Visit } from '../types';
+import type { CompetitionReportRecord } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type CheckInRouteProp = RouteProp<RootStackParamList, 'CheckIn'>;
@@ -68,7 +71,7 @@ export function CheckInScreen() {
 
   const [selectedStatus, setSelectedStatus] = useState<StoreStatus>('completed');
   const [observations, setObservations] = useState('');
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoUris, setPhotoUris] = useState<string[]>([]);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -79,6 +82,9 @@ export function CheckInScreen() {
   const [skipSheetOpen, setSkipSheetOpen] = useState(false);
   const [anomalySheetOpen, setAnomalySheetOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+
+  const [competitionDraft, setCompetitionDraft] = useState<CompetitionReportRecord | null>(null);
+  const [competitionOpen, setCompetitionOpen] = useState(false);
 
   // Al cambiar de estado se descartan los valores del estado anterior.
   useEffect(() => {
@@ -100,7 +106,7 @@ export function CheckInScreen() {
     (selectedStatus === 'skipped' && skipReason !== null) ||
     (selectedStatus === 'anomaly' && anomalyType !== null);
 
-  const canSubmit = !submitting && gpsState === 'found' && photoUri !== null && statusValid;
+  const canSubmit = !submitting && gpsState === 'found' && photoUris.length > 0 && statusValid;
 
   async function handleSubmit() {
     if (!canSubmit) return;
@@ -111,7 +117,7 @@ export function CheckInScreen() {
       store_id: store.store_id,
       check_in_time: new Date().toISOString(),
       check_in_location: currentLocation,
-      photo_uri: photoUri,
+      photo_uris: photoUris,
       observations,
       status: selectedStatus,
       synced: false,
@@ -121,7 +127,7 @@ export function CheckInScreen() {
     };
 
     try {
-      await recordVisit(store.store_id, record);
+      await recordVisit(store.store_id, record, competitionDraft ?? undefined);
       navigation.goBack();
     } finally {
       setSubmitting(false);
@@ -171,27 +177,27 @@ export function CheckInScreen() {
           )}
         </View>
 
-        {/* Foto */}
+        {/* Fotos */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Evidencia fotográfica</Text>
-          {photoUri ? (
-            <View>
-              <Image source={{ uri: photoUri }} style={styles.photoThumb} resizeMode="cover" />
-              <TouchableOpacity
-                onPress={() => { setPhotoUri(null); setCameraOpen(true); }}
-                style={styles.retakePhotoBtn}
-              >
-                <Ionicons name="camera-outline" size={14} color={colors.accent} />
-                <Text style={styles.retakePhotoText}>Retomar foto</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.cameraZone} onPress={() => setCameraOpen(true)} activeOpacity={0.8}>
-              <Ionicons name="camera-outline" size={40} color={colors.textMuted} />
-              <Text style={styles.cameraLabel}>Tocar para capturar foto</Text>
-              <Text style={styles.cameraNote}>Solo cámara en vivo — no galería</Text>
+          <View style={styles.photoRow}>
+            {photoUris.map((uri) => (
+              <View key={uri} style={styles.photoWrap}>
+                <Image source={{ uri }} style={styles.photoItem} resizeMode="cover" />
+                <TouchableOpacity
+                  style={styles.photoRemove}
+                  onPress={() => setPhotoUris((prev) => prev.filter((u) => u !== uri))}
+                >
+                  <Ionicons name="close" size={12} color={colors.white} />
+                </TouchableOpacity>
+              </View>
+            ))}
+            <TouchableOpacity style={styles.addPhoto} onPress={() => setCameraOpen(true)} activeOpacity={0.75}>
+              <Ionicons name="camera-outline" size={24} color={colors.accent} />
+              <Text style={styles.addPhotoLabel}>{photoUris.length === 0 ? 'Capturar' : 'Otra foto'}</Text>
             </TouchableOpacity>
-          )}
+          </View>
+          <Text style={styles.cameraNote}>Solo cámara en vivo — no galería · mínimo 1 foto</Text>
         </View>
 
         {/* Estado */}
@@ -309,7 +315,7 @@ export function CheckInScreen() {
             {gpsState !== 'found' && (
               <Text style={styles.blockingItem}>• GPS requerido — esperando señal desde la ruta</Text>
             )}
-            {!photoUri && (
+            {photoUris.length === 0 && (
               <Text style={styles.blockingItem}>• Foto requerida para registrar la visita</Text>
             )}
             {selectedStatus === 'skipped' && !skipReason && (
@@ -332,7 +338,7 @@ export function CheckInScreen() {
 
       <CameraModal
         visible={cameraOpen}
-        onCapture={(uri) => { setPhotoUri(uri); setCameraOpen(false); }}
+        onCapture={(uri) => { setPhotoUris((prev) => [...prev, uri]); setCameraOpen(false); }}
         onClose={() => setCameraOpen(false)}
       />
 
@@ -352,6 +358,15 @@ export function CheckInScreen() {
         selectedValue={anomalyType}
         onSelect={(v) => setAnomalyType(v)}
         onClose={() => setAnomalySheetOpen(false)}
+      />
+
+      <CompetitionTab hasDraft={competitionDraft !== null} onPress={() => setCompetitionOpen(true)} />
+      <CompetitionPanel
+        visible={competitionOpen}
+        storeName={store.name}
+        initial={competitionDraft}
+        onClose={() => setCompetitionOpen(false)}
+        onDone={setCompetitionDraft}
       />
     </SafeAreaView>
   );
@@ -401,36 +416,21 @@ const styles = StyleSheet.create({
   fraudWarn: { backgroundColor: colors.warningBg },
   fraudText: { flex: 1, fontSize: 12, lineHeight: 18, ...fonts.medium },
   gpsErrorNote: { fontSize: 12, color: colors.danger, marginTop: 8, ...fonts.medium },
-  cameraZone: {
-    height: 120,
-    borderRadius: radii.md,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.bgElevated,
+  photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  photoWrap: { position: 'relative' },
+  photoItem: { width: 76, height: 76, borderRadius: radii.sm, backgroundColor: colors.bgElevated },
+  photoRemove: {
+    position: 'absolute', top: -6, right: -6,
+    width: 20, height: 20, borderRadius: radii.full,
+    backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center',
   },
-  cameraLabel: { fontSize: 13, color: colors.textSecondary, ...fonts.medium, marginTop: 8 },
-  cameraNote: { fontSize: 11, color: colors.textMuted, marginTop: 4 },
-  photoThumb: {
-    width: '100%',
-    height: 180,
-    borderRadius: radii.sm,
-    backgroundColor: colors.bgElevated,
+  addPhoto: {
+    width: 76, height: 76, borderRadius: radii.sm,
+    borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.borderAccent,
+    alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: colors.bgElevated,
   },
-  retakePhotoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 10,
-    paddingVertical: 8,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-  },
-  retakePhotoText: { fontSize: 12, color: colors.accent, ...fonts.semibold },
+  addPhotoLabel: { fontSize: 10, color: colors.accent, ...fonts.semibold },
+  cameraNote: { fontSize: 11, color: colors.textMuted, marginTop: 8 },
   statusRow: { flexDirection: 'row', gap: 8 },
   statusOption: {
     flex: 1,

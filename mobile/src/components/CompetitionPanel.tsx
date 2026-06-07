@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, fonts } from '../theme';
 import { BottomSheetSelect, type SelectOption } from './BottomSheetSelect';
 import { CameraModal } from './CameraModal';
-import { mockStores, mockCompetitorBrands } from '../mock-data';
+import { mockCompetitorBrands } from '../mock-data';
 import type { CompetitionReportRecord, CompetitionReport } from '../types';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -26,23 +26,33 @@ const ACTIVATION_OPTIONS: SelectOption<ActivationType>[] = [
 
 interface CompetitionPanelProps {
   visible: boolean;
+  storeName: string;                       // solo display: a qué tienda queda atado
+  initial: CompetitionReportRecord | null; // borrador previo para reabrir/editar
   onClose: () => void;
-  onSave: (record: CompetitionReportRecord) => void;
+  onDone: (record: CompetitionReportRecord) => void;
 }
 
-export function CompetitionPanel({ visible, onClose, onSave }: CompetitionPanelProps) {
+export function CompetitionPanel({ visible, storeName, initial, onClose, onDone }: CompetitionPanelProps) {
   const slide = useRef(new Animated.Value(PANEL_W)).current;
 
-  const [activationType, setActivationType] = useState<ActivationType | null>(null);
-  const [brandId, setBrandId] = useState<string | null>(null);
-  const [storeId, setStoreId] = useState<string | null>(null);
-  const [photoUris, setPhotoUris] = useState<string[]>([]);
-  const [notes, setNotes] = useState('');
+  const [activationType, setActivationType] = useState<ActivationType | null>(initial?.activation_type ?? null);
+  const [brandId, setBrandId] = useState<string | null>(initial?.brand_id ?? null);
+  const [photoUris, setPhotoUris] = useState<string[]>(initial?.photo_uris ?? []);
+  const [notes, setNotes] = useState(initial?.notes ?? '');
 
   const [activationSheet, setActivationSheet] = useState(false);
   const [brandSheet, setBrandSheet] = useState(false);
-  const [storeSheet, setStoreSheet] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+
+  // Re-hidratar el borrador cada vez que se abre el panel
+  useEffect(() => {
+    if (visible) {
+      setActivationType(initial?.activation_type ?? null);
+      setBrandId(initial?.brand_id ?? null);
+      setPhotoUris(initial?.photo_uris ?? []);
+      setNotes(initial?.notes ?? '');
+    }
+  }, [visible, initial]);
 
   useEffect(() => {
     Animated.timing(slide, {
@@ -53,25 +63,18 @@ export function CompetitionPanel({ visible, onClose, onSave }: CompetitionPanelP
   }, [visible, slide]);
 
   const brandOptions: SelectOption[] = mockCompetitorBrands.map((b) => ({ value: b.brand_id, label: b.name }));
-  const storeOptions: SelectOption[] = mockStores.map((s) => ({ value: s.store_id, label: s.name }));
 
   const canSave = activationType !== null && brandId !== null;
 
-  function handleSave() {
+  function handleDone() {
     if (!canSave) return;
-    onSave({
-      report_id: `compreport-${Date.now()}`,
-      store_id: storeId,
+    onDone({
+      report_id: initial?.report_id ?? `compreport-${Date.now()}`,
       brand_id: brandId,
       activation_type: activationType,
       photo_uris: photoUris,
       notes: notes.trim() === '' ? null : notes.trim(),
     });
-    setActivationType(null);
-    setBrandId(null);
-    setStoreId(null);
-    setPhotoUris([]);
-    setNotes('');
     onClose();
   }
 
@@ -87,7 +90,7 @@ export function CompetitionPanel({ visible, onClose, onSave }: CompetitionPanelP
                 <Ionicons name="close" size={22} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.headerSub}>Opcional · se adjunta a la sesión de hoy</Text>
+            <Text style={styles.headerSub}>Opcional · se guarda al registrar la visita en {storeName}</Text>
 
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
               <Text style={styles.label}>¿Cuál fue la activación?</Text>
@@ -102,14 +105,6 @@ export function CompetitionPanel({ visible, onClose, onSave }: CompetitionPanelP
               <TouchableOpacity style={styles.field} onPress={() => setBrandSheet(true)} activeOpacity={0.75}>
                 <Text style={[styles.fieldText, !brandId && styles.placeholder]}>
                   {brandOptions.find((o) => o.value === brandId)?.label ?? 'Seleccioná la marca'}
-                </Text>
-                <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
-              </TouchableOpacity>
-
-              <Text style={styles.label}>Tienda (opcional)</Text>
-              <TouchableOpacity style={styles.field} onPress={() => setStoreSheet(true)} activeOpacity={0.75}>
-                <Text style={[styles.fieldText, !storeId && styles.placeholder]}>
-                  {storeOptions.find((o) => o.value === storeId)?.label ?? 'Sin asociar a tienda'}
                 </Text>
                 <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
               </TouchableOpacity>
@@ -137,11 +132,11 @@ export function CompetitionPanel({ visible, onClose, onSave }: CompetitionPanelP
 
               <TouchableOpacity
                 style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
-                onPress={handleSave}
+                onPress={handleDone}
                 disabled={!canSave}
                 activeOpacity={0.85}
               >
-                <Text style={styles.saveBtnText}>Guardar reporte</Text>
+                <Text style={styles.saveBtnText}>Listo</Text>
               </TouchableOpacity>
             </ScrollView>
           </Pressable>
@@ -163,14 +158,6 @@ export function CompetitionPanel({ visible, onClose, onSave }: CompetitionPanelP
         selectedValue={brandId}
         onSelect={(v) => setBrandId(v)}
         onClose={() => setBrandSheet(false)}
-      />
-      <BottomSheetSelect
-        visible={storeSheet}
-        title="Tienda (opcional)"
-        options={storeOptions}
-        selectedValue={storeId}
-        onSelect={(v) => setStoreId(v)}
-        onClose={() => setStoreSheet(false)}
       />
       <CameraModal
         visible={cameraOpen}
