@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS stores (
 CREATE INDEX IF NOT EXISTS idx_stores_estado         ON stores(estado);
 CREATE INDEX IF NOT EXISTS idx_stores_channel        ON stores(business_channel);
 CREATE INDEX IF NOT EXISTS idx_stores_classification ON stores(classification);
+CREATE INDEX IF NOT EXISTS idx_stores_location ON stores USING GIST (master_location);
 
 -- ============================================================
 -- TABLE: users (perfiles vinculados a Supabase Auth + jerarquía)
@@ -127,6 +128,7 @@ CREATE TABLE IF NOT EXISTS location_pings (
 );
 CREATE INDEX IF NOT EXISTS idx_pings_session   ON location_pings(session_id);
 CREATE INDEX IF NOT EXISTS idx_pings_user_time ON location_pings(user_id, timestamp);
+CREATE INDEX IF NOT EXISTS idx_pings_location ON location_pings USING GIST (location);
 
 -- ============================================================
 -- TABLE: visits (check-ins en tienda)
@@ -184,8 +186,9 @@ $$;
 
 -- INVARIANTE: el cliente debe escribir status='anomaly' y anomaly_type en el MISMO INSERT
 -- (regla "Payload Completa"). El trigger lee NEW.anomaly_type/NEW.observations en el AFTER INSERT.
+-- SECURITY DEFINER: el lookup del supervisor y el INSERT en tasks no dependen del RLS del caller.
 CREATE OR REPLACE FUNCTION fn_create_task_from_anomaly()
-RETURNS TRIGGER LANGUAGE plpgsql SET search_path = '' AS $$
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
   v_supervisor UUID;
 BEGIN
@@ -282,8 +285,11 @@ DROP POLICY IF EXISTS "pings_supervisor_read"     ON location_pings;
 DROP POLICY IF EXISTS "visits_own"                ON visits;
 DROP POLICY IF EXISTS "visits_supervisor_read"    ON visits;
 DROP POLICY IF EXISTS "tasks_rw"                  ON tasks;
+DROP POLICY IF EXISTS "tasks_select"              ON tasks;
+DROP POLICY IF EXISTS "tasks_update"              ON tasks;
 DROP POLICY IF EXISTS "brands_read_auth"          ON competitor_brands;
 DROP POLICY IF EXISTS "comp_reports_own"          ON competition_reports;
+DROP POLICY IF EXISTS "comp_reports_supervisor_read" ON competition_reports;
 
 -- stores: lectura autenticada; escritura (alta/edición) supervisor/admin. Sin DELETE (se desactiva con active=false).
 CREATE POLICY "stores_read_authenticated" ON stores
@@ -349,9 +355,14 @@ CREATE POLICY "visits_supervisor_read" ON visits
   FOR SELECT TO authenticated
   USING (EXISTS (SELECT 1 FROM users u WHERE u.id = visits.user_id AND u.supervisor_id = auth.uid()));
 
--- tasks (v2.0: WITH CHECK endurecido — ya no es TRUE)
-CREATE POLICY "tasks_rw" ON tasks
-  FOR ALL TO authenticated
+-- tasks (v2.0): el INSERT lo hace SOLO el trigger (SECURITY DEFINER); los clientes leen y actualizan estado
+CREATE POLICY "tasks_select" ON tasks
+  FOR SELECT TO authenticated
+  USING (assignee_user_id = auth.uid()
+         OR created_by_user_id = auth.uid()
+         OR EXISTS (SELECT 1 FROM users u WHERE u.id = created_by_user_id AND u.supervisor_id = auth.uid()));
+CREATE POLICY "tasks_update" ON tasks
+  FOR UPDATE TO authenticated
   USING (assignee_user_id = auth.uid()
          OR created_by_user_id = auth.uid()
          OR EXISTS (SELECT 1 FROM users u WHERE u.id = created_by_user_id AND u.supervisor_id = auth.uid()))
@@ -363,12 +374,14 @@ CREATE POLICY "tasks_rw" ON tasks
 CREATE POLICY "brands_read_auth" ON competitor_brands
   FOR SELECT TO authenticated USING (TRUE);
 
--- competition_reports: el autor gestiona; supervisor lee
+-- competition_reports: el autor gestiona lo suyo; supervisor SOLO lee (DELETE evalúa únicamente USING)
 CREATE POLICY "comp_reports_own" ON competition_reports
   FOR ALL TO authenticated
-  USING (user_id = auth.uid()
-         OR EXISTS (SELECT 1 FROM users u WHERE u.id = competition_reports.user_id AND u.supervisor_id = auth.uid()))
+  USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
+CREATE POLICY "comp_reports_supervisor_read" ON competition_reports
+  FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM users u WHERE u.id = competition_reports.user_id AND u.supervisor_id = auth.uid()));
 
 -- ============================================================
 -- STORAGE: bucket visit-photos + políticas por carpeta de usuario
