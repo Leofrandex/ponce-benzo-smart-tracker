@@ -28,17 +28,16 @@ export function ClientesTable({ rows }: { rows: ClientRow[] }) {
   }
 
   return (
-    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-      <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
-        <div className="contactos-table-header" style={{
-          gridTemplateColumns: "2fr 1fr 0.6fr 1fr auto",
-          position: "sticky", top: 0, zIndex: 1, background: "var(--bg-card)",
-        }}>
-          <div>Nombre</div><div>Canal</div><div>Clase</div><div>Actividades</div><div></div>
-        </div>
-        {rows.map((r, idx) => (
+    <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
+      <div className="contactos-table-header" style={{
+        gridTemplateColumns: "2fr 1fr 0.6fr 1fr auto",
+        position: "sticky", top: 0, zIndex: 1, background: "var(--bg-base)",
+      }}>
+        <div>Nombre</div><div>Canal</div><div>Clase</div><div>Actividades</div><div></div>
+      </div>
+      {rows.map((r, idx) => (
         <Link key={r.store_id} href={`/supervisor/clientes/${r.store_id}`} style={{ textDecoration: "none" }}>
-          <div className="contactos-table-row" style={{
+          <div className="contactos-table-row clientes-flat-row" style={{
             gridTemplateColumns: "2fr 1fr 0.6fr 1fr auto",
             borderTop: idx === 0 ? "none" : "1px solid var(--border)",
             opacity: r.active ? 1 : 0.6,
@@ -66,8 +65,7 @@ export function ClientesTable({ rows }: { rows: ClientRow[] }) {
             </div>
           </div>
         </Link>
-        ))}
-      </div>
+      ))}
     </div>
   );
 }
