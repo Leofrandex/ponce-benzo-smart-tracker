@@ -47,7 +47,7 @@ export default function ClienteDetailPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <ClientInfoPanel store={store} lastRestock={lastRestock} />
           <ContactList contacts={contacts} />
-          <EngagementsPanel engagements={engagements} />
+          <EngagementsPanel key={storeId} engagements={engagements} />
           <LongTermPlaceholders />
         </div>
         <ActivityFeed reports={reports} tasks={tasks} />
