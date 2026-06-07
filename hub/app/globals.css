@@ -204,10 +204,6 @@ body {
   transition: border-color var(--duration) var(--ease), transform var(--duration) var(--ease);
 }
 
-.card:active {
-  transform: scale(0.98);
-}
-
 .card-interactive {
   cursor: pointer;
 }
@@ -236,10 +232,6 @@ body {
 .store-card:hover {
   border-color: var(--border-accent);
   background: var(--bg-elevated);
-}
-
-.store-card:active {
-  transform: scale(0.98);
 }
 
 .store-number {
