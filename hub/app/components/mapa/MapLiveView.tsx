@@ -8,7 +8,7 @@ import { mockActiveMerchandisers } from "@/app/lib/map-data";
 import { LIGHT_TILE_URL, LIGHT_TILE_ATTRIBUTION, CARACAS_CENTER } from "./tiles";
 import { StoreMarkersLayer } from "./StoreMarkersLayer";
 import { MerchandiserMarkersLayer } from "./MerchandiserMarkersLayer";
-import type { MapFilterValue } from "./MapFilters";
+import type { MapFilterValue } from "./MapFilterSidebar";
 
 export default function MapLiveView({ filters }: { filters: MapFilterValue }) {
   const stores = useMemo(() => filters.storeIds.length === 0 ? mockStores : mockStores.filter((s) => filters.storeIds.includes(s.store_id)), [filters.storeIds]);

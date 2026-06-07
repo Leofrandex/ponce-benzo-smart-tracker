@@ -8,7 +8,7 @@ import { getPingsInRange } from "@/app/lib/map-data";
 import { LIGHT_TILE_URL, LIGHT_TILE_ATTRIBUTION, CARACAS_CENTER } from "./tiles";
 import { StoreMarkersLayer } from "./StoreMarkersLayer";
 import { HeatmapLayer } from "./HeatmapLayer";
-import type { MapFilterValue } from "./MapFilters";
+import type { MapFilterValue } from "./MapFilterSidebar";
 
 function isoDaysAgo(n: number): string {
   return new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
