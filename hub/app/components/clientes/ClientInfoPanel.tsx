@@ -24,7 +24,7 @@ export function ClientInfoPanel({ store, lastRestock }: { store: Store; lastRest
   const zona = [store.urbanizacion, store.municipio, store.estado].filter(Boolean).join(", ") || "—";
   return (
     <div>
-      <div className="section-title">Información del cliente</div>
+      <div className="section-title" style={{ marginBottom: "6px" }}>Información del cliente</div>
       <div className="card" style={{ padding: "0 16px" }}>
         <Row icon={<MapPin size={15} color="var(--accent)" />} label="Dirección" value={store.address ?? "—"} />
         <Row icon={<Layers size={15} color="var(--accent)" />} label="Zona" value={zona} />

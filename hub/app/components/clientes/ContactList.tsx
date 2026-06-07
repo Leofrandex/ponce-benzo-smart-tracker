@@ -6,14 +6,17 @@ import type { Contact } from "@/app/lib/types";
 export function ContactList({ contacts }: { contacts: Contact[] }) {
   return (
     <div>
-      <div className="section-title">Contactos ({contacts.length})</div>
+      <div className="section-title" style={{ marginBottom: "6px" }}>Contactos ({contacts.length})</div>
       {contacts.length === 0 ? (
         <div className="card" style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>Sin contactos registrados.</div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {contacts.map((c) => (
-            <div key={c.contact_id} className="card" style={{ padding: "12px 14px", opacity: c.active ? 1 : 0.6 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+        <div className="card" style={{ padding: "4px 14px", height: "175px", overflowY: "auto" }}>
+          {contacts.map((c, idx) => (
+            <div key={c.contact_id} style={{
+              padding: "10px 0", opacity: c.active ? 1 : 0.6,
+              borderTop: idx === 0 ? "none" : "1px solid var(--border)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
                 <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--accent-glow)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <User size={16} color="var(--accent)" />
                 </div>
