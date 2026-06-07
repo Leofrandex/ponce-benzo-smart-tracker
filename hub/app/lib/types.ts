@@ -116,7 +116,7 @@ export type TaskType =
   | "other";
 
 export type TaskPriority = "high" | "medium" | "low";
-export type TaskStatus = "open" | "in_progress" | "resolved";
+export type TaskStatus = "open" | "resolved";
 
 export interface SupervisorTask {
   task_id: string;

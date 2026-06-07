@@ -149,7 +149,7 @@ export function ActivityFeed({ reports, tasks }: { reports: SupervisorReport[]; 
                         </div>
                         <div style={{ display: "flex", gap: "4px" }}>
                           <span className={prCfg.badgeClass}>{prCfg.label}</span>
-                          {task.status === "resolved" && <span className="badge badge-success">Resuelta</span>}
+                          {task.status === "resolved" && <span className="badge badge-success">Completada</span>}
                         </div>
                       </div>
                       <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.6, marginTop: "10px" }}>{task.description}</p>

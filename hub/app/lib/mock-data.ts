@@ -89,7 +89,7 @@ export const mockTasks: SupervisorTask[] = [
     type: "pricing_issue",
     description: "Etiquetas de precio del exhibidor no coinciden con el sistema POS. Diferencia de Bs. 12 en producto estrella.",
     priority: "medium",
-    status: "in_progress",
+    status: "open",
   },
   {
     task_id: "task-004",
@@ -163,7 +163,7 @@ export const mockTasks: SupervisorTask[] = [
     type: "contact_manager",
     description: "Gerente solicitó cambio en planograma. Requiere aprobación del supervisor.",
     priority: "high",
-    status: "in_progress",
+    status: "open",
   },
   {
     task_id: "task-010",
