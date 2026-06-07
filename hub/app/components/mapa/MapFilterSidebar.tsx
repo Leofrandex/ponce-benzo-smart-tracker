@@ -63,7 +63,7 @@ export function MapFilterSidebar({ value, onChange }: { value: MapFilterValue; o
   const isDirty = value.merchIds.length > 0 || value.storeIds.length > 0;
 
   return (
-    <div style={{ width: "230px", flexShrink: 0, display: "flex", flexDirection: "column", gap: "8px", overflowY: "auto", paddingRight: "2px" }}>
+    <div style={{ width: "230px", flexShrink: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: "8px", overflowY: "auto", paddingRight: "2px" }}>
       <SectionHeader
         title="Mercaderistas" open={merchOpen} onToggle={() => setMerchOpen((o) => !o)}
         count={value.merchIds.length === 0 ? "todos" : `${value.merchIds.length} / ${mockActiveMerchandisers.length}`}
