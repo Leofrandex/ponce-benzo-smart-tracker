@@ -13,10 +13,15 @@ const CHANNEL_LABELS: Record<string, string> = {
 
 interface StoreFormModalProps {
   open: boolean;
-  store: Store;
+  store: Store | null; // null = crear nueva sucursal
   onClose: () => void;
   onSave: (store: Store) => void;
 }
+
+// Coordenadas provisionales (centro de Caracas) para sucursales nuevas,
+// igual que la convención de la ingesta de datos.
+const DEFAULT_LAT = "10.4806";
+const DEFAULT_LNG = "-66.9036";
 
 function Field({ label, value, onChange, placeholder, required }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string; required?: boolean;
@@ -49,19 +54,19 @@ export function StoreFormModal({ open, store, onClose, onSave }: StoreFormModalP
   const [lng, setLng] = useState("");
   const [active, setActive] = useState(true);
 
-  // Re-hidratar al abrir
+  // Re-hidratar al abrir (crear = defaults, editar = datos de la sucursal)
   useEffect(() => {
     if (!open) return;
-    setName(store.name);
-    setAddress(store.address ?? "");
-    setEstado(store.estado ?? "");
-    setMunicipio(store.municipio ?? "");
-    setUrbanizacion(store.urbanizacion ?? "");
-    setChannel(store.business_channel ?? "");
-    setClassification(store.classification ?? "");
-    setLat(String(store.master_lat));
-    setLng(String(store.master_lng));
-    setActive(store.active);
+    setName(store?.name ?? "");
+    setAddress(store?.address ?? "");
+    setEstado(store?.estado ?? "");
+    setMunicipio(store?.municipio ?? "");
+    setUrbanizacion(store?.urbanizacion ?? "");
+    setChannel(store?.business_channel ?? "");
+    setClassification(store?.classification ?? "");
+    setLat(store ? String(store.master_lat) : DEFAULT_LAT);
+    setLng(store ? String(store.master_lng) : DEFAULT_LNG);
+    setActive(store?.active ?? true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -84,8 +89,25 @@ export function StoreFormModal({ open, store, onClose, onSave }: StoreFormModalP
 
   function handleSave() {
     if (!canSave) return;
+    const base: Store = store ?? {
+      store_id: `store-${Date.now()}`,
+      name: "",
+      address: null,
+      master_lat: 0,
+      master_lng: 0,
+      active: true,
+      created_at: new Date().toISOString(),
+      contact_name: null,
+      contact_phone: null,
+      contact_email: null,
+      estado: null,
+      municipio: null,
+      urbanizacion: null,
+      business_channel: null,
+      classification: null,
+    };
     onSave({
-      ...store,
+      ...base,
       name: name.trim(),
       address: address.trim() || null,
       estado: estado.trim() || null,
@@ -124,7 +146,9 @@ export function StoreFormModal({ open, store, onClose, onSave }: StoreFormModalP
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2px" }}>
-              <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>Editar sucursal</div>
+              <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+                {store ? "Editar sucursal" : "Nueva sucursal"}
+              </div>
               <button onClick={onClose} aria-label="Cerrar" style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px" }}>
                 <X size={18} />
               </button>
