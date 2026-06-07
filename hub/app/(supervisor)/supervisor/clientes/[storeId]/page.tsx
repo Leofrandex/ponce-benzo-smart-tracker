@@ -46,7 +46,7 @@ export default function ClienteDetailPage() {
       <div className="detail-two-col">
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <ClientInfoPanel store={store} lastRestock={lastRestock} />
-          <ContactList contacts={contacts} />
+          <ContactList key={storeId} storeId={storeId} contacts={contacts} />
           <LongTermPlaceholders />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
