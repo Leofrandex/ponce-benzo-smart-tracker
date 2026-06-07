@@ -21,11 +21,6 @@ const TASK_TYPE_CONFIG: Record<SupervisorTask["type"], { label: string; Icon: Re
   pricing_issue: { label: "Problema de precio", Icon: Tag }, display_damage: { label: "Daño en exhibidor", Icon: Wrench },
   other: { label: "Otro", Icon: HelpCircle },
 };
-const PRIORITY_CONFIG: Record<SupervisorTask["priority"], { label: string; badgeClass: string; iconBg: string; iconColor: string }> = {
-  high: { label: "Alta", badgeClass: "badge badge-danger", iconBg: "var(--danger-bg)", iconColor: "var(--danger)" },
-  medium: { label: "Media", badgeClass: "badge badge-warning", iconBg: "var(--warning-bg)", iconColor: "var(--warning)" },
-  low: { label: "Baja", badgeClass: "badge badge-success", iconBg: "var(--success-bg)", iconColor: "var(--success)" },
-};
 const DATE_FILTERS: { key: DateFilter; label: string }[] = [
   { key: "all", label: "Todos" }, { key: "today", label: "Hoy" }, { key: "week", label: "Esta semana" },
 ];
@@ -138,17 +133,18 @@ export function ActivityFeed({ reports, tasks }: { reports: SupervisorReport[]; 
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {tasks.map((task) => {
-                  const typeCfg = TASK_TYPE_CONFIG[task.type]; const prCfg = PRIORITY_CONFIG[task.priority]; const TypeIcon = typeCfg.Icon;
+                  const typeCfg = TASK_TYPE_CONFIG[task.type]; const TypeIcon = typeCfg.Icon;
+                  const iconBg = task.status === "open" ? "var(--danger-bg)" : "var(--success-bg)";
+                  const iconColor = task.status === "open" ? "var(--danger)" : "var(--success)";
                   return (
                     <div key={task.task_id} className="card" style={{ padding: "14px 16px", opacity: task.status === "resolved" ? 0.65 : 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <div style={{ width: 32, height: 32, borderRadius: "var(--radius-sm)", background: prCfg.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><TypeIcon size={15} color={prCfg.iconColor} /></div>
+                        <div style={{ width: 32, height: 32, borderRadius: "var(--radius-sm)", background: iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><TypeIcon size={15} color={iconColor} /></div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{typeCfg.label}</div>
                           <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "1px", display: "flex", alignItems: "center", gap: "3px" }}><User size={10} /> {task.merchandiser_name}</div>
                         </div>
                         <div style={{ display: "flex", gap: "4px" }}>
-                          <span className={prCfg.badgeClass}>{prCfg.label}</span>
                           {task.status === "resolved" && <span className="badge badge-success">Completada</span>}
                         </div>
                       </div>

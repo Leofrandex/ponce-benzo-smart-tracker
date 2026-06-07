@@ -84,12 +84,14 @@ Formulario de check-in y evidencias recopiladas en cada tienda.
 
 ### 6. Tabla: `location_pings` (Rastreo continuo)
 *   `ping_id` (`UUID`, PK).
-*   `session_id` (`UUID`, FK -> `sessions.session_id`).
+*   `session_id` (`UUID`, FK -> `sessions.session_id`, nullable — el ping puede llegar antes de resolver la sesión).
+*   `user_id` (`UUID`, FK -> `users.id`, `NOT NULL`): Autor del ping (v2.0 — evita inferirlo al sincronizar).
 *   `timestamp` (`TIMESTAMPTZ`).
-*   `location` (`GEOGRAPHY(POINT, 4326)`): Punto geográfico del dispositivo en movimiento.
+*   `lat` / `lng` (`DOUBLE PRECISION`).
+*   `location` (`GEOGRAPHY(POINT, 4326)`, generada): Punto geográfico, con índice GiST para el mapa de calor histórico.
 
-> [!WARNING]
-> `location_pings` está definida en esta arquitectura y en el SQLite local, pero **aún no existe** en el esquema Supabase (`tools/supabase_schema.sql`). Falta crearla en una migración aparte para poder sincronizar los pings. Ver [[pendientes/Pendientes|Pendientes]].
+> [!NOTE]
+> Creada en el Schema v2.0 (2026-06-07) — el gap histórico quedó resuelto. Ver [[arquitectura/Spec - Supabase Schema v2|Spec v2.0]] y [[decisiones/ADR-003-Supabase-Desde-Cero|ADR-003]].
 
 ---
 
@@ -109,6 +111,7 @@ Varios contactos por tienda (encargado, comprador, gerente).
 *   `is_primary` (`BOOLEAN`): Marca el contacto principal de la tienda.
 *   `active` (`BOOLEAN`).
 *   `created_at` (`TIMESTAMPTZ`).
+*   *Restricción (v2.0):* índice único parcial `uq_contacts_primary_per_store` — a lo sumo **un** contacto `is_primary AND active` por tienda (encargado único garantizado en BD).
 
 ### 8. Tabla: `contact_engagements`
 Bitácora estructurada de interacciones con contactos (decisión D5).
@@ -131,7 +134,8 @@ Tareas accionables. Se asignan al **supervisor del vendedor** (decisión D1).
 *   `source_visit_id` (`UUID`, FK -> `visits.visit_id`): Visita que originó la tarea (si vino de una anomalía).
 *   `task_type` (`TEXT`): Tipo de tarea (ej. `reponer_stock`, `contactar_comprador`, `contactar_gerente`, `revisar_anomalia`).
 *   `title` (`TEXT`).
-*   `status` (`TEXT`, `CHECK`): `pending` | `in_progress` | `done`.
+*   `description` (`TEXT`, v2.0): Detalle/contexto — el trigger copia `visits.observations`; las tareas manuales futuras la usan como texto libre.
+*   `status` (`TEXT`, `CHECK`, v2.0): `open` | `resolved` (alineado con el UI del hub; sin `priority` por decisión de producto).
 
 ### 10. Tabla: `competitor_brands`
 Catálogo editable de marcas de la competencia (decisión D6 — lookup, no enum fijo).
@@ -142,6 +146,7 @@ Catálogo editable de marcas de la competencia (decisión D6 — lookup, no enum
 Reportes de actividad de la competencia observada en tienda.
 *   `report_id` (`UUID`, PK).
 *   `session_id` (`UUID`, FK -> `sessions.session_id`).
+*   `visit_id` (`UUID`, FK -> `visits.visit_id`, v2.0): Check-in al que está ligado el reporte (la competencia se reporta dentro del check-in desde 2026-06-06).
 *   `store_id` (`UUID`, FK -> `stores.store_id`).
 *   `user_id` (`UUID`, FK -> `users.id`).
 *   `brand_id` (`UUID`, FK -> `competitor_brands.brand_id`).
@@ -171,13 +176,16 @@ Cuando una visita se inserta con `status = 'anomaly'`, el trigger `trg_visit_ano
 > [!NOTE]
 > Ambas funciones aplican `SET search_path = ''` como medida de *hardening* (evita secuestro de esquema). La invariante de "Payload Completa" exige que `anomaly_type` viaje en el mismo INSERT que `status = 'anomaly'`.
 
+> [!IMPORTANT]
+> **v2.0:** `fn_create_task_from_anomaly` es `SECURITY DEFINER` (el lookup del supervisor y el INSERT en `tasks` no dependen del RLS del caller); la tarea nace con `status = 'open'` y `description = visits.observations`. Ambas funciones tienen `REVOKE EXECUTE` para `anon`/`authenticated` (no son invocables vía RPC).
+
 ---
 
 ## 🔒 Row Level Security (RLS) en Supabase
 
 Para garantizar que los mercaderistas no puedan ver información confidencial de otros vendedores ni sabotear rutas ajenas, se habilitan las siguientes políticas:
 
-- **Tabla `stores`:** Todos los usuarios autenticados tienen permisos de lectura (`SELECT`) globales.
+- **Tabla `stores`:** Todos los usuarios autenticados tienen permisos de lectura (`SELECT`) globales. **v2.0:** `supervisor`/`admin` además pueden `INSERT`/`UPDATE` (CRUD de sucursales del hub); sin `DELETE` — se desactiva con `active = false`.
 - **Tabla `users`:** El mercaderista solo puede ver/modificar su propio perfil (`auth.uid() = id`).
 - **Tabla `routes`:** El mercaderista solo puede leer rutas asignadas a él (`auth.uid() = user_id`).
 - **Tabla `sessions`:** Permisos completos (`ALL`) concedidos si el creador de la sesión coincide con `auth.uid()`.
@@ -186,7 +194,8 @@ Para garantizar que los mercaderistas no puedan ver información confidencial de
 ### Políticas CRM nuevas (ADR-002)
 
 - **Tablas `contacts`, `contact_engagements`, `tasks`, `competitor_brands`, `competition_reports`:** habilitadas con políticas propias para los flujos de CRM.
-- **`tasks_assignee`:** el responsable accede a sus tareas. Actualmente con `WITH CHECK (true)` — aceptable mientras las tareas se generen sólo por trigger/servidor; debe endurecerse si el cliente llega a escribir tareas directamente (ver [[pendientes/Pendientes|Pendientes]]).
+- **`tasks` (v2.0):** sin política de `INSERT` para clientes — solo el trigger `SECURITY DEFINER` crea tareas. `tasks_select`/`tasks_update` para asignado, creador o supervisor del creador (el viejo `WITH CHECK (true)` quedó eliminado).
+- **`competition_reports` (v2.0):** el autor gestiona lo suyo (`comp_reports_own`); el supervisor tiene **solo lectura** sobre los reportes de sus vendedores (`comp_reports_supervisor_read`).
 
 ### Visibilidad de Supervisor
 
@@ -195,6 +204,12 @@ Se agregan políticas de lectura para que un supervisor vea a su equipo, compara
 - **`users_supervisor_read`:** el supervisor lee los perfiles de sus vendedores.
 - **`routes_supervisor_read`:** el supervisor lee las rutas de sus vendedores.
 - **`visits_supervisor_read`:** el supervisor lee las visitas de sus vendedores.
+- **`sessions_supervisor_read` (v2.0):** el supervisor lee las jornadas de sus vendedores (mapa en vivo).
+- **`pings_supervisor_read` (v2.0):** el supervisor lee los pings GPS de sus vendedores (mapa de calor).
+
+### Storage (v2.0)
+
+Bucket privado **`visit-photos`** con políticas por carpeta de usuario (`{user_id}/{visit_id}/{timestamp}.jpg`): el usuario autenticado solo sube bajo su propia carpeta (`storage.foldername(name)[1] = auth.uid()`); leen el dueño y su supervisor.
 
 ---
 
@@ -241,9 +256,12 @@ CREATE TABLE IF NOT EXISTS visits (
 ```
 
 > [!NOTE]
-> Las columnas `anomaly_type`, `skip_reason` y `last_restock_date` se agregan a la tabla local `visits` mediante una **migración idempotente** (vía `PRAGMA table_info`) en `mobile/src/services/db.ts`, para no romper instalaciones existentes.
+> Las columnas `anomaly_type`, `skip_reason` y `last_restock_date` (en `visits`), `visit_id` (en `competition_reports`) y `user_id` (en `location_pings`) se agregan mediante **migraciones idempotentes** (helper `addColumnsIfMissing` vía `PRAGMA table_info`) en `mobile/src/services/db.ts`, para no romper instalaciones existentes.
 
-Adicionalmente, se crea la tabla espejo local `competition_reports` que retiene los reportes de competencia capturados offline antes de subirlos a Supabase (con su flag `synced`).
+Adicionalmente, se crea la tabla espejo local `competition_reports` que retiene los reportes de competencia capturados offline antes de subirlos a Supabase (con su flag `synced` y, desde v2.0, `visit_id` que la liga al check-in).
+
+> [!TIP]
+> **v2.0:** `insertLocationPingSync` (llamada desde el task de background, fuera del contexto React) resuelve la **jornada abierta** (`session_end IS NULL`) de forma síncrona para poblar `session_id` y `user_id` del ping — el sync a Supabase no necesita inferir el autor.
 
 ---
 

@@ -31,18 +31,19 @@ Hemos completado el blueprint, la división de código (Split Web/Mobile) y la d
 - [x] Definir e investigar los componentes anti-fraude y geolocalización.
 - [x] Investigar la resiliencia offline en móviles (SQLite + FileSystem).
 
-### 🔗 Fase 2: Link / Conectividad (Completado)
-- [x] Inicializar el proyecto en Supabase (Base de datos PostgreSQL + PostGIS).
-- [x] Crear el bucket de almacenamiento `visit-photos` en Supabase Storage.
-- [x] Configurar las políticas de Row Level Security (RLS) en base de datos.
+### 🔗 Fase 2: Link / Conectividad (Completado — re-ejecutada 2026-06-07)
+- [x] Inicializar el proyecto en Supabase (Base de datos PostgreSQL + PostGIS). **Re-creado desde cero** como `poncebenzo` con Schema v2.0 consolidado, ver [[decisiones/ADR-003-Supabase-Desde-Cero|ADR-003]].
+- [x] Crear el bucket de almacenamiento `visit-photos` en Supabase Storage (con políticas por carpeta `{user_id}/`).
+- [x] Configurar las políticas de Row Level Security (RLS) en base de datos (v2.0 endurecida: trigger SECURITY DEFINER, tasks sin INSERT de cliente, supervisor read-only en competencia).
 - [x] Configurar el enrutador y componentes iniciales de la app móvil.
 
 ### 🏗️ Fase 3: Arquitectura y Conexiones (En Desarrollo)
 - [/] **Segundo Cerebro:** Estructurar el vault de Obsidian y migrar documentación raíz.
 - [x] **Modelo de Datos CRM (esquema base completado):** Expansión del esquema Supabase con contactos, bitácora de engagements, tareas, reportes de competencia, jerarquía supervisor→vendedor, columnas de segmentación de tiendas y trigger anomalía→tarea. Reflejado en el SQLite local móvil y en los tipos TypeScript. Ver [[decisiones/ADR-002-Modelo-CRM|ADR-002]].
 - [ ] **Ingesta de Datos:** Actualizar `tools/import-data.ts` para procesar y cargar los datos de `MAESTRO.xlsx` y `RUTAS 05-12-25 (1).xlsx` a Supabase de manera consolidada.
-- [ ] **Configurar Variables de Entorno:** Generar `hub/.env.local` con las claves reales de la base de datos de producción.
-- [ ] **Handshake de Producción:** Correr y verificar la respuesta con el script `tools/verify_supabase_connection.py`.
+- [x] **Schema v2.0 alineado con el UI (2026-06-07):** proyecto Supabase recreado desde cero y schema consolidado aplicado (location_pings, tasks open/resolved + description, competition visit_id, RLS endurecida, Storage). Hub sin `priority`; SQLite mobile alineado. Ver [[arquitectura/Spec - Supabase Schema v2|Spec v2.0]] y [[decisiones/ADR-003-Supabase-Desde-Cero|ADR-003]].
+- [x] **Configurar Variables de Entorno:** `hub/.env.local` y `.env` raíz con las claves reales del proyecto `poncebenzo` (2026-06-07).
+- [x] **Handshake de Producción:** `tools/verify_supabase_connection.py` verificado OK contra el proyecto nuevo (env, DB, Storage, Auth) (2026-06-07).
 - [ ] **Sincronización Móvil:** Reemplazar el login y carga de rutas de prueba por llamadas reales a Supabase Auth y consultas SQLite -> Supabase.
 
 ### 🎨 Fase 4: Estilización y UX (En Desarrollo)

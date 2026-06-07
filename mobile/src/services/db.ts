@@ -55,19 +55,27 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
   `);
 
   // Migraciones idempotentes de columnas (SQLite no soporta ADD COLUMN IF NOT EXISTS)
-  const visitCols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(visits)`);
-  const have = new Set(visitCols.map((c) => c.name));
-  const toAdd: Array<[string, string]> = [
-    ['anomaly_type', 'TEXT'],
-    ['skip_reason', 'TEXT'],
-    ['last_restock_date', 'TEXT'],
-  ];
-  await db.withTransactionAsync(async () => {
-    for (const [col, type] of toAdd) {
+  const addColumnsIfMissing = async (table: string, cols: Array<[string, string]>) => {
+    const existing = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+    const have = new Set(existing.map((c) => c.name));
+    for (const [col, type] of cols) {
       if (!have.has(col)) {
-        await db.execAsync(`ALTER TABLE visits ADD COLUMN ${col} ${type}`);
+        await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
       }
     }
+  };
+  await db.withTransactionAsync(async () => {
+    await addColumnsIfMissing('visits', [
+      ['anomaly_type', 'TEXT'],
+      ['skip_reason', 'TEXT'],
+      ['last_restock_date', 'TEXT'],
+    ]);
+    await addColumnsIfMissing('competition_reports', [
+      ['visit_id', 'TEXT'], // v2.0: reporte ligado al check-in
+    ]);
+    await addColumnsIfMissing('location_pings', [
+      ['user_id', 'TEXT'], // v2.0: autor del ping, evita inferirlo al sincronizar
+    ]);
   });
 }
 
@@ -183,11 +191,17 @@ export function insertLocationPingSync(
   // openDatabaseSync gives a direct handle without the React context
   const { openDatabaseSync } = require('expo-sqlite') as typeof import('expo-sqlite');
   const db = openDatabaseSync('poncebenzo.db');
+  // El task de background no conoce la sesión: se resuelve desde la jornada abierta
+  const open = db.getFirstSync<{ session_id: string; user_id: string }>(
+    `SELECT session_id, user_id FROM sessions
+     WHERE session_end IS NULL ORDER BY session_start DESC LIMIT 1`,
+  );
   db.runSync(
-    `INSERT INTO location_pings (ping_id, session_id, timestamp, lat, lng)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO location_pings (ping_id, session_id, user_id, timestamp, lat, lng)
+     VALUES (?, ?, ?, ?, ?, ?)`,
     `ping-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    sessionId ?? null,
+    sessionId ?? open?.session_id ?? null,
+    open?.user_id ?? null,
     timestamp,
     lat,
     lng,
@@ -199,6 +213,7 @@ export function insertLocationPingSync(
 export interface CompetitionReportRow {
   report_id: string;
   session_id: string | null;
+  visit_id: string | null;
   store_id: string | null;
   user_id: string;
   brand_id: string | null;
@@ -217,10 +232,11 @@ export async function insertCompetitionReport(
   // para soportar varias sin migrar el schema.
   await db.runAsync(
     `INSERT OR REPLACE INTO competition_reports
-      (report_id, session_id, store_id, user_id, brand_id, activation_type, photo_uri, notes, created_at, synced)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (report_id, session_id, visit_id, store_id, user_id, brand_id, activation_type, photo_uri, notes, created_at, synced)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     data.report_id,
     data.session_id ?? null,
+    data.visit_id ?? null,
     data.store_id ?? null,
     data.user_id,
     data.brand_id ?? null,

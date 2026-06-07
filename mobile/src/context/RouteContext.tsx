@@ -191,6 +191,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       await insertCompetitionReport(db, {
         report_id: competitionReport.report_id,
         session_id: sessionId.current ?? null,
+        visit_id: record.visit_id,
         store_id: storeId,
         user_id: user?.id ?? 'unknown',
         brand_id: competitionReport.brand_id,

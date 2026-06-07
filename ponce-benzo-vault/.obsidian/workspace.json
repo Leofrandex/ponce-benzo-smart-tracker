@@ -1,0 +1,218 @@
+{
+  "main": {
+    "id": "fc47ee817377bd4b",
+    "type": "split",
+    "children": [
+      {
+        "id": "eac9ff78793915f2",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "1e3217da0adc8184",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Graph view"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "8a9b37389479e6e4",
+    "type": "split",
+    "children": [
+      {
+        "id": "a0d19db23b0cff63",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "b2ebd026da958538",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "7e9be6f7c2e4ed5d",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "53abde2c5a326a9e",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "a10fe4d1c82521c0",
+    "type": "split",
+    "children": [
+      {
+        "id": "cef3e89e38ad3e3a",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "0627a18a4dbbd490",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "7d1e70827eb3514d",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "3bcfe29e6c60ab8a",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "782789739eac0656",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "24eb073607310e69",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "1e3217da0adc8184",
+  "lastOpenFiles": [
+    "arquitectura/Spec - Supabase Schema v2.md.tmp.33292.70d8e0423af0",
+    "arquitectura/Esquema Base Datos.md.tmp.33292.173a6283aa66",
+    "arquitectura/Esquema Base Datos.md.tmp.33292.90d0c52ed956",
+    "arquitectura/Esquema Base Datos.md.tmp.33292.416e2cfe061b",
+    "arquitectura/Esquema Base Datos.md.tmp.33292.c0bdfea2500b",
+    "arquitectura/Esquema Base Datos.md.tmp.33292.cf2489154dcf",
+    "arquitectura/Esquema Base Datos.md.tmp.33292.0bfcd2cff7fe",
+    "arquitectura/Esquema Base Datos.md.tmp.33292.61b55393454d",
+    "pendientes/Pendientes.md.tmp.33292.9a3ba24a4dbb",
+    "pendientes/Pendientes.md.tmp.33292.63f1ca11c59c",
+    "pendientes/Pendientes.md.tmp.33292.045db6378b40",
+    "decisiones/ADR-003-Supabase-Desde-Cero.md",
+    "logs/Log-2026-06-07.md",
+    "arquitectura/Spec - Supabase Schema v2.md",
+    "logs/Log-2026-06-06.md",
+    "logs/Log-2026-06-02-bloque-mobile.md",
+    "bugs/Registro de Bugs.md",
+    "arquitectura/Arquitectura General.md",
+    "Home.md",
+    "decisiones/ADR-001-Next-RN-Split.md",
+    "decisiones/Registro de Decisiones.md",
+    "logs/Log-2026-05-22.md",
+    "logs/Session Logs.md",
+    "templates/Template - Pendiente.md",
+    "templates/Template - Bug.md",
+    "templates/Template - ADR.md",
+    "templates/Template - Log.md",
+    "pendientes/Pendientes.md",
+    "roadmap/Roadmap.md",
+    "arquitectura/04_anti_fraud_camera.md",
+    "arquitectura/03_offline_sync.md",
+    "arquitectura/02_visit_checkin.md",
+    "arquitectura/01_session_lifecycle.md",
+    "arquitectura/Esquema Base Datos.md",
+    "resumen/Findings.md",
+    "resumen/Constitucion.md"
+  ]
+}

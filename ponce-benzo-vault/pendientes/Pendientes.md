@@ -17,9 +17,7 @@ Este documento almacena las preguntas por resolver, datos necesarios por parte d
 
 Para realizar la migración completa a producción y conectar a los vendedores reales, el equipo de negocio de Ponce & Benzo debe definir:
 
-1. **Correos Electrónicos de Vendedores:**
-   * *Problema:* El archivo `MAESTRO.xlsx` y `RUTAS` contienen nombres como `MILAGROS FERNANDEZ` y `EDUWARD MARTÍNEZ`, pero Supabase Auth requiere correos electrónicos válidos para crear los accesos.
-   * *Acción:* Mapear los nombres a correos corporativos o provisionales (ej. `eduward.martinez@poncebenzo.com`).
+1. **Correos Electrónicos de Vendedores:** ✅ *Resuelto (2026-06-07)* — el usuario ya tiene los correos reales; se incorporarán como `tools/vendedores.json` (mapeo nombre→correo) en el sub-proyecto de Ingesta.
 2. **Coordenadas GPS de Tiendas:**
    * *Problema:* Los Excel solo contienen direcciones de texto (ej. "Av. Principal local 3"). El geofencing anti-fraude requiere latitud/longitud numérica para verificar la cercanía de la foto.
    * *Acción:* Obtener las coordenadas maestras. Provisionalmente, la base de datos se inicializará con coordenadas del centro de Caracas (`10.4806, -66.9036`), que deberán actualizarse en la primera visita real del mercaderista (captura de posición inicial).
@@ -28,8 +26,7 @@ Para realizar la migración completa a producción y conectar a los vendedores r
 
 ## ⚙️ Pendientes de Desarrollo Técnico
 
-- [ ] **Configuración de Variables de Entorno:**
-  * Obtener e ingresar `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY` en `hub/.env.local`.
+- [x] **Configuración de Variables de Entorno:** ✅ *(2026-06-07)* `hub/.env.local` y `.env` raíz con las claves del proyecto nuevo `poncebenzo`; handshake Python verificado.
 - [ ] **Modificar Ingesta de Excel:**
   * Adaptar `tools/import-data.ts` para que lea correctamente `hub/MAESTRO.xlsx` (Hoja *CLIENTES NUEVA ID ZONA* y *ESTRUCTURA P&B - LP*) y `hub/RUTAS 05-12-25 (1).xlsx`, cruzando los IDs de tiendas con los IDs de los vendedores creados.
 - [ ] **Validación de RLS Móvil:**
@@ -42,13 +39,13 @@ Para realizar la migración completa a producción y conectar a los vendedores r
 ## 🧩 Pendientes del Modelo de Datos CRM (ADR-002)
 
 - [ ] **Normalizar zona geográfica:** mover `stores.estado` / `municipio` / `urbanizacion` (hoy texto libre, decisión D3) a tablas lookup normalizadas a futuro para evitar inconsistencias de escritura.
-- [ ] **Restricción `tasks.status` en Supabase:** la UI del hub (2026-06-06) ya solo maneja dos estados `open`/`resolved` ("Abierta"/"Completada"). La tabla `tasks` en Supabase debe agregar `CHECK (status IN ('open', 'resolved'))` para reflejar esto. El tipo `TaskStatus` del hub ya está reducido; reconciliar con `DbTaskType` del modelo CRM al cablear.
+- [x] **Restricción `tasks.status` en Supabase:** ✅ *(2026-06-07)* el schema v2.0 nace con `CHECK (status IN ('open','resolved'))`, columna `description` (el trigger copia las observaciones del check-in) y sin `priority` (eliminada también del UI del hub). Tipo `Task` del hub reconciliado.
 - [ ] **Cablear el bloque hub a Supabase:** la Sección Clientes y el Mapa de calor (construidos sobre mock-data el 2026-06-02) deben consumir datos reales — `mockStores`/`mockContacts`/`mockEngagements`/`mockReports` y `map-data.ts` → consultas Supabase. Requiere las credenciales `.env.local` y la ingesta de Excel (bloqueadores arriba).
 - [ ] **CRM funcional (cablear engagements):** `EngagementsPanel` funciona sobre estado local (mock) desde la sesión 2026-06-06; al cablear, persistir crear/cerrar en `contact_engagements` de Supabase.
-- [ ] **Cablear CRUD de contactos y de sucursales:** desde 2026-06-06 la ficha del cliente permite crear/editar/eliminar contactos (encargado único) y editar toda la info de la sucursal (zona, canal, clasificación, GPS, activa/desactivar); la lista de Clientes permite crear sucursales nuevas. Todo sobre estado local. Al cablear: INSERT/UPDATE/DELETE en `contacts` (el delete debe borrar también en Supabase), INSERT/UPDATE en `stores`; garantizar encargado único en BD (constraint parcial o lógica de servidor).
+- [ ] **Cablear CRUD de contactos y de sucursales:** desde 2026-06-06 la ficha del cliente permite crear/editar/eliminar contactos (encargado único) y editar toda la info de la sucursal (zona, canal, clasificación, GPS, activa/desactivar); la lista de Clientes permite crear sucursales nuevas. Todo sobre estado local. Al cablear: INSERT/UPDATE/DELETE en `contacts` (el delete debe borrar también en Supabase), INSERT/UPDATE en `stores`. ~~Garantizar encargado único en BD~~ ✅ resuelto en schema v2.0 (índice único parcial `uq_contacts_primary_per_store`); las políticas de escritura de `stores` para staff también ya existen.
 - [ ] **Ingesta de `MAESTRO.xlsx` (columnas CRM):** mapear las columnas de estado / municipio / urbanización / canal / clasificación del Excel a las nuevas columnas de `stores`.
-- [ ] **GAP — Crear `location_pings` en Supabase:** la tabla `location_pings` está definida en la arquitectura y en el SQLite local pero **NO existe** en el esquema Supabase (`tools/supabase_schema.sql`). Falta crearla (en una migración aparte, fuera del alcance CRM) para poder sincronizar los pings de GPS.
-- [ ] **Endurecer RLS `tasks_assignee`:** actualmente `WITH CHECK (true)`. Aceptable mientras las tareas se generen sólo por trigger/servidor; revisar si el cliente llega a escribir tareas directamente.
+- [x] **GAP — Crear `location_pings` en Supabase:** ✅ *(2026-06-07)* creada en el schema v2.0 con GEOGRAPHY generada, índices (incl. GiST) y RLS (dueño escribe/lee, supervisor lee). El SQLite local ganó `user_id` para el sync 1:1.
+- [x] **Endurecer RLS `tasks_assignee`:** ✅ *(2026-06-07)* reemplazada en v2.0 por `tasks_select` + `tasks_update` (sin INSERT de cliente — solo el trigger `SECURITY DEFINER` crea tareas).
 - [ ] **Recolección de data para features de largo plazo:** definir quién y cómo recolecta la data para el histórico de rotación de productos y el anaquel de exhibición ideal. Ver [[largo-plazo/Historico Rotacion Productos|Histórico de Rotación]] y [[largo-plazo/Anaquel Exhibicion Ideal|Anaquel de Exhibición Ideal]].
 
 ---
