@@ -9,11 +9,13 @@ const CHANNEL_COLOR: Record<string, string> = {
   autoservicio: "#ea580c", mayorista: "#0891b2", otro: "#64748b",
 };
 
+const STORE_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg>`;
+
 function storeIcon(color: string): L.DivIcon {
   return L.divIcon({
     className: "store-marker",
-    html: `<div style="width:11px;height:11px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35);"></div>`,
-    iconSize: [11, 11], iconAnchor: [6, 6],
+    html: `<div style="width:30px;height:30px;border-radius:50%;background:${color};border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">${STORE_SVG}</div>`,
+    iconSize: [30, 30], iconAnchor: [15, 15],
   });
 }
 
