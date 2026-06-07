@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, LayoutDashboard, ClipboardList, Map, Building2 } from "lucide-react";
 import PageTransition from "@/app/components/PageTransition";
+import { useAuth } from "@/app/lib/auth-context";
 
 export default function SupervisorLayout({
   children,
@@ -13,6 +14,12 @@ export default function SupervisorLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { signOut } = useAuth();
+
+  function handleLogout() {
+    signOut();
+    router.push("/");
+  }
 
   const navItems = [
     { href: "/supervisor",           icon: LayoutDashboard, label: "Panel"     },
@@ -62,10 +69,10 @@ export default function SupervisorLayout({
           <button
             className="sidebar-nav-item"
             style={{ width: "100%", border: "none", cursor: "pointer", background: "transparent" }}
-            onClick={() => router.push("/select")}
+            onClick={handleLogout}
           >
             <LogOut size={18} strokeWidth={1.8} />
-            Cambiar hub
+            Cerrar sesión
           </button>
         </div>
       </aside>
@@ -81,7 +88,8 @@ export default function SupervisorLayout({
               {dateStr}
             </span>
             <button
-              onClick={() => router.push("/select")}
+              onClick={handleLogout}
+              aria-label="Cerrar sesión"
               style={{
                 background: "var(--bg-elevated)",
                 border: "1px solid var(--border)",
@@ -92,9 +100,13 @@ export default function SupervisorLayout({
                 cursor: "pointer",
                 fontFamily: "inherit",
                 fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
               }}
             >
-              Cambiar hub
+              <LogOut size={13} />
+              Salir
             </button>
           </div>
         </header>

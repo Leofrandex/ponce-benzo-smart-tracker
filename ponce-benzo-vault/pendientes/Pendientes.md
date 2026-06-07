@@ -42,9 +42,10 @@ Para realizar la migración completa a producción y conectar a los vendedores r
 ## 🧩 Pendientes del Modelo de Datos CRM (ADR-002)
 
 - [ ] **Normalizar zona geográfica:** mover `stores.estado` / `municipio` / `urbanizacion` (hoy texto libre, decisión D3) a tablas lookup normalizadas a futuro para evitar inconsistencias de escritura.
-- [ ] **Reconciliar tipos de tareas del hub:** los tipos mock de UI del hub (`SupervisorTask` / `TaskType`, en inglés) deben reconciliarse con la tabla `tasks` / `DbTaskType` al construir la UI del CRM. *(Sigue pendiente tras el bloque hub del 2026-06-02: la pestaña Tareas de la ficha de cliente aún usa los tipos mock.)*
+- [ ] **Restricción `tasks.status` en Supabase:** la UI del hub (2026-06-06) ya solo maneja dos estados `open`/`resolved` ("Abierta"/"Completada"). La tabla `tasks` en Supabase debe agregar `CHECK (status IN ('open', 'resolved'))` para reflejar esto. El tipo `TaskStatus` del hub ya está reducido; reconciliar con `DbTaskType` del modelo CRM al cablear.
 - [ ] **Cablear el bloque hub a Supabase:** la Sección Clientes y el Mapa de calor (construidos sobre mock-data el 2026-06-02) deben consumir datos reales — `mockStores`/`mockContacts`/`mockEngagements`/`mockReports` y `map-data.ts` → consultas Supabase. Requiere las credenciales `.env.local` y la ingesta de Excel (bloqueadores arriba).
-- [ ] **CRM funcional (a futuro):** la captura interactiva de engagements/to-dos hoy es un placeholder de solo lectura en `EngagementsPanel`. Construir el flujo real (crear/editar/cerrar) cuando se aborde el CRM.
+- [ ] **CRM funcional (cablear engagements):** `EngagementsPanel` funciona sobre estado local (mock) desde la sesión 2026-06-06; al cablear, persistir crear/cerrar en `contact_engagements` de Supabase.
+- [ ] **Cablear CRUD de contactos y de sucursales:** desde 2026-06-06 la ficha del cliente permite crear/editar/eliminar contactos (encargado único) y editar toda la info de la sucursal (zona, canal, clasificación, GPS, activa/desactivar); la lista de Clientes permite crear sucursales nuevas. Todo sobre estado local. Al cablear: INSERT/UPDATE/DELETE en `contacts` (el delete debe borrar también en Supabase), INSERT/UPDATE en `stores`; garantizar encargado único en BD (constraint parcial o lógica de servidor).
 - [ ] **Ingesta de `MAESTRO.xlsx` (columnas CRM):** mapear las columnas de estado / municipio / urbanización / canal / clasificación del Excel a las nuevas columnas de `stores`.
 - [ ] **GAP — Crear `location_pings` en Supabase:** la tabla `location_pings` está definida en la arquitectura y en el SQLite local pero **NO existe** en el esquema Supabase (`tools/supabase_schema.sql`). Falta crearla (en una migración aparte, fuera del alcance CRM) para poder sincronizar los pings de GPS.
 - [ ] **Endurecer RLS `tasks_assignee`:** actualmente `WITH CHECK (true)`. Aceptable mientras las tareas se generen sólo por trigger/servidor; revisar si el cliente llega a escribir tareas directamente.
@@ -52,9 +53,16 @@ Para realizar la migración completa a producción y conectar a los vendedores r
 
 ---
 
-## 📱 Próximo bloque: Mobile
+## 📱 Bloque Mobile (completado 2026-06-02)
 
-- [ ] **Bloque Mobile (UI/UX):** rutas especiales, agregar sucursal a la ruta, fecha de última reposición en el check-in, dropdowns de omisión y anomalía (con react-icons, no emojis), y reportaje de competencia (panel lateral). Requisitos detallados en [[pendientes/Bloque Mobile|Bloque Mobile — Requisitos de UI/UX]].
+- [x] **Bloque Mobile (UI/UX):** rutas especiales (personalizables), agregar/quitar sucursal, fecha de última reposición en el check-in, dropdowns de omisión y anomalía (Ionicons, bottom-sheet), y reportaje de competencia (slide-over). Implementado mock-first sobre SQLite. Ver [[logs/Log-2026-06-02-bloque-mobile|Log Bloque Mobile]] y [[pendientes/Bloque Mobile|Bloque Mobile — Requisitos]].
+- [ ] **Follow-ups menores de calidad (no bloqueantes):**
+  * ~~`CompetitionTab` usa `top: 200` fijo~~ — la pestaña fue rediseñada (más finita, `top: 170`) y ahora vive dentro del check-in (2026-06-06). Verificar alineación en pantallas chicas durante QA de dispositivos.
+  * `addStoreToRoute` hace no-op silencioso si el `storeId` no existe — agregar `console.warn` al cablear data real.
+  * Evaluar (decisión de producto) si el botón "Agregar sucursal" debe ocultarse mientras la sesión está activa (hoy se oculta sólo al finalizar la ruta).
+- [ ] **Cablear el bloque mobile a Supabase:** login real (Supabase Auth), carga de rutas y sync de visitas/pings/reportes de competencia. Requiere credenciales `.env` + ingesta de Excel (bloqueadores arriba). La columna `competition_reports.photo_uri` guarda hoy un JSON de URIs locales; al sincronizar habrá que subir las fotos y mapear a `photo_urls`.
+- [ ] **Al cablear visitas a Supabase:** `visits.photo_uri` local guarda JSON de URIs → subir a Storage (`visit-photos`) y mapear a `photo_urls`. Aplica tanto a fotos de la visita como al reporte de competencia adjunto.
+- [ ] **Pruebas manuales en Expo** (emulador/dispositivo) del flujo completo mobile.
 
 ## Enlaces Relacionados
 - [[pendientes/Bloque Mobile|Bloque Mobile — Requisitos de UI/UX]] — alcance detallado de la próxima sesión.

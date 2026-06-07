@@ -204,10 +204,6 @@ body {
   transition: border-color var(--duration) var(--ease), transform var(--duration) var(--ease);
 }
 
-.card:active {
-  transform: scale(0.98);
-}
-
 .card-interactive {
   cursor: pointer;
 }
@@ -236,10 +232,6 @@ body {
 .store-card:hover {
   border-color: var(--border-accent);
   background: var(--bg-elevated);
-}
-
-.store-card:active {
-  transform: scale(0.98);
 }
 
 .store-number {
@@ -883,125 +875,6 @@ body {
 }
 
 /* ============================================================
-   HUB SELECT SCREEN
-   ============================================================ */
-@keyframes pageFadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.hub-select-screen {
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 24px;
-  background: #ffffff;
-  gap: 32px;
-  animation: pageFadeIn 280ms cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-
-.hub-select-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.hub-select-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  width: 100%;
-  max-width: 420px;
-}
-
-.hub-select-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 20px 16px;
-  background: #ffffff;
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  transition: all var(--duration) var(--ease);
-  text-align: center;
-  font-family: inherit;
-  box-shadow: 0 2px 12px rgba(0, 32, 92, 0.06);
-}
-
-.hub-select-card:hover {
-  border-color: var(--accent);
-  box-shadow: 0 4px 20px rgba(0, 32, 92, 0.12);
-  transform: translateY(-2px);
-}
-
-.hub-select-card:active {
-  transform: scale(0.98);
-}
-
-.hub-select-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.hub-select-icon--mercaderista {
-  background: rgba(0, 32, 92, 0.08);
-  color: var(--accent);
-}
-
-.hub-select-icon--supervisor {
-  background: rgba(217, 119, 6, 0.08);
-  color: var(--warning);
-}
-
-.hub-select-label {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.hub-select-desc {
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
-
-.hub-select-profile-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: transparent;
-  border: 1.5px solid var(--border);
-  border-radius: 999px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--duration) var(--ease);
-}
-
-.hub-select-profile-btn:hover {
-  border-color: var(--border-accent);
-  color: var(--accent);
-  background: var(--accent-glow);
-}
-
-.hub-select-fade {
-  transition: opacity 220ms cubic-bezier(0.4, 0, 0.2, 1), transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* ============================================================
    STATS ROW
    ============================================================ */
 .stats-row {
@@ -1339,108 +1212,12 @@ body {
 }
 
 /* ============================================================
-   HUB SELECTION SCREEN
-   ============================================================ */
-.hub-select-screen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  min-height: 100dvh;
-  padding: 40px 24px;
-  background: var(--bg-base);
-  gap: 48px;
-}
-
-.hub-select-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.hub-select-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  width: 100%;
-  max-width: 640px;
-}
-
-@media (max-width: 520px) {
-  .hub-select-grid {
-    grid-template-columns: 1fr;
-    max-width: 380px;
-  }
-}
-
-.hub-select-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 28px 24px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  cursor: pointer;
-  transition: border-color var(--duration) var(--ease), transform var(--duration) var(--ease), background var(--duration) var(--ease);
-  text-align: left;
-  font-family: inherit;
-  min-height: 220px;
-}
-
-.hub-select-card:hover {
-  border-color: var(--border-accent);
-  background: var(--bg-elevated);
-  transform: translateY(-2px);
-}
-
-.hub-select-card:active {
-  transform: scale(0.98);
-}
-
-.hub-select-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.hub-select-icon--mercaderista {
-  background: var(--accent-glow);
-  color: var(--accent-light);
-  border: 1px solid var(--border-accent);
-}
-
-.hub-select-icon--supervisor {
-  background: rgba(245, 158, 11, 0.12);
-  color: var(--warning);
-  border: 1px solid rgba(245, 158, 11, 0.25);
-}
-
-.hub-select-label {
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.3px;
-  color: var(--text-primary);
-}
-
-.hub-select-desc {
-  font-size: 13px;
-  color: var(--text-muted);
-  line-height: 1.6;
-  flex: 1;
-}
-
-/* ============================================================
    SCROLLBAR
    ============================================================ */
-::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--bg-elevated); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: #d8dde8; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #c3cbdb; }
 
 /* ============================================================
    CONTACTOS TABLE
@@ -1512,7 +1289,21 @@ body {
   }
 }
 
+/* Checkbox circular de to-dos (engagements) */
+.todo-check:hover {
+  border-color: var(--accent) !important;
+}
+
+/* Lista de clientes plana (sin card contenedor) */
+.clientes-flat-row {
+  border-radius: 10px;
+}
+
+.clientes-flat-row:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
 /* Map merchandiser markers */
-.merch-dot { width: 14px; height: 14px; border-radius: 50%; border: 3px solid white; box-shadow: 0 1px 5px rgba(0,0,0,0.4); position: relative; }
+.merch-dot { width: 34px; height: 34px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.35); position: relative; display: flex; align-items: center; justify-content: center; }
 .merch-pulse { position: absolute; inset: -3px; border-radius: 50%; opacity: 0.55; animation: merchPulse 1.6s ease-out infinite; }
 @keyframes merchPulse { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(2.6); opacity: 0; } }

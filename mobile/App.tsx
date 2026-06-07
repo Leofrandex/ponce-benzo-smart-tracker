@@ -1,20 +1,44 @@
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { SQLiteProvider } from 'expo-sqlite';
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+} from '@expo-google-fonts/inter';
+import { AuthProvider } from './src/context/AuthContext';
+import { RouteProvider } from './src/context/RouteContext';
+import { AppNavigator } from './src/navigation/AppNavigator';
+import { initDatabase } from './src/services/db';
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+  });
+
+  if (!fontsLoaded) return null; // mantiene el splash hasta que cargue Inter
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <SQLiteProvider databaseName="poncebenzo.db" onInit={initDatabase}>
+          <RouteProvider>
+            <NavigationContainer>
+              <AppNavigator />
+            </NavigationContainer>
+          </RouteProvider>
+        </SQLiteProvider>
+        <StatusBar style="dark" />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

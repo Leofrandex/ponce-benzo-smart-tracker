@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { X } from "lucide-react";
 import { mockStores } from "@/app/lib/mock-data";
+import { Select } from "@/app/components/ui/Select";
 
 export interface ClientesFilterValue {
   estado: string;
@@ -54,16 +55,16 @@ export function ClientesFilters({
   return (
     <div className="card" style={{ padding: "12px", display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "flex-end" }}>
       <Select label="Estado" value={value.estado}
-        options={estados}
+        options={estados.map((o) => ({ value: o, label: o }))}
         onChange={(v) => onChange({ ...value, estado: v, municipio: "", urbanizacion: "" })} />
       <Select label="Municipio" value={value.municipio} disabled={!value.estado}
-        options={municipios}
+        options={municipios.map((o) => ({ value: o, label: o }))}
         onChange={(v) => onChange({ ...value, municipio: v, urbanizacion: "" })} />
       <Select label="Urbanización" value={value.urbanizacion} disabled={!value.municipio}
-        options={urbanizaciones}
+        options={urbanizaciones.map((o) => ({ value: o, label: o }))}
         onChange={(v) => onChange({ ...value, urbanizacion: v })} />
       <Select label="Canal" value={value.channel}
-        options={CHANNELS} optionLabel={(o) => CHANNEL_LABELS[o] ?? o}
+        options={CHANNELS.map((c) => ({ value: c, label: CHANNEL_LABELS[c] ?? c }))}
         onChange={(v) => onChange({ ...value, channel: v })} />
 
       <div>
@@ -84,25 +85,6 @@ export function ClientesFilters({
           <X size={12} /> Limpiar filtros
         </button>
       )}
-    </div>
-  );
-}
-
-function Select({
-  label, value, options, onChange, disabled, optionLabel,
-}: {
-  label: string; value: string; options: string[];
-  onChange: (v: string) => void; disabled?: boolean; optionLabel?: (o: string) => string;
-}) {
-  return (
-    <div style={{ minWidth: 0 }}>
-      <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", marginBottom: "4px" }}>{label}</div>
-      <select className="form-input" value={value} disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        style={{ padding: "8px 10px", fontSize: "13px", opacity: disabled ? 0.5 : 1 }}>
-        <option value="">Todos</option>
-        {options.map((o) => <option key={o} value={o}>{optionLabel ? optionLabel(o) : o}</option>)}
-      </select>
     </div>
   );
 }

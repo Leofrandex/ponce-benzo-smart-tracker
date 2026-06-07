@@ -8,10 +8,12 @@ import {
   updateSessionEnd,
   insertVisit,
   getUnsyncedCount,
+  insertCompetitionReport,
+  getUnsyncedCompetitionCount,
 } from '../services/db';
 import { BACKGROUND_LOCATION_TASK } from '../tasks/locationTask';
-import { getMockRouteItems } from '../mock-data';
-import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState } from '../types';
+import { getMockRouteItems, mockStores } from '../mock-data';
+import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState, CompetitionReportRecord } from '../types';
 
 interface RouteContextValue {
   routeItems: RouteStoreItem[];
@@ -22,9 +24,17 @@ interface RouteContextValue {
   pendingSyncCount: number;
   completedCount: number;
   totalCount: number;
+  routeMode: 'normal' | 'special';
+  setRouteMode: (mode: 'normal' | 'special') => void;
+  addStoreToRoute: (storeId: string) => void;
+  removeStoreFromRoute: (storeId: string) => void;
   startSession: () => Promise<void>;
   endSession: () => Promise<void>;
-  recordVisit: (storeId: string, record: VisitRecord) => Promise<void>;
+  recordVisit: (
+    storeId: string,
+    record: VisitRecord,
+    competitionReport?: CompetitionReportRecord,
+  ) => Promise<void>;
 }
 
 const RouteContext = createContext<RouteContextValue | null>(null);
@@ -39,13 +49,17 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
   const [gpsState, setGpsState] = useState<GPSState>('idle');
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [routeMode, setRouteModeState] = useState<'normal' | 'special'>('normal');
 
   const locationSub = useRef<LocationSubscription | null>(null);
   const sessionId = useRef<string | null>(null);
 
   async function refreshSyncCount() {
-    const count = await getUnsyncedCount(db);
-    setPendingSyncCount(count);
+    const [visits, reports] = await Promise.all([
+      getUnsyncedCount(db),
+      getUnsyncedCompetitionCount(db),
+    ]);
+    setPendingSyncCount(visits + reports);
   }
 
   async function startSession() {
@@ -140,7 +154,11 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     setCurrentLocation(null);
   }
 
-  async function recordVisit(storeId: string, record: VisitRecord) {
+  async function recordVisit(
+    storeId: string,
+    record: VisitRecord,
+    competitionReport?: CompetitionReportRecord,
+  ) {
     // Update in-memory route state
     setRouteItems((prev) =>
       prev.map((item) =>
@@ -150,7 +168,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       ),
     );
 
-    // Persist to SQLite
+    // Persist to SQLite — las fotos van como JSON en la columna photo_uri TEXT
     await insertVisit(db, {
       visit_id: record.visit_id,
       session_id: sessionId.current ?? null,
@@ -159,16 +177,56 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       check_in_time: record.check_in_time,
       lat: record.check_in_location?.lat ?? null,
       lng: record.check_in_location?.lng ?? null,
-      photo_uri: record.photo_uri ?? null,
+      photo_uri: JSON.stringify(record.photo_uris),
       observations: record.observations ?? null,
       status: record.status,
-      anomaly_type: null,
-      skip_reason: null,
-      last_restock_date: null,
+      anomaly_type: record.status === 'anomaly' ? record.anomaly_type : null,
+      skip_reason: record.status === 'skipped' ? record.skip_reason : null,
+      last_restock_date: record.last_restock_date,
       synced: 0,
     });
 
+    // Reporte de competencia opcional: misma tienda, misma operación.
+    if (competitionReport) {
+      await insertCompetitionReport(db, {
+        report_id: competitionReport.report_id,
+        session_id: sessionId.current ?? null,
+        store_id: storeId,
+        user_id: user?.id ?? 'unknown',
+        brand_id: competitionReport.brand_id,
+        activation_type: competitionReport.activation_type,
+        photo_uris: competitionReport.photo_uris,
+        notes: competitionReport.notes,
+        created_at: new Date().toISOString(),
+        synced: 0,
+      });
+    }
+
     await refreshSyncCount();
+  }
+
+  function setRouteMode(mode: 'normal' | 'special') {
+    setRouteModeState(mode);
+    // 'special' = ruta personalizable: arranca vacía y se arma a mano.
+    // 'normal' = restaura la ruta configurada (mock).
+    setRouteItems(mode === 'special' ? [] : getMockRouteItems());
+  }
+
+  function addStoreToRoute(storeId: string) {
+    setRouteItems((prev) => {
+      if (prev.some((item) => item.store.store_id === storeId)) return prev;
+      const store = mockStores.find((s) => s.store_id === storeId);
+      if (!store) return prev;
+      return [...prev, { store, order: prev.length + 1, status: 'pending' as const }];
+    });
+  }
+
+  function removeStoreFromRoute(storeId: string) {
+    setRouteItems((prev) =>
+      prev
+        .filter((item) => item.store.store_id !== storeId)
+        .map((item, index) => ({ ...item, order: index + 1 })),
+    );
   }
 
   const completedCount = routeItems.filter((i) => i.status !== 'pending').length;
@@ -185,6 +243,10 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         pendingSyncCount,
         completedCount,
         totalCount,
+        routeMode,
+        setRouteMode,
+        addStoreToRoute,
+        removeStoreFromRoute,
         startSession,
         endSession,
         recordVisit,

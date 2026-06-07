@@ -73,10 +73,13 @@ export interface VisitRecord {
   store_id: string;
   check_in_time: string;
   check_in_location: { lat: number; lng: number } | null;
-  photo_uri: string | null;
+  photo_uris: string[];
   observations: string;
   status: StoreStatus;
   synced: boolean;
+  anomaly_type: Visit['anomaly_type'];
+  skip_reason: Visit['skip_reason'];
+  last_restock_date: string | null;
 }
 
 export type GPSState = 'idle' | 'searching' | 'found' | 'error';
@@ -148,4 +151,14 @@ export interface CompetitionReport {
   notes: string | null;
   created_at: string;
   synced: boolean;
+}
+
+// Forma del formulario de reporte de competencia en la UI móvil.
+// El store_id NO va aquí: lo deriva RouteContext de la visita en curso.
+export interface CompetitionReportRecord {
+  report_id: string;
+  brand_id: string | null;
+  activation_type: CompetitionReport['activation_type'];
+  photo_uris: string[];
+  notes: string | null;
 }

@@ -40,22 +40,19 @@ const PRIORITY_CONFIG: Record<
 };
 
 const STATUS_BADGE: Record<TaskStatus, string> = {
-  open:        "badge badge-danger",
-  in_progress: "badge badge-warning",
-  resolved:    "badge badge-success",
+  open:     "badge badge-danger",
+  resolved: "badge badge-success",
 };
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
-  open:        "Abierta",
-  in_progress: "En progreso",
-  resolved:    "Resuelta",
+  open:     "Abierta",
+  resolved: "Completada",
 };
 
 const STATUS_FILTERS: { key: TaskStatus | "all"; label: string }[] = [
-  { key: "all",         label: "Todas"       },
-  { key: "open",        label: "Abiertas"    },
-  { key: "in_progress", label: "En progreso" },
-  { key: "resolved",    label: "Resueltas"   },
+  { key: "all",      label: "Todas"       },
+  { key: "open",     label: "Abiertas"    },
+  { key: "resolved", label: "Completadas" },
 ];
 
 function relativeTime(iso: string): string {
@@ -73,9 +70,8 @@ export default function TareasPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  const open       = tasks.filter((t) => t.status === "open").length;
-  const inProgress = tasks.filter((t) => t.status === "in_progress").length;
-  const resolved   = tasks.filter((t) => t.status === "resolved").length;
+  const open     = tasks.filter((t) => t.status === "open").length;
+  const resolved = tasks.filter((t) => t.status === "resolved").length;
 
   const filtered =
     filter === "all" ? tasks : tasks.filter((t) => t.status === filter);
@@ -103,18 +99,14 @@ export default function TareasPage() {
       </div>
 
       {/* Stats */}
-      <div className="stats-row">
+      <div className="stats-row" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
         <div className="stat-card">
           <div className="stat-value" style={{ color: "var(--danger)" }}>{open}</div>
           <div className="stat-label">Abiertas</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value" style={{ color: "var(--warning)" }}>{inProgress}</div>
-          <div className="stat-label">En progreso</div>
-        </div>
-        <div className="stat-card">
           <div className="stat-value" style={{ color: "var(--success)" }}>{resolved}</div>
-          <div className="stat-label">Resueltas</div>
+          <div className="stat-label">Completadas</div>
         </div>
       </div>
 
@@ -252,7 +244,7 @@ export default function TareasPage() {
                       ) : (
                         <>
                           <CheckCircle2 size={14} />
-                          Marcar como resuelta
+                          Marcar como completada
                         </>
                       )}
                     </button>
