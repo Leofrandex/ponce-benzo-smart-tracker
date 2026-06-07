@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, ClipboardList, Map, Building2 } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { LogOut, LayoutDashboard, ClipboardList, Map, Building2 } from "lucide-react";
 import PageTransition from "@/app/components/PageTransition";
+import { useAuth } from "@/app/lib/auth-context";
 
 export default function SupervisorLayout({
   children,
@@ -12,6 +13,13 @@ export default function SupervisorLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { signOut } = useAuth();
+
+  function handleLogout() {
+    signOut();
+    router.push("/");
+  }
 
   const navItems = [
     { href: "/supervisor",           icon: LayoutDashboard, label: "Panel"     },
@@ -58,6 +66,14 @@ export default function SupervisorLayout({
 
         <div className="sidebar-footer">
           <div className="sidebar-date">{dateStr}</div>
+          <button
+            className="sidebar-nav-item"
+            style={{ width: "100%", border: "none", cursor: "pointer", background: "transparent" }}
+            onClick={handleLogout}
+          >
+            <LogOut size={18} strokeWidth={1.8} />
+            Cerrar sesión
+          </button>
         </div>
       </aside>
 
@@ -71,6 +87,27 @@ export default function SupervisorLayout({
             <span style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 500 }}>
               {dateStr}
             </span>
+            <button
+              onClick={handleLogout}
+              aria-label="Cerrar sesión"
+              style={{
+                background: "var(--bg-elevated)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-sm)",
+                padding: "6px 12px",
+                fontSize: "12px",
+                color: "var(--text-secondary)",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+              }}
+            >
+              <LogOut size={13} />
+              Salir
+            </button>
           </div>
         </header>
 
