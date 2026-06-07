@@ -1430,9 +1430,10 @@ body {
 /* ============================================================
    SCROLLBAR
    ============================================================ */
-::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--bg-elevated); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: #d8dde8; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #c3cbdb; }
 
 /* ============================================================
    CONTACTOS TABLE

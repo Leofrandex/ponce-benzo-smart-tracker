@@ -9,8 +9,8 @@ interface CompetitionTabProps {
 
 // El texto rotado conserva su caja de layout horizontal en RN; los márgenes
 // negativos colapsan ese ancho para que la pestaña quede realmente delgada.
-const LABEL_LENGTH = 76; // largo visual del texto rotado
-const LABEL_THICKNESS = 12; // alto de línea del texto (ancho real que ocupa)
+const LABEL_LENGTH = 100; // largo visual del texto rotado
+const LABEL_THICKNESS = 14; // alto de línea del texto (ancho real que ocupa)
 const LABEL_OFFSET = (LABEL_LENGTH - LABEL_THICKNESS) / 2;
 
 export function CompetitionTab({ onPress, hasDraft = false }: CompetitionTabProps) {
@@ -26,7 +26,7 @@ const styles = StyleSheet.create({
   tab: {
     position: 'absolute', right: 0, top: 170,
     backgroundColor: colors.accent,
-    paddingVertical: 10, paddingHorizontal: 6,
+    paddingVertical: 12, paddingHorizontal: 8,
     borderTopLeftRadius: radii.sm, borderBottomLeftRadius: radii.sm,
     alignItems: 'center', gap: 5,
     shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: -2, height: 0 },
@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.warning,
   },
   label: {
-    color: colors.white, fontSize: 8, lineHeight: LABEL_THICKNESS, ...fonts.bold,
+    color: colors.white, fontSize: 9, lineHeight: LABEL_THICKNESS, ...fonts.bold,
     letterSpacing: 0.5,
     transform: [{ rotate: '90deg' }],
     width: LABEL_LENGTH, textAlign: 'center',
