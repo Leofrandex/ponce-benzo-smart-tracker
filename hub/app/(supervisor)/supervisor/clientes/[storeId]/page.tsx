@@ -1,19 +1,25 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Building2 } from "lucide-react";
 import { mockStores, mockReports, mockTasks, mockContacts, mockEngagements, lastRestockForStore } from "@/app/lib/mock-data";
+import type { Store } from "@/app/lib/types";
 import { ClientInfoPanel } from "@/app/components/clientes/ClientInfoPanel";
 import { ContactList } from "@/app/components/clientes/ContactList";
 import { EngagementsPanel } from "@/app/components/clientes/EngagementsPanel";
 import { ActivityFeed } from "@/app/components/clientes/ActivityFeed";
 import { LongTermPlaceholders } from "@/app/components/clientes/LongTermPlaceholders";
+import { StoreFormModal } from "@/app/components/clientes/StoreFormModal";
 
 export default function ClienteDetailPage() {
   const { storeId } = useParams<{ storeId: string }>();
-  const store = useMemo(() => mockStores.find((s) => s.store_id === storeId) ?? null, [storeId]);
+  const baseStore = useMemo(() => mockStores.find((s) => s.store_id === storeId) ?? null, [storeId]);
+  // Mock-first: estado local editable de la sucursal (se reinicia al cambiar de tienda).
+  const [store, setStore] = useState<Store | null>(baseStore);
+  const [editOpen, setEditOpen] = useState(false);
+  useEffect(() => { setStore(baseStore); }, [baseStore]);
   const reports = useMemo(() => mockReports.filter((r) => r.store_id === storeId).sort((a, b) => new Date(b.check_in_time).getTime() - new Date(a.check_in_time).getTime()), [storeId]);
   const tasks = useMemo(() => mockTasks.filter((t) => t.store_id === storeId), [storeId]);
   const contacts = useMemo(() => mockContacts.filter((c) => c.store_id === storeId).sort((a, b) => Number(b.is_primary) - Number(a.is_primary)), [storeId]);
@@ -45,7 +51,7 @@ export default function ClienteDetailPage() {
 
       <div className="detail-two-col">
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <ClientInfoPanel store={store} lastRestock={lastRestock} />
+          <ClientInfoPanel store={store} lastRestock={lastRestock} onEdit={() => setEditOpen(true)} />
           <ContactList key={storeId} storeId={storeId} contacts={contacts} />
           <LongTermPlaceholders />
         </div>
@@ -54,6 +60,8 @@ export default function ClienteDetailPage() {
           <EngagementsPanel key={storeId} engagements={engagements} />
         </div>
       </div>
+
+      <StoreFormModal open={editOpen} store={store} onClose={() => setEditOpen(false)} onSave={setStore} />
     </>
   );
 }

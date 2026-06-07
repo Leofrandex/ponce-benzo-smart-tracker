@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Tag, Layers, Package } from "lucide-react";
+import { MapPin, Tag, Layers, Package, Pencil } from "lucide-react";
 import type { Store } from "@/app/lib/types";
 
 const CHANNEL_LABELS: Record<string, string> = {
@@ -20,11 +20,18 @@ function Row({ icon, label, value }: { icon: React.ReactNode; label: string; val
   );
 }
 
-export function ClientInfoPanel({ store, lastRestock }: { store: Store; lastRestock: string | null }) {
+export function ClientInfoPanel({ store, lastRestock, onEdit }: { store: Store; lastRestock: string | null; onEdit?: () => void }) {
   const zona = [store.urbanizacion, store.municipio, store.estado].filter(Boolean).join(", ") || "—";
   return (
     <div>
-      <div className="section-title" style={{ marginBottom: "6px" }}>Información del cliente</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+        <div className="section-title">Información del cliente</div>
+        {onEdit && (
+          <button type="button" onClick={onEdit} className="filter-chip" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            <Pencil size={11} /> Editar
+          </button>
+        )}
+      </div>
       <div className="card" style={{ padding: "0 16px" }}>
         <Row icon={<MapPin size={15} color="var(--accent)" />} label="Dirección" value={store.address ?? "—"} />
         <Row icon={<Layers size={15} color="var(--accent)" />} label="Zona" value={zona} />
