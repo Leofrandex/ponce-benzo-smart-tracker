@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageSquare, CheckSquare, Clock, Plus } from "lucide-react";
+import { MessageSquare, Check, Clock, Plus } from "lucide-react";
 import type { ContactEngagement } from "@/app/lib/types";
 
 type ComposerType = "note" | "todo";
@@ -30,8 +30,10 @@ export function EngagementsPanel({ engagements }: { engagements: ContactEngageme
     setBody("");
   }
 
-  function markDone(id: string) {
-    setItems((prev) => prev.map((e) => (e.engagement_id === id ? { ...e, status: "done" } : e)));
+  function toggleDone(id: string) {
+    setItems((prev) => prev.map((e) =>
+      e.engagement_id === id ? { ...e, status: e.status === "done" ? "open" : "done" } : e,
+    ));
   }
 
   return (
@@ -43,21 +45,35 @@ export function EngagementsPanel({ engagements }: { engagements: ContactEngageme
             <div style={{ fontSize: "13px", color: "var(--text-muted)", textAlign: "center", padding: "12px" }}>Sin registros. Agregá la primera nota abajo.</div>
           ) : items.map((e) => (
             <div key={e.engagement_id} style={{ display: "flex", gap: "10px", paddingBottom: "10px", borderBottom: "1px solid var(--border)" }}>
-              <div style={{ flexShrink: 0, color: e.type === "todo" ? "var(--accent)" : "var(--text-muted)" }}>
-                {e.type === "todo" ? <CheckSquare size={15} /> : <MessageSquare size={15} />}
-              </div>
+              {e.type === "todo" ? (
+                <button
+                  onClick={() => toggleDone(e.engagement_id)}
+                  aria-label={e.status === "done" ? "Marcar como pendiente" : "Marcar como hecho"}
+                  className="todo-check"
+                  style={{
+                    width: 18, height: 18, borderRadius: "50%", flexShrink: 0, marginTop: "1px",
+                    cursor: "pointer", padding: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    border: e.status === "done" ? "1.5px solid var(--success)" : "1.5px solid var(--text-muted)",
+                    background: e.status === "done" ? "var(--success)" : "transparent",
+                    transition: "border-color var(--duration) var(--ease), background var(--duration) var(--ease)",
+                  }}
+                >
+                  {e.status === "done" && <Check size={11} color="#fff" strokeWidth={3} />}
+                </button>
+              ) : (
+                <div style={{ flexShrink: 0, color: "var(--text-muted)", marginTop: "1px" }}>
+                  <MessageSquare size={15} />
+                </div>
+              )}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "13px", color: "var(--text-primary)", lineHeight: 1.5 }}>{e.body}</div>
+                <div style={{
+                  fontSize: "13px", lineHeight: 1.5,
+                  color: e.status === "done" ? "var(--text-muted)" : "var(--text-primary)",
+                  textDecoration: e.status === "done" ? "line-through" : "none",
+                }}>{e.body}</div>
                 <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                   <span style={{ display: "flex", alignItems: "center", gap: "3px" }}><Clock size={10} />{new Date(e.created_at).toLocaleDateString("es-VE", { day: "numeric", month: "short" })}</span>
-                  {e.type === "todo" && e.status && (
-                    <span className={`badge ${e.status === "done" ? "badge-success" : "badge-warning"}`}>{e.status === "done" ? "Hecho" : "Pendiente"}</span>
-                  )}
-                  {e.type === "todo" && e.status === "open" && (
-                    <button onClick={() => markDone(e.engagement_id)} style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "11px", color: "var(--accent)", fontWeight: 600, fontFamily: "inherit", padding: 0, textDecoration: "underline" }}>
-                      marcar hecho
-                    </button>
-                  )}
                 </div>
               </div>
             </div>

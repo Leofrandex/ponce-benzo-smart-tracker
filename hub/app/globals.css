@@ -1505,6 +1505,11 @@ body {
   }
 }
 
+/* Checkbox circular de to-dos (engagements) */
+.todo-check:hover {
+  border-color: var(--accent) !important;
+}
+
 /* Lista de clientes plana (sin card contenedor) */
 .clientes-flat-row {
   border-radius: 10px;
