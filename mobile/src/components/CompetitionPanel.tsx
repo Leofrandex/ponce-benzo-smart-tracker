@@ -44,15 +44,16 @@ export function CompetitionPanel({ visible, storeName, initial, onClose, onDone 
   const [brandSheet, setBrandSheet] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
 
-  // Re-hidratar el borrador cada vez que se abre el panel
+  // Re-hidratar el borrador solo al abrir el panel (no al cambiar `initial`
+  // con el panel abierto, para no pisar una edición en curso).
   useEffect(() => {
-    if (visible) {
-      setActivationType(initial?.activation_type ?? null);
-      setBrandId(initial?.brand_id ?? null);
-      setPhotoUris(initial?.photo_uris ?? []);
-      setNotes(initial?.notes ?? '');
-    }
-  }, [visible, initial]);
+    if (!visible) return;
+    setActivationType(initial?.activation_type ?? null);
+    setBrandId(initial?.brand_id ?? null);
+    setPhotoUris(initial?.photo_uris ?? []);
+    setNotes(initial?.notes ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   useEffect(() => {
     Animated.timing(slide, {
@@ -112,7 +113,15 @@ export function CompetitionPanel({ visible, storeName, initial, onClose, onDone 
               <Text style={styles.label}>Fotos de la activación</Text>
               <View style={styles.photoRow}>
                 {photoUris.map((uri) => (
-                  <Image key={uri} source={{ uri }} style={styles.photo} resizeMode="cover" />
+                  <View key={uri} style={styles.photoWrap}>
+                    <Image source={{ uri }} style={styles.photo} resizeMode="cover" />
+                    <TouchableOpacity
+                      style={styles.photoRemove}
+                      onPress={() => setPhotoUris((prev) => prev.filter((u) => u !== uri))}
+                    >
+                      <Ionicons name="close" size={12} color={colors.white} />
+                    </TouchableOpacity>
+                  </View>
                 ))}
                 <TouchableOpacity style={styles.addPhoto} onPress={() => setCameraOpen(true)} activeOpacity={0.75}>
                   <Ionicons name="camera-outline" size={22} color={colors.accent} />
@@ -194,7 +203,13 @@ const styles = StyleSheet.create({
   fieldText: { flex: 1, fontSize: 14, color: colors.textPrimary, ...fonts.medium },
   placeholder: { color: colors.textMuted, ...fonts.regular },
   photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  photoWrap: { position: 'relative' },
   photo: { width: 64, height: 64, borderRadius: radii.sm, backgroundColor: colors.bgElevated },
+  photoRemove: {
+    position: 'absolute', top: -6, right: -6,
+    width: 20, height: 20, borderRadius: radii.full,
+    backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center',
+  },
   addPhoto: {
     width: 64, height: 64, borderRadius: radii.sm,
     borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.borderAccent,
