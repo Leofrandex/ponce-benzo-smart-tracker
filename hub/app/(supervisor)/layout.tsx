@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
-import { LogOut, LayoutDashboard, ClipboardList, Map, Building2 } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { LayoutDashboard, ClipboardList, Map, Building2 } from "lucide-react";
 import PageTransition from "@/app/components/PageTransition";
 
 export default function SupervisorLayout({
@@ -12,7 +12,6 @@ export default function SupervisorLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
 
   const navItems = [
     { href: "/supervisor",           icon: LayoutDashboard, label: "Panel"     },
@@ -59,14 +58,6 @@ export default function SupervisorLayout({
 
         <div className="sidebar-footer">
           <div className="sidebar-date">{dateStr}</div>
-          <button
-            className="sidebar-nav-item"
-            style={{ width: "100%", border: "none", cursor: "pointer", background: "transparent" }}
-            onClick={() => router.push("/select")}
-          >
-            <LogOut size={18} strokeWidth={1.8} />
-            Cambiar hub
-          </button>
         </div>
       </aside>
 
@@ -80,22 +71,6 @@ export default function SupervisorLayout({
             <span style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 500 }}>
               {dateStr}
             </span>
-            <button
-              onClick={() => router.push("/select")}
-              style={{
-                background: "var(--bg-elevated)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-sm)",
-                padding: "6px 12px",
-                fontSize: "12px",
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                fontWeight: 500,
-              }}
-            >
-              Cambiar hub
-            </button>
           </div>
         </header>
 
