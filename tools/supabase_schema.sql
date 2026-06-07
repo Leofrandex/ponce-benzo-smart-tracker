@@ -219,6 +219,10 @@ CREATE TRIGGER trg_visit_anomaly_task
   AFTER INSERT OR UPDATE OF status ON visits
   FOR EACH ROW EXECUTE FUNCTION fn_create_task_from_anomaly();
 
+-- Hardening: las funciones internas no deben ser ejecutables vía RPC por clientes
+REVOKE EXECUTE ON FUNCTION public.fn_create_task_from_anomaly() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fn_task_type_from_anomaly(TEXT) FROM PUBLIC, anon, authenticated;
+
 -- ============================================================
 -- TABLE: competitor_brands (lookup editable de marcas competidoras)
 -- ============================================================
