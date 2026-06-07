@@ -47,10 +47,12 @@ export default function ClienteDetailPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <ClientInfoPanel store={store} lastRestock={lastRestock} />
           <ContactList contacts={contacts} />
-          <EngagementsPanel key={storeId} engagements={engagements} />
           <LongTermPlaceholders />
         </div>
-        <ActivityFeed reports={reports} tasks={tasks} />
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <ActivityFeed reports={reports} tasks={tasks} />
+          <EngagementsPanel key={storeId} engagements={engagements} />
+        </div>
       </div>
     </>
   );
