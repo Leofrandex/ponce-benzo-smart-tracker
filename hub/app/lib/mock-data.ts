@@ -15,7 +15,6 @@ export type {
   SupervisorTask,
   SupervisorReport,
   TaskType,
-  TaskPriority,
   TaskStatus,
 } from "./types";
 
@@ -64,7 +63,6 @@ export const mockTasks: SupervisorTask[] = [
     created_at: daysAgo(0, 2),
     type: "restock",
     description: "Lineal de shampoo vacío en góndola central. Requiere reposición urgente de SKUs 1042 y 1045.",
-    priority: "high",
     status: "open",
   },
   {
@@ -76,7 +74,6 @@ export const mockTasks: SupervisorTask[] = [
     created_at: daysAgo(0, 5),
     type: "contact_manager",
     description: "Gerente de sucursal bloqueó acceso a área de bodega. Se necesita coordinación para el próximo reabastecimiento.",
-    priority: "high",
     status: "open",
   },
   {
@@ -88,7 +85,6 @@ export const mockTasks: SupervisorTask[] = [
     created_at: daysAgo(1),
     type: "pricing_issue",
     description: "Etiquetas de precio del exhibidor no coinciden con el sistema POS. Diferencia de Bs. 12 en producto estrella.",
-    priority: "medium",
     status: "open",
   },
   {
@@ -100,7 +96,6 @@ export const mockTasks: SupervisorTask[] = [
     created_at: daysAgo(2),
     type: "display_damage",
     description: "Exhibidor de isla dañado en esquina inferior izquierda. Material de POP desprendido.",
-    priority: "low",
     status: "resolved",
   },
   {
@@ -112,7 +107,6 @@ export const mockTasks: SupervisorTask[] = [
     created_at: daysAgo(3),
     type: "restock",
     description: "Desabastecimiento en categoría cuidado corporal. Últimas 3 visitas registran el mismo faltante.",
-    priority: "medium",
     status: "resolved",
   },
   // ── Gama ──
@@ -125,7 +119,6 @@ export const mockTasks: SupervisorTask[] = [
     created_at: daysAgo(1),
     type: "restock",
     description: "Faltante crítico en categoría cuidado personal. Se agotó el fin de semana.",
-    priority: "high",
     status: "open",
   },
   {
@@ -137,7 +130,6 @@ export const mockTasks: SupervisorTask[] = [
     created_at: daysAgo(4),
     type: "display_damage",
     description: "Exhibidor de cabecera deteriorado por humedad. Necesita reemplazo.",
-    priority: "medium",
     status: "resolved",
   },
   {
@@ -149,7 +141,6 @@ export const mockTasks: SupervisorTask[] = [
     created_at: daysAgo(6),
     type: "pricing_issue",
     description: "Precio incorrecto en gondola de shampoo. Diferencia vs precio de lista.",
-    priority: "low",
     status: "resolved",
   },
   // ── Locatel ──
@@ -162,7 +153,6 @@ export const mockTasks: SupervisorTask[] = [
     created_at: daysAgo(2),
     type: "contact_manager",
     description: "Gerente solicitó cambio en planograma. Requiere aprobación del supervisor.",
-    priority: "high",
     status: "open",
   },
   {
@@ -174,7 +164,6 @@ export const mockTasks: SupervisorTask[] = [
     created_at: daysAgo(5),
     type: "restock",
     description: "Varios SKUs sin stock. Se notificó a logística.",
-    priority: "medium",
     status: "resolved",
   },
   // ── Farmacias SAAS ──
@@ -187,7 +176,6 @@ export const mockTasks: SupervisorTask[] = [
     created_at: daysAgo(3),
     type: "restock",
     description: "Reposición urgente en categoría bebés. Faltante desde hace 2 semanas.",
-    priority: "high",
     status: "open",
   },
   {
@@ -199,7 +187,6 @@ export const mockTasks: SupervisorTask[] = [
     created_at: daysAgo(10),
     type: "other",
     description: "Solicitud especial de gerencia para colocar material adicional de temporada.",
-    priority: "low",
     status: "resolved",
   },
 ];

@@ -29,16 +29,6 @@ const TASK_TYPE_CONFIG: Record<
   other:           { label: "Otro",               Icon: HelpCircle },
 };
 
-// Maps priority → badge class + icon container colors
-const PRIORITY_CONFIG: Record<
-  SupervisorTask["priority"],
-  { label: string; badgeClass: string; iconBg: string; iconColor: string }
-> = {
-  high:   { label: "Alta",  badgeClass: "badge badge-danger",  iconBg: "var(--danger-bg)",  iconColor: "var(--danger)"  },
-  medium: { label: "Media", badgeClass: "badge badge-warning", iconBg: "var(--warning-bg)", iconColor: "var(--warning)" },
-  low:    { label: "Baja",  badgeClass: "badge badge-success", iconBg: "var(--success-bg)", iconColor: "var(--success)" },
-};
-
 const STATUS_BADGE: Record<TaskStatus, string> = {
   open:     "badge badge-danger",
   resolved: "badge badge-success",
@@ -134,9 +124,10 @@ export default function TareasPage() {
         )}
 
         {filtered.map((task) => {
-          const typeCfg     = TASK_TYPE_CONFIG[task.type];
-          const priorityCfg = PRIORITY_CONFIG[task.priority];
-          const TypeIcon    = typeCfg.Icon;
+          const typeCfg   = TASK_TYPE_CONFIG[task.type];
+          const TypeIcon  = typeCfg.Icon;
+          const iconBg    = task.status === "open" ? "var(--danger-bg)" : "var(--success-bg)";
+          const iconColor = task.status === "open" ? "var(--danger)"     : "var(--success)";
           const isExpanded  = expandedId === task.task_id;
           const isLoading   = loadingId === task.task_id;
 
@@ -152,21 +143,21 @@ export default function TareasPage() {
               }}
               onClick={() => setExpandedId(isExpanded ? null : task.task_id)}
             >
-              {/* Row 1: type icon + store + priority badge */}
+              {/* Row 1: type icon + store */}
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
                 <div
                   style={{
                     width: 34,
                     height: 34,
                     borderRadius: "var(--radius-sm)",
-                    background: priorityCfg.iconBg,
+                    background: iconBg,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     flexShrink: 0,
                   }}
                 >
-                  <TypeIcon size={16} color={priorityCfg.iconColor} />
+                  <TypeIcon size={16} color={iconColor} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
@@ -177,7 +168,6 @@ export default function TareasPage() {
                   </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
-                  <span className={priorityCfg.badgeClass}>{priorityCfg.label}</span>
                   <ChevronRight
                     size={14}
                     color="var(--text-muted)"

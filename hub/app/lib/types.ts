@@ -115,7 +115,6 @@ export type TaskType =
   | "display_damage"
   | "other";
 
-export type TaskPriority = "high" | "medium" | "low";
 export type TaskStatus = "open" | "resolved";
 
 export interface SupervisorTask {
@@ -127,7 +126,6 @@ export interface SupervisorTask {
   created_at: string;
   type: TaskType;
   description: string;
-  priority: TaskPriority;
   status: TaskStatus;
 }
 
@@ -139,11 +137,11 @@ export interface SupervisorReport {
   client_name: string;
   merchandiser_name: string;
   check_in_time: string;
-  duration_minutes: number;
+  duration_minutes: number;        // mock-only — sin respaldo en BD (no hay check-out), a extinguir al cablear
   status: "completed" | "skipped" | "anomaly";
   observations: string;
   photos_count: number;
-  location_verified: boolean;
+  location_verified: boolean;      // mock-only — sin respaldo en BD, a extinguir al cablear
   tasks_count: number;
   photo_urls: string[];            // NEW — real thumbnail URLs for the activity feed
   last_restock_date: string | null; // NEW — restock date captured on this visit
@@ -187,7 +185,8 @@ export interface Task {
   source_visit_id: string | null;
   task_type: DbTaskType | (string & {});
   title: string | null;
-  status: "pending" | "in_progress" | "done";
+  description: string | null; // contexto del check-in (el trigger copia visits.observations)
+  status: "open" | "resolved";
   created_at: string;
 }
 
@@ -200,6 +199,7 @@ export interface CompetitorBrand {
 export interface CompetitionReport {
   report_id: string;
   session_id: string | null;
+  visit_id: string | null; // check-in al que está ligado el reporte
   store_id: string | null;
   user_id: string;
   brand_id: string | null;
