@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
   },
   fieldText: { flex: 1, fontSize: 14, color: colors.textPrimary, ...fonts.medium },
-  placeholder: { color: colors.textMuted, fontWeight: '400' },
+  placeholder: { color: colors.textMuted, ...fonts.regular },
   photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   photo: { width: 64, height: 64, borderRadius: radii.sm, backgroundColor: colors.bgElevated },
   addPhoto: {
