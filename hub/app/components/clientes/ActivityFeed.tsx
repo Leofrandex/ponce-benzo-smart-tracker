@@ -134,8 +134,8 @@ export function ActivityFeed({ reports, tasks }: { reports: SupervisorReport[]; 
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {tasks.map((task) => {
                   const typeCfg = TASK_TYPE_CONFIG[task.type]; const TypeIcon = typeCfg.Icon;
-                  const iconBg = task.status === "resolved" ? "var(--success-bg)" : "var(--danger-bg)";
-                  const iconColor = task.status === "resolved" ? "var(--success)" : "var(--danger)";
+                  const iconBg = task.status === "open" ? "var(--danger-bg)" : "var(--success-bg)";
+                  const iconColor = task.status === "open" ? "var(--danger)" : "var(--success)";
                   return (
                     <div key={task.task_id} className="card" style={{ padding: "14px 16px", opacity: task.status === "resolved" ? 0.65 : 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
