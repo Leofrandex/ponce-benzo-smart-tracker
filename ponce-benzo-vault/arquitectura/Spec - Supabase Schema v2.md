@@ -11,7 +11,7 @@ tags:
 # Spec — Supabase desde cero: Schema v2.0 alineado con el UI
 
 > [!NOTE]
-> **Estado:** Aprobado en diseño (pendiente revisión final del spec).
+> **Estado:** ✅ **Implementado** (2026-06-07) — schema aplicado al proyecto `poncebenzo` (`eknfqxetigmrteouaqnv`), 6/6 criterios de aceptación verificados. Ver [[logs/Log-2026-06-07|Log-2026-06-07]] y [[decisiones/ADR-003-Supabase-Desde-Cero|ADR-003]]. Ajustes post-review incorporados: trigger `SECURITY DEFINER`, clientes sin INSERT en `tasks`, índices GiST, supervisor solo-lectura en competencia, `REVOKE EXECUTE` de funciones internas.
 > **Contexto:** Sub-proyecto 1 de la migración a Supabase ("Fundación"). El UI de hub y mobile está completo y validado sobre mock-data/SQLite; el proyecto Supabase anterior se descarta y se crea **desde cero**. Este spec define el schema consolidado que hace match 1:1 con lo que el UI ya renderiza.
 
 ---
