@@ -30,8 +30,11 @@ interface RouteContextValue {
   removeStoreFromRoute: (storeId: string) => void;
   startSession: () => Promise<void>;
   endSession: () => Promise<void>;
-  recordVisit: (storeId: string, record: VisitRecord) => Promise<void>;
-  recordCompetitionReport: (record: CompetitionReportRecord) => Promise<void>;
+  recordVisit: (
+    storeId: string,
+    record: VisitRecord,
+    competitionReport?: CompetitionReportRecord,
+  ) => Promise<void>;
 }
 
 const RouteContext = createContext<RouteContextValue | null>(null);
@@ -151,7 +154,11 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     setCurrentLocation(null);
   }
 
-  async function recordVisit(storeId: string, record: VisitRecord) {
+  async function recordVisit(
+    storeId: string,
+    record: VisitRecord,
+    competitionReport?: CompetitionReportRecord,
+  ) {
     // Update in-memory route state
     setRouteItems((prev) =>
       prev.map((item) =>
@@ -161,7 +168,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       ),
     );
 
-    // Persist to SQLite
+    // Persist to SQLite — las fotos van como JSON en la columna photo_uri TEXT
     await insertVisit(db, {
       visit_id: record.visit_id,
       session_id: sessionId.current ?? null,
@@ -170,7 +177,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       check_in_time: record.check_in_time,
       lat: record.check_in_location?.lat ?? null,
       lng: record.check_in_location?.lng ?? null,
-      photo_uri: record.photo_uri ?? null,
+      photo_uri: JSON.stringify(record.photo_uris),
       observations: record.observations ?? null,
       status: record.status,
       anomaly_type: record.status === 'anomaly' ? record.anomaly_type : null,
@@ -179,22 +186,22 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       synced: 0,
     });
 
-    await refreshSyncCount();
-  }
+    // Reporte de competencia opcional: misma tienda, misma operación.
+    if (competitionReport) {
+      await insertCompetitionReport(db, {
+        report_id: competitionReport.report_id,
+        session_id: sessionId.current ?? null,
+        store_id: storeId,
+        user_id: user?.id ?? 'unknown',
+        brand_id: competitionReport.brand_id,
+        activation_type: competitionReport.activation_type,
+        photo_uris: competitionReport.photo_uris,
+        notes: competitionReport.notes,
+        created_at: new Date().toISOString(),
+        synced: 0,
+      });
+    }
 
-  async function recordCompetitionReport(record: CompetitionReportRecord) {
-    await insertCompetitionReport(db, {
-      report_id: record.report_id,
-      session_id: sessionId.current ?? null,
-      store_id: record.store_id,
-      user_id: user?.id ?? 'unknown',
-      brand_id: record.brand_id,
-      activation_type: record.activation_type,
-      photo_uris: record.photo_uris,
-      notes: record.notes,
-      created_at: new Date().toISOString(),
-      synced: 0,
-    });
     await refreshSyncCount();
   }
 
@@ -243,7 +250,6 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         startSession,
         endSession,
         recordVisit,
-        recordCompetitionReport,
       }}
     >
       {children}
