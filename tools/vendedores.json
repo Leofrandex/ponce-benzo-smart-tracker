@@ -1,0 +1,47 @@
+{
+  "_comment": "Mapeo de personal P&B para la ingesta a Supabase Auth + tabla users. Alcance: solo las 4 rutas definidas en 'RUTAS 05-12-25 (1).xlsx' + su jerarquía (Milagros supervisora, Rosli admin). Ver ponce-benzo-vault/pendientes/Pendientes.md para el personal pendiente de alta. La contraseña temporal NO se guarda aquí: es un parámetro del script de ingesta (env var). 'excel_aliases' lista las grafías con que cada persona aparece en MAESTRO.xlsx / RUTAS para cruzar tiendas y rutas (mayúsculas, acentos y dobles espacios incluidos).",
+  "users": [
+    {
+      "full_name": "Elvis Rondón",
+      "email": "erondon@ponce-benzo.com",
+      "role": "merchandiser",
+      "supervisor_email": "mfernandez@ponce-benzo.com",
+      "excel_aliases": ["ELVIS RONDON"]
+    },
+    {
+      "full_name": "Willian Fermín",
+      "email": "wfermin@ponce-benzo.com",
+      "role": "merchandiser",
+      "supervisor_email": "mfernandez@ponce-benzo.com",
+      "excel_aliases": ["WILLIAN FERMIN", "WILLIAM FERMIN"]
+    },
+    {
+      "full_name": "Eduward Martínez",
+      "email": "emartinez@ponce-benzo.com",
+      "role": "merchandiser",
+      "supervisor_email": "mfernandez@ponce-benzo.com",
+      "excel_aliases": ["EDUWARD MARTINEZ", "EDUWARD MARTÍNEZ"]
+    },
+    {
+      "full_name": "Carlos Zurita",
+      "email": "czurita@ponce-benzo.com",
+      "role": "merchandiser",
+      "supervisor_email": "mfernandez@ponce-benzo.com",
+      "excel_aliases": ["CARLOS ZURITA", "CARLOS  ZURITA"]
+    },
+    {
+      "full_name": "Milagros Fernández",
+      "email": "mfernandez@ponce-benzo.com",
+      "role": "supervisor",
+      "supervisor_email": "raponte@ponce-benzo.com",
+      "excel_aliases": ["MILAGROS FERNANDEZ", "MILAGROS FERNÁNDEZ", "MILAGROS FERNANDEZ 10", "MILAGROS FERNANDEZ 30"]
+    },
+    {
+      "full_name": "Rosli Aponte",
+      "email": "raponte@ponce-benzo.com",
+      "role": "admin",
+      "supervisor_email": null,
+      "excel_aliases": ["ROSLI APONTE"]
+    }
+  ]
+}
