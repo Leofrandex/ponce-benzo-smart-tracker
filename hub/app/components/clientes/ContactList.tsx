@@ -5,69 +5,31 @@ import { User, Phone, Mail, Star, Pencil, Plus } from "lucide-react";
 import type { Contact } from "@/app/lib/types";
 import { ContactFormModal, type ContactFormValue } from "./ContactFormModal";
 
-export function ContactList({ storeId, contacts }: { storeId: string; contacts: Contact[] }) {
-  // Mock-first: estado local sembrado con los contactos existentes.
-  const [items, setItems] = useState<Contact[]>(contacts);
+interface ContactListProps {
+  storeId: string;
+  contacts: Contact[];
+  onCreate: (value: ContactFormValue) => Promise<void>;
+  onUpdate: (contactId: string, value: ContactFormValue) => Promise<void>;
+  onDelete: (contactId: string) => Promise<void>;
+}
+
+export function ContactList({ storeId: _storeId, contacts, onCreate, onUpdate, onDelete }: ContactListProps) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Contact | null>(null); // null = crear nuevo
+  const [editing, setEditing] = useState<Contact | null>(null);
+  const items = contacts; // controlado por el padre
 
-  function openCreate() {
-    setEditing(null);
-    setModalOpen(true);
+  function openCreate() { setEditing(null); setModalOpen(true); }
+  function openEdit(contact: Contact) { setEditing(contact); setModalOpen(true); }
+
+  async function handleSave(value: ContactFormValue) {
+    if (editing) await onUpdate(editing.contact_id, value);
+    else await onCreate(value);
+    setModalOpen(false);
   }
-
-  function openEdit(contact: Contact) {
-    setEditing(contact);
-    setModalOpen(true);
-  }
-
-  function handleSave(value: ContactFormValue) {
-    setItems((prev) => {
-      let next: Contact[];
-      if (editing) {
-        next = prev.map((c) =>
-          c.contact_id === editing.contact_id
-            ? {
-                ...c,
-                full_name: value.full_name,
-                role_title: value.role_title || null,
-                phone: value.phone || null,
-                email: value.email || null,
-                birthday: value.birthday || null,
-                is_primary: value.is_primary,
-              }
-            : c,
-        );
-      } else {
-        next = [
-          ...prev,
-          {
-            contact_id: `contact-${Date.now()}`,
-            store_id: storeId,
-            full_name: value.full_name,
-            role_title: value.role_title || null,
-            phone: value.phone || null,
-            email: value.email || null,
-            birthday: value.birthday || null,
-            is_primary: value.is_primary,
-            active: true,
-            created_at: new Date().toISOString(),
-          },
-        ];
-      }
-      // Encargado único: marcar uno desmarca a los demás.
-      if (value.is_primary) {
-        const savedId = editing?.contact_id ?? next[next.length - 1].contact_id;
-        next = next.map((c) => (c.contact_id === savedId ? c : { ...c, is_primary: false }));
-      }
-      // Encargado primero, como en el orden original.
-      return [...next].sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
-    });
-  }
-
-  function handleDelete() {
+  async function handleDelete() {
     if (!editing) return;
-    setItems((prev) => prev.filter((c) => c.contact_id !== editing.contact_id));
+    await onDelete(editing.contact_id);
+    setModalOpen(false);
   }
 
   return (

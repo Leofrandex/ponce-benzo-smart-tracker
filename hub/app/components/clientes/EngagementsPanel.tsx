@@ -6,35 +6,25 @@ import type { ContactEngagement } from "@/app/lib/types";
 
 type ComposerType = "note" | "todo";
 
-export function EngagementsPanel({ engagements }: { engagements: ContactEngagement[] }) {
-  // Mock-first: estado local sembrado con los engagements existentes.
-  const [items, setItems] = useState<ContactEngagement[]>(engagements);
+interface EngagementsPanelProps {
+  engagements: ContactEngagement[];
+  onCreate: (type: ComposerType, body: string) => Promise<void>;
+  onToggle: (engagement: ContactEngagement) => Promise<void>;
+}
+
+export function EngagementsPanel({ engagements, onCreate, onToggle }: EngagementsPanelProps) {
   const [composerType, setComposerType] = useState<ComposerType>("note");
   const [body, setBody] = useState("");
+  const items = engagements; // controlado por el padre
 
-  function handleAdd() {
+  async function handleAdd() {
     const text = body.trim();
     if (!text) return;
-    const newItem: ContactEngagement = {
-      engagement_id: `eng-${Date.now()}`,
-      store_id: items[0]?.store_id ?? "",
-      contact_id: null,
-      author_user_id: null,
-      type: composerType,
-      body: text,
-      status: composerType === "todo" ? "open" : null,
-      due_date: null,
-      created_at: new Date().toISOString(),
-    };
-    setItems((prev) => [newItem, ...prev]);
+    await onCreate(composerType, text);
     setBody("");
   }
 
-  function toggleDone(id: string) {
-    setItems((prev) => prev.map((e) =>
-      e.engagement_id === id ? { ...e, status: e.status === "done" ? "open" : "done" } : e,
-    ));
-  }
+  function toggleDone(e: ContactEngagement) { onToggle(e); }
 
   return (
     <div>
@@ -47,7 +37,7 @@ export function EngagementsPanel({ engagements }: { engagements: ContactEngageme
             <div key={e.engagement_id} style={{ display: "flex", gap: "10px", paddingBottom: "10px", borderBottom: "1px solid var(--border)" }}>
               {e.type === "todo" ? (
                 <button
-                  onClick={() => toggleDone(e.engagement_id)}
+                  onClick={() => toggleDone(e)}
                   aria-label={e.status === "done" ? "Marcar como pendiente" : "Marcar como hecho"}
                   className="todo-check"
                   style={{
