@@ -11,8 +11,8 @@ tags:
 
 # Spec — Cablear Hub a Supabase (Fundación + Lectura)
 
-> [!NOTE]
-> **Estado:** Aprobado en diseño (pendiente revisión final del spec).
+> [!SUCCESS]
+> **Estado:** ✅ **Implementado (fase lectura)** el 2026-06-08. 10 tareas subagent-driven; `tsc`/`lint`/`build` limpios; auth y RLS verificados E2E vía JWT real. Ver [[logs/Log-2026-06-08-hub|Log-2026-06-08 (Hub)]]. La escritura (CRUD) queda para el siguiente sub-proyecto.
 > **Contexto:** Sub-proyecto 3 de la migración a Supabase. La BD `poncebenzo` ya tiene schema v2.0 + RLS y datos del piloto (6 usuarios, 192 tiendas, 20 rutas). El hub (`hub/`, Next.js App Router) sigue 100% mock: login demo por `localStorage`, páginas client component que importan `mock-data` directo. Este sub-proyecto reemplaza la **fundación** (cliente Supabase + auth real + protección de rutas) y la **lectura** de las 5 superficies. **Toda escritura queda fuera** (sub-proyecto siguiente).
 
 ---
