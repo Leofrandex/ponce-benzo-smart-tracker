@@ -12,8 +12,8 @@ tags:
 
 # Spec — Hub Escritura (CRM)
 
-> [!NOTE]
-> **Estado:** Aprobado en diseño (pendiente revisión final del spec).
+> [!SUCCESS]
+> **Estado:** ✅ **Implementado** el 2026-06-08. 6 tareas subagent-driven; `tsc`/`lint`/`build` limpios; escrituras y RLS verificados E2E con JWT real (Milagros escribe; Carlos bloqueado). Ver [[logs/Log-2026-06-08-hub-escritura|Log Hub Escritura]].
 > **Contexto:** Sub-proyecto 4 de la migración. El hub ya lee datos reales de Supabase (fundación + lectura, 2026-06-08). Esta fase agrega las **escrituras que operan sobre datos que ya existen**: editar sucursales (= enriquecimiento), CRUD de contactos, engagements y resolver tareas. Monta sobre la capa de lectura (`queries/*.ts` + `useSupabaseQuery`) y el RLS ya verificado.
 
 ---

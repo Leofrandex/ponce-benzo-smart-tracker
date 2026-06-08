@@ -176,6 +176,9 @@ Cuando una visita se inserta con `status = 'anomaly'`, el trigger `trg_visit_ano
 > [!NOTE]
 > Ambas funciones aplican `SET search_path = ''` como medida de *hardening* (evita secuestro de esquema). La invariante de "Payload Completa" exige que `anomaly_type` viaje en el mismo INSERT que `status = 'anomaly'`.
 
+> [!TIP]
+> **RPC `fn_set_primary_contact(p_store_id, p_contact_id)` (2026-06-08):** fija el encargado de una tienda de forma atómica — desmarca al `is_primary` anterior y marca al nuevo en una transacción, respetando el índice único `uq_contacts_primary_per_store`. `SECURITY INVOKER` (el RLS `contacts_write_staff` autoriza a supervisor/admin); `REVOKE EXECUTE` de anon. La usa el hub al marcar encargado.
+
 > [!IMPORTANT]
 > **v2.0:** `fn_create_task_from_anomaly` es `SECURITY DEFINER` (el lookup del supervisor y el INSERT en `tasks` no dependen del RLS del caller); la tarea nace con `status = 'open'` y `description = visits.observations`. Ambas funciones tienen `REVOKE EXECUTE` para `anon`/`authenticated` (no son invocables vía RPC).
 

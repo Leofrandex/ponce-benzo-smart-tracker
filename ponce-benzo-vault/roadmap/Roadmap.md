@@ -45,7 +45,7 @@ Hemos completado el blueprint, la división de código (Split Web/Mobile) y la d
 - [x] **Configurar Variables de Entorno:** `hub/.env.local` y `.env` raíz con las claves reales del proyecto `poncebenzo` (2026-06-07).
 - [x] **Handshake de Producción:** `tools/verify_supabase_connection.py` verificado OK contra el proyecto nuevo (env, DB, Storage, Auth) (2026-06-07).
 - [x] **Cablear Hub a Supabase — Fundación + Lectura (2026-06-08):** `@supabase/ssr` + middleware (guard `/supervisor`), auth real, hook `useSupabaseQuery`, agregación pura con tests, y las 5 superficies leyendo datos reales (192 tiendas). Auth/RLS verificados E2E vía JWT. Escritura (CRUD) = sub-proyecto aparte. Ver [[arquitectura/Spec - Cablear Hub a Supabase|Spec]] y [[logs/Log-2026-06-08-hub|Log Hub]].
-- [ ] **Cablear Hub — Escritura (CRM):** crear/editar contactos, sucursales, engagements; resolver/crear tareas. Reconciliar `SupervisorTask` con `Task`/`FullTaskRow` + joins de nombres para gráficos y feed.
+- [x] **Cablear Hub — Escritura (CRM) (2026-06-08):** editar sucursales (enriquecimiento), CRUD de contactos con encargado único (RPC `fn_set_primary_contact`), engagements y resolver tareas. Mutación+refetch, componentes controlados. Verificado E2E con JWT (RLS bloquea al mercaderista). Ver [[arquitectura/Spec - Hub Escritura CRM|Spec]] y [[logs/Log-2026-06-08-hub-escritura|Log]]. Pendiente menor: joins de nombres para gráficos/feed (dependen del mobile) y crear sucursales nuevas.
 - [ ] **Sincronización Móvil:** Reemplazar el login y carga de rutas de prueba por llamadas reales a Supabase Auth y consultas SQLite -> Supabase (motor de sync + subida de fotos a Storage).
 
 ### 🎨 Fase 4: Estilización y UX (En Desarrollo)
