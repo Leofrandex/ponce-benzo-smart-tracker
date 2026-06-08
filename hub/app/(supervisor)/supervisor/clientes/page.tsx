@@ -2,50 +2,56 @@
 
 import { useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
-import { mockStores, mockTasks } from "@/app/lib/mock-data";
-import type { Store } from "@/app/lib/types";
+import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
+import { fetchStores } from "@/app/lib/queries/stores";
+import { fetchTasks } from "@/app/lib/queries/tasks";
+import { deriveClientRows } from "@/app/lib/queries/derive";
 import { ClientesFilters, EMPTY_FILTERS, type ClientesFilterValue } from "@/app/components/clientes/ClientesFilters";
-import { ClientesTable, type ClientRow } from "@/app/components/clientes/ClientesTable";
-import { StoreFormModal } from "@/app/components/clientes/StoreFormModal";
+import { ClientesTable } from "@/app/components/clientes/ClientesTable";
 
 export default function ClientesPage() {
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<ClientesFilterValue>(EMPTY_FILTERS);
-  // Mock-first: lista local sembrada con las sucursales mock.
-  const [stores, setStores] = useState<Store[]>(() => [...mockStores]);
-  const [createOpen, setCreateOpen] = useState(false);
 
-  function handleCreate(store: Store) {
-    // Se inserta también en el array mock para que la ficha de detalle la encuentre.
-    mockStores.push(store);
-    setStores([...mockStores]);
+  const { data: stores, loading: loadingStores, error } = useSupabaseQuery(fetchStores, []);
+  const { data: tasks } = useSupabaseQuery(fetchTasks, []);
+
+  const allRows = useMemo(
+    () => deriveClientRows(stores ?? [], [], tasks ?? []),
+    [stores, tasks],
+  );
+
+  const rows = useMemo(() => {
+    return allRows.filter((s) => {
+      if (filters.estado && s.estado !== filters.estado) return false;
+      if (filters.municipio && s.municipio !== filters.municipio) return false;
+      if (filters.urbanizacion && s.urbanizacion !== filters.urbanizacion) return false;
+      if (filters.channel && s.business_channel !== filters.channel) return false;
+      if (filters.classifications.length > 0 && (!s.classification || !filters.classifications.includes(s.classification))) return false;
+      if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    });
+  }, [allRows, search, filters]);
+
+  if (error) {
+    return <div className="empty-state"><div className="empty-title">Error al cargar clientes</div><div className="empty-desc">{error}</div></div>;
   }
-
-  const rows = useMemo<ClientRow[]>(() => {
-    return stores
-      .filter((s) => {
-        if (filters.estado && s.estado !== filters.estado) return false;
-        if (filters.municipio && s.municipio !== filters.municipio) return false;
-        if (filters.urbanizacion && s.urbanizacion !== filters.urbanizacion) return false;
-        if (filters.channel && s.business_channel !== filters.channel) return false;
-        if (filters.classifications.length > 0 && (!s.classification || !filters.classifications.includes(s.classification))) return false;
-        if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
-        return true;
-      })
-      .map((s) => ({
-        ...s,
-        pending_tasks: mockTasks.filter((t) => t.store_id === s.store_id && t.status !== "resolved").length,
-      }));
-  }, [stores, search, filters]);
 
   return (
     <>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px" }}>Clientes</h1>
-          <p className="text-muted text-sm" style={{ marginTop: "4px" }}>{rows.length} de {stores.length} clientes</p>
+          <p className="text-muted text-sm" style={{ marginTop: "4px" }}>
+            {loadingStores ? "Cargando…" : `${rows.length} de ${(stores ?? []).length} clientes`}
+          </p>
         </div>
-        <button type="button" onClick={() => setCreateOpen(true)} className="filter-chip" style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
+        <button
+          type="button"
+          onClick={() => alert("La creación de sucursales llega en la siguiente fase (escritura).")}
+          className="filter-chip"
+          style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}
+        >
           <Plus size={12} /> Agregar sucursal
         </button>
       </div>
@@ -57,8 +63,6 @@ export default function ClientesPage() {
 
       <ClientesFilters value={filters} onChange={setFilters} />
       <ClientesTable rows={rows} />
-
-      <StoreFormModal open={createOpen} store={null} onClose={() => setCreateOpen(false)} onSave={handleCreate} />
     </>
   );
 }
