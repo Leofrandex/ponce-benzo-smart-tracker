@@ -320,6 +320,26 @@ CREATE POLICY "contacts_write_staff" ON contacts
   USING (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('supervisor','admin')))
   WITH CHECK (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('supervisor','admin')));
 
+-- ============================================================
+-- RPC: fijar el encargado (is_primary) de una tienda de forma atómica.
+-- Desmarca al anterior y marca al nuevo en una transacción, respetando
+-- el índice único parcial uq_contacts_primary_per_store.
+-- SECURITY INVOKER: el RLS de contacts (contacts_write_staff) autoriza la escritura.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.fn_set_primary_contact(p_store_id uuid, p_contact_id uuid)
+RETURNS void LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
+BEGIN
+  -- 1) desmarcar otros primarios activos de la tienda
+  UPDATE public.contacts SET is_primary = false
+   WHERE store_id = p_store_id AND is_primary AND active AND contact_id <> p_contact_id;
+  -- 2) marcar el objetivo
+  UPDATE public.contacts SET is_primary = true
+   WHERE contact_id = p_contact_id;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.fn_set_primary_contact(uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fn_set_primary_contact(uuid, uuid) TO authenticated;
+
 -- engagements: lectura autenticada; escribe el autor o staff
 CREATE POLICY "engagements_read_auth" ON contact_engagements
   FOR SELECT TO authenticated USING (TRUE);
