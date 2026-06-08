@@ -388,6 +388,40 @@ CREATE POLICY "comp_reports_supervisor_read" ON competition_reports
   USING (EXISTS (SELECT 1 FROM users u WHERE u.id = competition_reports.user_id AND u.supervisor_id = auth.uid()));
 
 -- ============================================================
+-- Visibilidad GLOBAL del rol 'admin' (Director de Ventas)
+-- El admin ve TODO: gerentes y, en cascada, los asesores de esos gerentes.
+-- fn_is_admin() es SECURITY DEFINER para evitar la recursión infinita que
+-- provocaría una política sobre `users` que consulte `users`.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.fn_is_admin()
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE SET search_path = '' AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.users
+    WHERE id = auth.uid() AND role = 'admin' AND active
+  );
+$$;
+REVOKE EXECUTE ON FUNCTION public.fn_is_admin() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fn_is_admin() TO authenticated;
+
+DROP POLICY IF EXISTS "users_admin_read"        ON users;
+DROP POLICY IF EXISTS "routes_admin_read"       ON routes;
+DROP POLICY IF EXISTS "sessions_admin_read"     ON sessions;
+DROP POLICY IF EXISTS "pings_admin_read"        ON location_pings;
+DROP POLICY IF EXISTS "visits_admin_read"       ON visits;
+DROP POLICY IF EXISTS "tasks_admin_read"        ON tasks;
+DROP POLICY IF EXISTS "comp_reports_admin_read" ON competition_reports;
+
+-- Lectura global para admin (ADITIVA a las políticas "_own"/"_supervisor_read").
+-- Solo sobre tablas operativas que no son ya legibles por todo autenticado.
+CREATE POLICY "users_admin_read"        ON users               FOR SELECT TO authenticated USING (public.fn_is_admin());
+CREATE POLICY "routes_admin_read"       ON routes              FOR SELECT TO authenticated USING (public.fn_is_admin());
+CREATE POLICY "sessions_admin_read"     ON sessions            FOR SELECT TO authenticated USING (public.fn_is_admin());
+CREATE POLICY "pings_admin_read"        ON location_pings      FOR SELECT TO authenticated USING (public.fn_is_admin());
+CREATE POLICY "visits_admin_read"       ON visits              FOR SELECT TO authenticated USING (public.fn_is_admin());
+CREATE POLICY "tasks_admin_read"        ON tasks               FOR SELECT TO authenticated USING (public.fn_is_admin());
+CREATE POLICY "comp_reports_admin_read" ON competition_reports FOR SELECT TO authenticated USING (public.fn_is_admin());
+
+-- ============================================================
 -- STORAGE: bucket visit-photos + políticas por carpeta de usuario
 -- Estructura de path (Constitución): {user_id}/{visit_id}/{timestamp}.jpg
 -- ============================================================

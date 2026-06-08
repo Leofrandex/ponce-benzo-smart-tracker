@@ -207,6 +207,9 @@ Se agregan políticas de lectura para que un supervisor vea a su equipo, compara
 - **`sessions_supervisor_read` (v2.0):** el supervisor lee las jornadas de sus vendedores (mapa en vivo).
 - **`pings_supervisor_read` (v2.0):** el supervisor lee los pings GPS de sus vendedores (mapa de calor).
 
+> [!IMPORTANT]
+> **Visibilidad global del rol `admin` (2026-06-08).** El Director de Ventas (Rosli Aponte) tiene rol `admin` y debe ver **todo** — gerentes y, en cascada, los asesores de esos gerentes. Como la visibilidad de supervisor es de un solo nivel (`supervisor_id = auth.uid()`), se agregaron políticas `*_admin_read` de lectura global sobre `users`, `routes`, `sessions`, `location_pings`, `visits`, `tasks` y `competition_reports`. El chequeo usa la función `public.fn_is_admin()` (`SECURITY DEFINER`, `REVOKE EXECUTE` de `anon`) para **evitar la recursión infinita** que provocaría una política sobre `users` que consulte `users`. Verificado E2E: el admin ve datos dos niveles abajo; un mercaderista no-admin sigue viendo solo lo suyo.
+
 ### Storage (v2.0)
 
 Bucket privado **`visit-photos`** con políticas por carpeta de usuario (`{user_id}/{visit_id}/{timestamp}.jpg`): el usuario autenticado solo sube bajo su propia carpeta (`storage.foldername(name)[1] = auth.uid()`); leen el dueño y su supervisor.

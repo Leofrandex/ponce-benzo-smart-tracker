@@ -6,6 +6,10 @@
 .env.local
 .env.*.local
 
+# Credenciales / secretos (NEVER commit)
+ponce-benzo-vault/Credenciales Temporales Piloto.md
+tools/vendedores.secret.json
+
 # Temporary workbench
 .tmp/
 
