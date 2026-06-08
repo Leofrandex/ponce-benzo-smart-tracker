@@ -10,6 +10,9 @@ tags:
 
 # Ingesta — Mapeo de Datos
 
+> [!SUCCESS]
+> **Ejecutado el 2026-06-08.** Pipeline idempotente corrido contra `poncebenzo`: 6 usuarios + 192 tiendas + 20 rutas, verificado E2E. Ver [[logs/Log-2026-06-08|Log-2026-06-08]].
+
 > [!IMPORTANT]
 > **Hallazgo central (2026-06-08):** las tiendas del piloto salen de **`RUTAS 05-12-25 (1).xlsx`**, no de MAESTRO. MAESTRO registra las cadenas como **una sola entidad legal por RIF** (no tiene las sucursales retail que visitan los mercaderistas). MAESTRO sí aporta el **canal** a nivel de cadena. Alcance: solo las **4 rutas Jr** (Elvis, Willian, Eduward, Carlos) — ver [[pendientes/Pendientes|Pendientes]].
 
