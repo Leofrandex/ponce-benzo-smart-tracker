@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Store as StoreIcon, User, X } from "lucide-react";
-import { mockStores } from "@/app/lib/mock-data";
-import { mockActiveMerchandisers } from "@/app/lib/map-data";
+import type { Store } from "@/app/lib/types";
+import type { MapMerchandiser } from "@/app/lib/map-data";
 
 export interface MapFilterValue {
   merchIds: string[];   // empty = all
@@ -53,7 +53,14 @@ function SectionHeader({ title, count, open, onToggle }: {
   );
 }
 
-export function MapFilterSidebar({ value, onChange }: { value: MapFilterValue; onChange: (v: MapFilterValue) => void }) {
+interface MapFilterSidebarProps {
+  value: MapFilterValue;
+  onChange: (v: MapFilterValue) => void;
+  stores: Store[];
+  merchandisers: MapMerchandiser[];
+}
+
+export function MapFilterSidebar({ value, onChange, stores, merchandisers }: MapFilterSidebarProps) {
   const [merchOpen, setMerchOpen] = useState(true);
   const [storesOpen, setStoresOpen] = useState(false);
 
@@ -66,9 +73,9 @@ export function MapFilterSidebar({ value, onChange }: { value: MapFilterValue; o
     <div style={{ width: "230px", flexShrink: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: "8px", overflowY: "auto", paddingRight: "2px" }}>
       <SectionHeader
         title="Mercaderistas" open={merchOpen} onToggle={() => setMerchOpen((o) => !o)}
-        count={value.merchIds.length === 0 ? "todos" : `${value.merchIds.length} / ${mockActiveMerchandisers.length}`}
+        count={value.merchIds.length === 0 ? "todos" : `${value.merchIds.length} / ${merchandisers.length}`}
       />
-      {merchOpen && mockActiveMerchandisers.map((m) => (
+      {merchOpen && merchandisers.map((m) => (
         <FilterCard key={m.id}
           icon={<User size={13} />} label={m.name}
           sub={m.status === "offline" ? "Desconectado" : "Activo"}
@@ -79,9 +86,9 @@ export function MapFilterSidebar({ value, onChange }: { value: MapFilterValue; o
 
       <SectionHeader
         title="Sucursales" open={storesOpen} onToggle={() => setStoresOpen((o) => !o)}
-        count={value.storeIds.length === 0 ? "todas" : `${value.storeIds.length} / ${mockStores.length}`}
+        count={value.storeIds.length === 0 ? "todas" : `${value.storeIds.length} / ${stores.length}`}
       />
-      {storesOpen && mockStores.map((s) => (
+      {storesOpen && stores.map((s) => (
         <FilterCard key={s.store_id}
           icon={<StoreIcon size={13} />} label={s.name}
           selected={value.storeIds.includes(s.store_id)}

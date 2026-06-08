@@ -3,22 +3,29 @@
 import { MapContainer, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useMemo, useState } from "react";
-import { mockStores } from "@/app/lib/mock-data";
-import { getPingsInRange } from "@/app/lib/map-data";
 import { LIGHT_TILE_URL, LIGHT_TILE_ATTRIBUTION, CARACAS_CENTER } from "./tiles";
 import { StoreMarkersLayer } from "./StoreMarkersLayer";
 import { HeatmapLayer } from "./HeatmapLayer";
 import { DateRangeChips, presetRange, type DateRange } from "./DateRangeChips";
 import type { MapFilterValue } from "./MapFilterSidebar";
+import type { Store } from "@/app/lib/types";
 
-export default function MapHistoryView({ filters }: { filters: MapFilterValue }) {
+interface MapHistoryViewProps {
+  filters: MapFilterValue;
+  stores: Store[];
+}
+
+export default function MapHistoryView({ filters, stores }: MapHistoryViewProps) {
   const [range, setRange] = useState<DateRange>(() => presetRange("7d"));
 
-  const stores = useMemo(() => filters.storeIds.length === 0 ? mockStores : mockStores.filter((s) => filters.storeIds.includes(s.store_id)), [filters.storeIds]);
-  const points = useMemo(
-    () => getPingsInRange(filters.merchIds, new Date(range.from + "T00:00:00"), new Date(range.to + "T23:59:59")),
-    [filters.merchIds, range],
+  const filteredStores = useMemo(
+    () => filters.storeIds.length === 0 ? stores : stores.filter((s) => filters.storeIds.includes(s.store_id)),
+    [stores, filters.storeIds],
   );
+
+  // Historical pings from real DB are out of scope for this phase.
+  // The heatmap renders empty — no crash, just no heat points.
+  const points: [number, number][] = [];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "10px", padding: "10px" }}>
@@ -26,7 +33,7 @@ export default function MapHistoryView({ filters }: { filters: MapFilterValue })
       <div style={{ flex: 1, borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--border)" }}>
         <MapContainer center={CARACAS_CENTER} zoom={13} style={{ width: "100%", height: "100%", zIndex: 1 }} zoomControl={false}>
           <TileLayer url={LIGHT_TILE_URL} attribution={LIGHT_TILE_ATTRIBUTION} />
-          <StoreMarkersLayer stores={stores} />
+          <StoreMarkersLayer stores={filteredStores} />
           <HeatmapLayer points={points} />
         </MapContainer>
       </div>
