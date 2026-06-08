@@ -39,8 +39,7 @@ Para realizar la migración completa a producción y conectar a los vendedores r
 ## ⚙️ Pendientes de Desarrollo Técnico
 
 - [x] **Configuración de Variables de Entorno:** ✅ *(2026-06-07)* `hub/.env.local` y `.env` raíz con las claves del proyecto nuevo `poncebenzo`; handshake Python verificado.
-- [ ] **Modificar Ingesta de Excel:**
-  * Adaptar `tools/import-data.ts` para que lea correctamente `hub/MAESTRO.xlsx` (Hoja *CLIENTES NUEVA ID ZONA* y *ESTRUCTURA P&B - LP*) y `hub/RUTAS 05-12-25 (1).xlsx`, cruzando los IDs de tiendas con los IDs de los vendedores creados.
+- [x] **Modificar Ingesta de Excel:** ✅ *(2026-06-08)* `tools/import-data.ts` reescrito como pipeline idempotente (`tools/ingesta/`). Cargó 6 usuarios + 192 tiendas + 20 rutas. **Cambio de fuente:** las tiendas salen de `RUTAS`, no de MAESTRO (ver [[arquitectura/Ingesta - Mapeo de Datos|Mapeo]]). Falta el **enriquecimiento** de sucursales (dirección/encargado/clasificación/GPS) → [[pendientes/Solicitud de Datos a P&B|Solicitud a P&B]].
 - [ ] **Validación de RLS Móvil:**
   * Probar que las llamadas a la base de datos de Supabase desde la app móvil respeten estrictamente la restricción de que un mercaderista solo vea sus propias visitas y rutas.
 - [ ] **Compresión de Imágenes:**
