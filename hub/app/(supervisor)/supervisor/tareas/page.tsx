@@ -4,30 +4,13 @@ import { useState } from "react";
 import {
   CheckCircle2,
   Clock,
-  Loader2,
-  Package,
-  Phone,
-  Tag,
-  Wrench,
-  HelpCircle,
+  ClipboardList,
   ChevronRight,
 } from "lucide-react";
-import {
-  mockTasks,
-  type SupervisorTask,
-  type TaskStatus,
-} from "@/app/lib/mock-data";
+import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
+import { fetchFullTasks, type FullTaskRow } from "@/app/lib/queries/tasks";
 
-const TASK_TYPE_CONFIG: Record<
-  SupervisorTask["type"],
-  { label: string; Icon: React.ElementType }
-> = {
-  restock:         { label: "Reponer stock",      Icon: Package    },
-  contact_manager: { label: "Contactar gerente",  Icon: Phone      },
-  pricing_issue:   { label: "Problema de precio", Icon: Tag        },
-  display_damage:  { label: "Daño en exhibidor",  Icon: Wrench     },
-  other:           { label: "Otro",               Icon: HelpCircle },
-};
+type TaskStatus = "open" | "resolved";
 
 const STATUS_BADGE: Record<TaskStatus, string> = {
   open:     "badge badge-danger",
@@ -55,10 +38,10 @@ function relativeTime(iso: string): string {
 }
 
 export default function TareasPage() {
-  const [tasks, setTasks] = useState<SupervisorTask[]>(mockTasks);
+  const { data: rawTasks, loading, error } = useSupabaseQuery(fetchFullTasks, []);
+  const tasks = rawTasks ?? [];
   const [filter, setFilter] = useState<TaskStatus | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const open     = tasks.filter((t) => t.status === "open").length;
   const resolved = tasks.filter((t) => t.status === "resolved").length;
@@ -66,14 +49,8 @@ export default function TareasPage() {
   const filtered =
     filter === "all" ? tasks : tasks.filter((t) => t.status === filter);
 
-  const handleResolve = async (taskId: string) => {
-    setLoadingId(taskId);
-    await new Promise((r) => setTimeout(r, 600));
-    setTasks((prev) =>
-      prev.map((t) => (t.task_id === taskId ? { ...t, status: "resolved" } : t))
-    );
-    setLoadingId(null);
-    setExpandedId(null);
+  const handleResolve = async (_taskId: string) => {
+    alert("Marcar tareas como completadas llega en la siguiente fase (escritura).");
   };
 
   return (
@@ -113,138 +90,141 @@ export default function TareasPage() {
         ))}
       </div>
 
+      {/* Loading / error states */}
+      {error && (
+        <div className="empty-state">
+          <ClipboardList size={44} style={{ opacity: 0.2 }} />
+          <div className="empty-title">Error al cargar tareas</div>
+          <div className="empty-desc">{String(error)}</div>
+        </div>
+      )}
+
+      {loading && (
+        <div className="empty-state">
+          <div className="empty-title">Cargando tareas…</div>
+        </div>
+      )}
+
       {/* Task list */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        {filtered.length === 0 && (
-          <div className="empty-state">
-            <CheckCircle2 size={44} style={{ opacity: 0.2 }} />
-            <div className="empty-title">Sin tareas</div>
-            <div className="empty-desc">No hay tareas con este filtro.</div>
-          </div>
-        )}
+      {!loading && !error && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          {filtered.length === 0 && (
+            <div className="empty-state">
+              <CheckCircle2 size={44} style={{ opacity: 0.2 }} />
+              <div className="empty-title">Sin tareas</div>
+              <div className="empty-desc">No hay tareas con este filtro.</div>
+            </div>
+          )}
 
-        {filtered.map((task) => {
-          const typeCfg   = TASK_TYPE_CONFIG[task.type];
-          const TypeIcon  = typeCfg.Icon;
-          const iconBg    = task.status === "open" ? "var(--danger-bg)" : "var(--success-bg)";
-          const iconColor = task.status === "open" ? "var(--danger)"     : "var(--success)";
-          const isExpanded  = expandedId === task.task_id;
-          const isLoading   = loadingId === task.task_id;
+          {filtered.map((task: FullTaskRow) => {
+            const iconBg    = task.status === "open" ? "var(--danger-bg)" : "var(--success-bg)";
+            const iconColor = task.status === "open" ? "var(--danger)"     : "var(--success)";
+            const isExpanded  = expandedId === task.task_id;
 
-          return (
-            <div
-              key={task.task_id}
-              className="card"
-              style={{
-                padding: "16px",
-                cursor: "pointer",
-                opacity: task.status === "resolved" ? 0.65 : 1,
-                borderColor: task.status === "open" ? "var(--danger-bg)" : "var(--border)",
-              }}
-              onClick={() => setExpandedId(isExpanded ? null : task.task_id)}
-            >
-              {/* Row 1: type icon + store */}
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-                <div
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: "var(--radius-sm)",
-                    background: iconBg,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <TypeIcon size={16} color={iconColor} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
-                    {typeCfg.label}
-                  </div>
-                  <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "1px" }}>
-                    {task.store_name}
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
-                  <ChevronRight
-                    size={14}
-                    color="var(--text-muted)"
-                    style={{
-                      transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
-                      transition: "transform 150ms ease",
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Row 2: merchandiser + time + status */}
+            return (
               <div
+                key={task.task_id}
+                className="card"
                 style={{
-                  display: "flex",
-                  gap: "10px",
-                  fontSize: "11px",
-                  color: "var(--text-muted)",
-                  alignItems: "center",
+                  padding: "16px",
+                  cursor: "pointer",
+                  opacity: task.status === "resolved" ? 0.65 : 1,
+                  borderColor: task.status === "open" ? "var(--danger-bg)" : "var(--border)",
                 }}
+                onClick={() => setExpandedId(isExpanded ? null : task.task_id)}
               >
-                <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                  <Clock size={11} />
-                  {relativeTime(task.created_at)}
-                </span>
-                <span>·</span>
-                <span>{task.merchandiser_name}</span>
-                <span style={{ marginLeft: "auto" }}>
-                  <span className={STATUS_BADGE[task.status]}>
-                    {STATUS_LABEL[task.status]}
-                  </span>
-                </span>
-              </div>
-
-              {/* Expanded: description + action */}
-              {isExpanded && (
-                <div
-                  style={{ marginTop: "14px", paddingTop: "14px", borderTop: "1px solid var(--border)" }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <p
+                {/* Row 1: icon + title/store */}
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                  <div
                     style={{
-                      fontSize: "13px",
-                      color: "var(--text-secondary)",
-                      lineHeight: 1.6,
-                      marginBottom: "14px",
+                      width: 34,
+                      height: 34,
+                      borderRadius: "var(--radius-sm)",
+                      background: iconBg,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
                     }}
                   >
-                    {task.description}
-                  </p>
-
-                  {task.status !== "resolved" && (
-                    <button
-                      className="btn btn-primary"
-                      style={{ fontSize: "13px", padding: "10px" }}
-                      onClick={() => handleResolve(task.task_id)}
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} />
-                          Marcando...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 size={14} />
-                          Marcar como completada
-                        </>
-                      )}
-                    </button>
-                  )}
+                    <ClipboardList size={16} color={iconColor} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
+                      {task.title ?? task.task_type}
+                    </div>
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "1px" }}>
+                      {task.store_id ?? "—"}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
+                    <ChevronRight
+                      size={14}
+                      color="var(--text-muted)"
+                      style={{
+                        transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                        transition: "transform 150ms ease",
+                      }}
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+
+                {/* Row 2: time + status */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                    fontSize: "11px",
+                    color: "var(--text-muted)",
+                    alignItems: "center",
+                  }}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                    <Clock size={11} />
+                    {relativeTime(task.created_at)}
+                  </span>
+                  <span style={{ marginLeft: "auto" }}>
+                    <span className={STATUS_BADGE[task.status]}>
+                      {STATUS_LABEL[task.status]}
+                    </span>
+                  </span>
+                </div>
+
+                {/* Expanded: description + action */}
+                {isExpanded && (
+                  <div
+                    style={{ marginTop: "14px", paddingTop: "14px", borderTop: "1px solid var(--border)" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        color: "var(--text-secondary)",
+                        lineHeight: 1.6,
+                        marginBottom: "14px",
+                      }}
+                    >
+                      {task.description ?? "Sin descripción."}
+                    </p>
+
+                    {task.status !== "resolved" && (
+                      <button
+                        className="btn btn-primary"
+                        style={{ fontSize: "13px", padding: "10px", opacity: 0.6 }}
+                        onClick={() => handleResolve(task.task_id)}
+                        disabled
+                      >
+                        <ClipboardList size={14} />
+                        Completar (próximamente)
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }

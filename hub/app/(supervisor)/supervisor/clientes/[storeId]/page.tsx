@@ -1,30 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Building2 } from "lucide-react";
-import { mockStores, mockReports, mockTasks, mockContacts, mockEngagements, lastRestockForStore } from "@/app/lib/mock-data";
-import type { Store } from "@/app/lib/types";
+import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
+import { fetchStoreById, fetchContacts, fetchEngagements } from "@/app/lib/queries/contacts";
+import { fetchFullTasks } from "@/app/lib/queries/tasks";
 import { ClientInfoPanel } from "@/app/components/clientes/ClientInfoPanel";
 import { ContactList } from "@/app/components/clientes/ContactList";
 import { EngagementsPanel } from "@/app/components/clientes/EngagementsPanel";
 import { ActivityFeed } from "@/app/components/clientes/ActivityFeed";
 import { LongTermPlaceholders } from "@/app/components/clientes/LongTermPlaceholders";
-import { StoreFormModal } from "@/app/components/clientes/StoreFormModal";
 
 export default function ClienteDetailPage() {
   const { storeId } = useParams<{ storeId: string }>();
-  const baseStore = useMemo(() => mockStores.find((s) => s.store_id === storeId) ?? null, [storeId]);
-  // Mock-first: estado local editable de la sucursal (se reinicia al cambiar de tienda).
-  const [store, setStore] = useState<Store | null>(baseStore);
-  const [editOpen, setEditOpen] = useState(false);
-  useEffect(() => { setStore(baseStore); }, [baseStore]);
-  const reports = useMemo(() => mockReports.filter((r) => r.store_id === storeId).sort((a, b) => new Date(b.check_in_time).getTime() - new Date(a.check_in_time).getTime()), [storeId]);
-  const tasks = useMemo(() => mockTasks.filter((t) => t.store_id === storeId), [storeId]);
-  const contacts = useMemo(() => mockContacts.filter((c) => c.store_id === storeId).sort((a, b) => Number(b.is_primary) - Number(a.is_primary)), [storeId]);
-  const engagements = useMemo(() => mockEngagements.filter((e) => e.store_id === storeId).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()), [storeId]);
-  const lastRestock = useMemo(() => (storeId ? lastRestockForStore(storeId) : null), [storeId]);
+
+  const { data: store, loading } = useSupabaseQuery(() => fetchStoreById(storeId), [storeId]);
+  const { data: contacts } = useSupabaseQuery(() => fetchContacts(storeId), [storeId]);
+  const { data: engagements } = useSupabaseQuery(() => fetchEngagements(storeId), [storeId]);
+  const { data: allTasks } = useSupabaseQuery(fetchFullTasks, []);
+  const tasks = useMemo(() => (allTasks ?? []).filter((t) => t.store_id === storeId), [allTasks, storeId]);
+  const reports: never[] = [];
+  const lastRestock = null;
+
+  if (loading) {
+    return <div className="empty-state"><div className="empty-title">Cargando…</div></div>;
+  }
 
   if (!store) {
     return (
@@ -51,17 +53,17 @@ export default function ClienteDetailPage() {
 
       <div className="detail-two-col">
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <ClientInfoPanel store={store} lastRestock={lastRestock} onEdit={() => setEditOpen(true)} />
-          <ContactList key={storeId} storeId={storeId} contacts={contacts} />
+          <ClientInfoPanel store={store} lastRestock={lastRestock} />
+          <ContactList key={storeId} storeId={storeId} contacts={contacts ?? []} />
           <LongTermPlaceholders />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <ActivityFeed reports={reports} tasks={tasks} />
-          <EngagementsPanel key={storeId} engagements={engagements} />
+          {/* ActivityFeed expects SupervisorTask[] for tasks; FullTaskRow is incompatible.
+              Passing [] for tasks until the write phase reconciles the types (DONE_WITH_CONCERNS). */}
+          <ActivityFeed reports={reports} tasks={[]} />
+          <EngagementsPanel key={storeId} engagements={engagements ?? []} />
         </div>
       </div>
-
-      <StoreFormModal open={editOpen} store={store} onClose={() => setEditOpen(false)} onSave={setStore} />
     </>
   );
 }

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
-import { DEMO_EMAIL, DEMO_PASSWORD, useAuth } from "./lib/auth-context";
+import { useAuth } from "./lib/auth-context";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,26 +14,21 @@ export default function LoginPage() {
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
     if (!email || !password) {
       setError("Por favor completa todos los campos.");
       return;
     }
-
     setLoading(true);
-
-    if (email.trim().toLowerCase() === DEMO_EMAIL && password.trim() === DEMO_PASSWORD) {
-      signIn();
-      router.push("/supervisor");
+    const { error } = await signIn(email, password);
+    if (error) {
+      setLoading(false);
+      setError("Credenciales incorrectas.");
       return;
     }
-
-    // Any other credentials are rejected in demo mode
-    setLoading(false);
-    setError("Credenciales incorrectas. Usa demo@poncebenzo.com / demo123.");
+    router.push("/supervisor");
   };
 
   return (

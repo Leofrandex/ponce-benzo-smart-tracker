@@ -2,7 +2,9 @@
 
 import { useState, useMemo } from "react";
 import { AlertTriangle, CheckCircle2, BarChart3 } from "lucide-react";
-import { mockReports, mockTasks } from "@/app/lib/mock-data";
+import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
+import { fetchVisitsRaw, fetchTasksRaw } from "@/app/lib/queries/dashboard";
+import { deriveDashboard } from "@/app/lib/queries/derive";
 import TimePeriodSelector from "@/app/components/dashboard/TimePeriodSelector";
 import AnomaliesByClientChart from "@/app/components/dashboard/AnomaliesByClientChart";
 import StoresPerMerchandiserChart from "@/app/components/dashboard/StoresPerMerchandiserChart";
@@ -11,21 +13,13 @@ import TasksProgress from "@/app/components/dashboard/TasksProgress";
 export default function SupervisorPage() {
   const [days, setDays] = useState(7);
 
+  const { data: visits } = useSupabaseQuery(fetchVisitsRaw, []);
+  const { data: tasks } = useSupabaseQuery(fetchTasksRaw, []);
   const cutoff = useMemo(() => Date.now() - days * 24 * 60 * 60 * 1000, [days]);
-
-  const filteredReports = useMemo(
-    () => mockReports.filter((r) => new Date(r.check_in_time).getTime() >= cutoff),
-    [cutoff]
+  const { totalVisits, totalAnomalies, resolvedTasks } = useMemo(
+    () => deriveDashboard(visits ?? [], tasks ?? [], cutoff),
+    [visits, tasks, cutoff],
   );
-
-  const filteredTasks = useMemo(
-    () => mockTasks.filter((t) => new Date(t.created_at).getTime() >= cutoff),
-    [cutoff]
-  );
-
-  const totalVisits = filteredReports.length;
-  const totalAnomalies = filteredReports.filter((r) => r.status === "anomaly").length;
-  const resolvedTasks = filteredTasks.filter((t) => t.status === "resolved").length;
 
   return (
     <>
@@ -65,10 +59,12 @@ export default function SupervisorPage() {
         </div>
       </div>
 
-      {/* Charts */}
-      <AnomaliesByClientChart reports={filteredReports} />
-      <StoresPerMerchandiserChart reports={filteredReports} />
-      <TasksProgress tasks={filteredTasks} />
+      {/* Charts — require joined fields (client_name / merchandiser_name) not yet
+          available in the raw visits/tasks rows; rendered with empty datasets so
+          each chart shows its built-in "sin datos" empty state. */}
+      <AnomaliesByClientChart reports={[]} />
+      <StoresPerMerchandiserChart reports={[]} />
+      <TasksProgress tasks={[]} />
     </>
   );
 }
