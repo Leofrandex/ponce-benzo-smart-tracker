@@ -1,56 +1,61 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import type { User } from "./types";
-
-export const DEMO_EMAIL    = "demo@poncebenzo.com";
-export const DEMO_PASSWORD = "demo123";
-
-const DEMO_PROFILE: User = {
-  id:            "demo-supervisor-001",
-  full_name:     "Ana Martínez",
-  email:         DEMO_EMAIL,
-  role:          "supervisor",
-  active:        true,
-  created_at:    "2024-01-01T00:00:00Z",
-  supervisor_id: null,
-};
+import { getSupabaseBrowser } from "./supabase/client";
 
 interface AuthContextType {
   profile: User | null;
   loading: boolean;
-  signIn: () => void;
-  signOut: () => void;
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
-  signIn: () => {},
-  signOut: () => {},
+  signIn: async () => ({ error: "no-provider" }),
+  signOut: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const supabase = getSupabaseBrowser();
   const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Carga el perfil de la tabla users para el usuario autenticado.
+  async function loadProfile(userId: string | undefined) {
+    if (!userId) { setProfile(null); return; }
+    const { data } = await supabase.from("users").select("*").eq("id", userId).single();
+    setProfile((data as User) ?? null);
+  }
+
   useEffect(() => {
-    const loggedIn =
-      typeof window !== "undefined" &&
-      localStorage.getItem("pv_demo_mode") === "true";
-    setProfile(loggedIn ? DEMO_PROFILE : null);
-    setLoading(false);
+    supabase.auth.getSession().then(async ({ data }: { data: { session: Session | null } }) => {
+      await loadProfile(data.session?.user.id);
+      setLoading(false);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
+      await loadProfile(session?.user.id);
+    });
+    return () => sub.subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const signIn = () => {
-    localStorage.setItem("pv_demo_mode", "true");
-    setProfile(DEMO_PROFILE);
-  };
+  async function signIn(email: string, password: string) {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+    if (error) return { error: error.message };
+    return { error: null };
+  }
 
-  const signOut = () => {
-    localStorage.removeItem("pv_demo_mode");
+  async function signOut() {
+    await supabase.auth.signOut();
     setProfile(null);
-  };
+  }
 
   return (
     <AuthContext.Provider value={{ profile, loading, signIn, signOut }}>
