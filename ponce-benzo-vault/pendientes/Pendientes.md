@@ -17,7 +17,19 @@ Este documento almacena las preguntas por resolver, datos necesarios por parte d
 
 Para realizar la migración completa a producción y conectar a los vendedores reales, el equipo de negocio de Ponce & Benzo debe definir:
 
-1. **Correos Electrónicos de Vendedores:** ✅ *Resuelto (2026-06-07)* — el usuario ya tiene los correos reales; se incorporarán como `tools/vendedores.json` (mapeo nombre→correo) en el sub-proyecto de Ingesta.
+1. **Correos Electrónicos de Vendedores:** ✅ *Resuelto (2026-06-07)* — el usuario entregó los correos reales (dominio `@ponce-benzo.com`); se incorporarán como `tools/vendedores.json` (mapeo nombre→correo) en el sub-proyecto de Ingesta.
+
+   **Decisión de alcance (2026-06-07):** la primera ingesta trabaja **solo con las 4 rutas definidas** en `RUTAS 05-12-25 (1).xlsx`. Set inicial de cuentas (6):
+   * Merchandisers (con ruta): **Elvis Rondón, Willian Fermín, Eduward Martínez, Carlos Zurita**.
+   * Supervisor: **Milagros Fernández** (gerente de los 4 según `ESTRUCTURA P&B - LP`).
+   * Admin (ve todo): **Rosli Aponte** (Director de Ventas).
+
+   **Personal pendiente de alta** (sin ruta en este Excel — se agregan cuando sus zonas entren al tracker):
+   * Mercaderista sin ruta: Jonathan Fernández.
+   * Asesores sin ruta individual: Betsy Castro, Joseph Padilla, Juan León, Martha Viloria.
+   * Gerentes de otras zonas (→ supervisor a futuro): Andreina Rangel, Diana Delgado, Dubraska Pérez.
+   * Administración (rol por definir): Nidia Rojas, Yelitze Pérez, Iris Mujica.
+   * **"Aliado Comercial Caracas"** (`aliadocomercialcaracas@ponce-benzo.com`): correo genérico sin persona; posible relación con la **hoja 5 sin nombre** de `RUTAS` (mini-ruta Melani / Albita / Locatel La Castellana). Falta que el negocio aclare qué es y quién la atiende.
 2. **Coordenadas GPS de Tiendas:**
    * *Problema:* Los Excel solo contienen direcciones de texto (ej. "Av. Principal local 3"). El geofencing anti-fraude requiere latitud/longitud numérica para verificar la cercanía de la foto.
    * *Acción:* Obtener las coordenadas maestras. Provisionalmente, la base de datos se inicializará con coordenadas del centro de Caracas (`10.4806, -66.9036`), que deberán actualizarse en la primera visita real del mercaderista (captura de posición inicial).
