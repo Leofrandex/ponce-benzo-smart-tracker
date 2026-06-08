@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchFullTasks, type FullTaskRow } from "@/app/lib/queries/tasks";
+import { resolveTask } from "@/app/lib/mutations/tasks";
 
 type TaskStatus = "open" | "resolved";
 
@@ -38,7 +39,7 @@ function relativeTime(iso: string): string {
 }
 
 export default function TareasPage() {
-  const { data: rawTasks, loading, error } = useSupabaseQuery(fetchFullTasks, []);
+  const { data: rawTasks, loading, error, refetch } = useSupabaseQuery(fetchFullTasks, []);
   const tasks = rawTasks ?? [];
   const [filter, setFilter] = useState<TaskStatus | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -49,8 +50,10 @@ export default function TareasPage() {
   const filtered =
     filter === "all" ? tasks : tasks.filter((t) => t.status === filter);
 
-  const handleResolve = async (_taskId: string) => {
-    alert("Marcar tareas como completadas llega en la siguiente fase (escritura).");
+  const handleResolve = async (taskId: string) => {
+    const { error: e } = await resolveTask(taskId);
+    if (e) { alert("No se pudo completar la tarea: " + e); return; }
+    refetch();
   };
 
   return (
@@ -210,12 +213,11 @@ export default function TareasPage() {
                     {task.status !== "resolved" && (
                       <button
                         className="btn btn-primary"
-                        style={{ fontSize: "13px", padding: "10px", opacity: 0.6 }}
+                        style={{ fontSize: "13px", padding: "10px" }}
                         onClick={() => handleResolve(task.task_id)}
-                        disabled
                       >
-                        <ClipboardList size={14} />
-                        Completar (próximamente)
+                        <CheckCircle2 size={14} />
+                        Marcar como completada
                       </button>
                     )}
                   </div>
