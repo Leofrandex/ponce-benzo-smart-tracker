@@ -1,7 +1,7 @@
 // tools/ingesta/helpers.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { channelForStore, referenceWeekDates, cleanStoreName, storeKey } from "./helpers";
+import { channelForStore, dateForRuta, cleanStoreName, storeKey } from "./helpers";
 
 test("channelForStore mapea cadenas conocidas y typos", () => {
   assert.equal(channelForStore("FTD LOS MONJES"), "farmacia");
@@ -25,13 +25,13 @@ test("storeKey es case-insensitive y estable", () => {
   assert.equal(storeKey("FTD Los Monjes "), storeKey("ftd  los monjes"));
 });
 
-test("referenceWeekDates devuelve Lun..Vie desde el lunes en/después de la fecha dada", () => {
-  // 2026-06-08 es lunes
-  assert.deepEqual(referenceWeekDates(new Date("2026-06-08T12:00:00Z")), [
-    "2026-06-08", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12",
-  ]);
-  // 2026-06-10 es miércoles -> siguiente lunes es 2026-06-15
-  assert.deepEqual(referenceWeekDates(new Date("2026-06-10T12:00:00Z")), [
-    "2026-06-15", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-19",
-  ]);
+test("dateForRuta ancla al lunes de la semana actual; Ruta 1-5 esta semana, 6-10 la siguiente", () => {
+  const martes = new Date("2026-06-09T12:00:00Z"); // martes
+  assert.equal(dateForRuta(1, martes), "2026-06-08");  // Lun
+  assert.equal(dateForRuta(2, martes), "2026-06-09");  // Mar (hoy)
+  assert.equal(dateForRuta(5, martes), "2026-06-12");  // Vie
+  assert.equal(dateForRuta(6, martes), "2026-06-15");  // Lun (sem. siguiente)
+  assert.equal(dateForRuta(10, martes), "2026-06-19"); // Vie (sem. siguiente)
+  // domingo cuenta dentro de la semana que empezó el lunes anterior
+  assert.equal(dateForRuta(1, new Date("2026-06-14T12:00:00Z")), "2026-06-08");
 });
