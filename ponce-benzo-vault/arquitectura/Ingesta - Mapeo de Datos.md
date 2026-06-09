@@ -11,7 +11,10 @@ tags:
 # Ingesta — Mapeo de Datos
 
 > [!SUCCESS]
-> **Ejecutado el 2026-06-08.** Pipeline idempotente corrido contra `poncebenzo`: 6 usuarios + 192 tiendas + 20 rutas, verificado E2E. Ver [[logs/Log-2026-06-08|Log-2026-06-08]].
+> **Ejecutado el 2026-06-08; rutas corregidas el 2026-06-09.** Pipeline idempotente contra `poncebenzo`. Estado final: **6 usuarios + 190 tiendas + 25 rutas**. Ver [[logs/Log-2026-06-08|Log-2026-06-08]] y [[bugs/Registro de Bugs|BUG-003]].
+
+> [!WARNING]
+> **Estructura real de `RUTAS` (corregido 2026-06-09 — BUG-003):** cada hoja de asesor apila **varios bloques de rutas** (no uno). Elvis: Ruta 1-5 y Ruta **6-10** (rotación de 2 semanas), cada bloque repetido como copia; William/Eduward/Carlos: Ruta 1-5 repetida. El parser toma el **primer bloque como autoritativo**, deduplica dentro de cada ruta, y mapea `Ruta N → fecha` vía `dateForRuta` (1-5 = esta semana Lun-Vie, 6-10 = la siguiente). Resultado: **Elvis 10 rutas, los demás 5**, con 7-13 paradas reales c/u.
 
 > [!IMPORTANT]
 > **Hallazgo central (2026-06-08):** las tiendas del piloto salen de **`RUTAS 05-12-25 (1).xlsx`**, no de MAESTRO. MAESTRO registra las cadenas como **una sola entidad legal por RIF** (no tiene las sucursales retail que visitan los mercaderistas). MAESTRO sí aporta el **canal** a nivel de cadena. Alcance: solo las **4 rutas Jr** (Elvis, Willian, Eduward, Carlos) — ver [[pendientes/Pendientes|Pendientes]].
