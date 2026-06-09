@@ -58,6 +58,7 @@ Hemos completado el blueprint, la división de código (Split Web/Mobile) y la d
 - [ ] Incorporar el banner visual dinámico de sincronizaciones pendientes (`SyncBanner`).
 
 ### 🚀 Fase 5: Despliegue y Pruebas Alpha (Pendiente)
+- [x] **Build APK Android (EAS, 2026-06-08):** configurado `eas.json` (perfiles preview/production) + `package com.poncebenzo.tracker`; proyecto EAS vinculado; credenciales como env vars de EAS (no en git). Primer **APK preview** generado OK. Fix: `async-storage` 3.0.2 → 2.2.0 (el artefacto nativo de la v3 no resolvía en EAS). Distribución: sideload del APK para el piloto.
 - [ ] Desplegar el Next.js Supervisor Panel en Vercel.
 - [ ] Realizar una prueba de piloto alpha con 2 mercaderistas de campo usando la aplicación móvil.
 - [ ] Corregir fallos de rendimiento y sincronización detectados durante el piloto.
