@@ -3,14 +3,15 @@ import * as path from "path";
 import * as fs from "fs";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { parseRutas } from "./parseRutas";
-import { referenceWeekDates, storeKey } from "./helpers";
+import { dateForRuta, storeKey } from "./helpers";
 
 interface VendedorDef {
   email: string;
   excel_aliases: string[];
 }
 
-// Crea/actualiza las 20 rutas (4 asesores × 5 días) de la semana de referencia. Idempotente.
+// Crea/actualiza las rutas reales de cada asesor (una por "Ruta N" del Excel),
+// fechadas vía dateForRuta (Ruta 1-5 = esta semana, 6-10 = la siguiente). Idempotente.
 export async function stageRoutes(
   supabase: SupabaseClient,
   authByEmail: Map<string, string>,
@@ -25,7 +26,7 @@ export async function stageRoutes(
   for (const v of vendedores)
     for (const a of v.excel_aliases) emailByAlias.set(a.toUpperCase().replace(/\s+/g, " ").trim(), v.email);
 
-  const weekDates = referenceWeekDates(new Date());
+  const now = new Date();
   const advisors = parseRutas(path.join(__dirname, "../../RUTAS 05-12-25 (1).xlsx"));
 
   const routeRows: { user_id: string; route_date: string; store_ids: string[] }[] = [];
@@ -40,11 +41,11 @@ export async function stageRoutes(
       const storeIds = route.stores
         .map((s) => storeByKey.get(storeKey(s)))
         .filter((id): id is string => Boolean(id));
-      routeRows.push({ user_id: userId, route_date: weekDates[route.weekday], store_ids: storeIds });
+      routeRows.push({ user_id: userId, route_date: dateForRuta(route.rutaNumber, now), store_ids: storeIds });
     }
   }
 
   const { error } = await supabase.from("routes").upsert(routeRows, { onConflict: "user_id,route_date" });
   if (error) throw new Error(`upsert routes: ${error.message}`);
-  console.log(`✓ Rutas: ${routeRows.length} (semana ${weekDates[0]}..${weekDates[4]}).`);
+  console.log(`✓ Rutas: ${routeRows.length}.`);
 }
