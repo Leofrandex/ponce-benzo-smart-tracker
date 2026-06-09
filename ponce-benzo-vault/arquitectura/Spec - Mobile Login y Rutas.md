@@ -11,8 +11,8 @@ tags:
 
 # Spec — Mobile: Login + Rutas reales (sin sync/fotos/GPS)
 
-> [!NOTE]
-> **Estado:** Aprobado en diseño (pendiente revisión final del spec).
+> [!SUCCESS]
+> **Estado:** ✅ **Implementado** el 2026-06-08. 6 tareas subagent-driven; `tsc` limpio, `pickRoute` 3/3; datos/RLS verificados E2E con JWT (Carlos ve solo sus rutas). E2E visual en Expo pendiente de correr por el usuario. Credenciales vía `EXPO_PUBLIC_*` (refinamiento sobre `expo.extra`). Ver [[logs/Log-2026-06-08-mobile-login|Log Mobile Login]].
 > **Contexto:** Sub-proyecto 5 de la migración. Primer corte del cableado de la app móvil (React Native Expo) a Supabase: cliente Supabase + **login real** + **carga de la ruta del día desde Supabase**. El motor de sincronización offline, la subida de fotos a Storage y el envío de GPS quedan para el sub-proyecto siguiente. La BD `poncebenzo` ya tiene los 6 usuarios, 192 tiendas y 20 rutas; el hub ya consume y escribe datos reales.
 
 ---
