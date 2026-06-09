@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, TouchableOpacity,
+  View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -30,6 +30,10 @@ export function RouteScreen() {
   const navigation = useNavigation<NavProp>();
   const {
     routeItems,
+    routeLoading,
+    routeError,
+    routeDate,
+    reloadRoute,
     sessionActive,
     sessionEnded,
     startSession,
@@ -43,6 +47,18 @@ export function RouteScreen() {
     removeStoreFromRoute,
   } = useRouteCtx();
 
+  function formatRouteDate(dateStr: string): string {
+    try {
+      return new Date(dateStr + 'T00:00:00').toLocaleDateString('es-VE', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      });
+    } catch {
+      return dateStr;
+    }
+  }
+
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const progress = totalCount > 0 ? completedCount / totalCount : 0;
@@ -51,12 +67,51 @@ export function RouteScreen() {
     navigation.navigate('CheckIn', { store: item.store });
   }
 
+  // Loading state (initial load with no items yet)
+  if (routeLoading && routeItems.length === 0) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>Ruta del Día</Text>
+            <Text style={styles.headerDate}>{formatToday()}</Text>
+          </View>
+        </View>
+        <View style={styles.centeredState}>
+          <ActivityIndicator size="large" />
+          <Text style={styles.centeredStateText}>Cargando tu ruta…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Error state
+  if (routeError) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>Ruta del Día</Text>
+            <Text style={styles.headerDate}>{formatToday()}</Text>
+          </View>
+        </View>
+        <View style={styles.centeredState}>
+          <Ionicons name="alert-circle-outline" size={40} color={colors.danger} />
+          <Text style={styles.errorStateText}>{routeError}</Text>
+          <Button label="Reintentar" onPress={reloadRoute} variant="primary" style={styles.retryBtn} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Ruta del Día</Text>
-          <Text style={styles.headerDate}>{formatToday()}</Text>
+          <Text style={styles.headerDate}>
+            {routeDate ? formatRouteDate(routeDate) : formatToday()}
+          </Text>
         </View>
         <View style={styles.progressLabelBox}>
           <Text style={styles.progressLabel}>{completedCount}/{totalCount}</Text>
@@ -119,7 +174,7 @@ export function RouteScreen() {
             <Text style={styles.emptyText}>
               {routeMode === 'special'
                 ? 'Agregá una o más sucursales para empezar.'
-                : 'No hay tiendas asignadas hoy.'}
+                : 'No tenés ruta asignada para hoy.'}
             </Text>
           </View>
         }
@@ -223,4 +278,28 @@ const styles = StyleSheet.create({
   },
   addStoreText: { fontSize: 13, color: colors.accent, ...fonts.semibold },
   emptyTitle: { fontSize: 15, color: colors.textSecondary, ...fonts.semibold, marginTop: 10 },
+  centeredState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    gap: 14,
+  },
+  centeredStateText: {
+    fontSize: 14,
+    color: colors.textMuted,
+    marginTop: 10,
+    ...fonts.medium,
+  },
+  errorStateText: {
+    fontSize: 14,
+    color: colors.danger,
+    textAlign: 'center',
+    marginTop: 6,
+    ...fonts.medium,
+  },
+  retryBtn: {
+    marginTop: 8,
+    minWidth: 140,
+  },
 });

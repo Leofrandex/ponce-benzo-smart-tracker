@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
 import type { LocationSubscription } from 'expo-location';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -12,11 +12,16 @@ import {
   getUnsyncedCompetitionCount,
 } from '../services/db';
 import { BACKGROUND_LOCATION_TASK } from '../tasks/locationTask';
-import { getMockRouteItems, mockStores } from '../mock-data';
+import { mockStores } from '../mock-data';
+import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
 import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState, CompetitionReportRecord } from '../types';
 
 interface RouteContextValue {
   routeItems: RouteStoreItem[];
+  routeLoading: boolean;
+  routeError: string | null;
+  routeDate: string | null;
+  reloadRoute: () => void;
   sessionActive: boolean;
   sessionEnded: boolean;
   gpsState: GPSState;
@@ -43,7 +48,10 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
   const db = useSQLiteContext();
   const { user } = useAuth();
 
-  const [routeItems, setRouteItems] = useState<RouteStoreItem[]>(getMockRouteItems);
+  const [routeItems, setRouteItems] = useState<RouteStoreItem[]>([]);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const [routeDate, setRouteDate] = useState<string | null>(null);
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [gpsState, setGpsState] = useState<GPSState>('idle');
@@ -53,6 +61,29 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
 
   const locationSub = useRef<LocationSubscription | null>(null);
   const sessionId = useRef<string | null>(null);
+
+  const loadRoute = useCallback(async () => {
+    if (!user) return;
+    setRouteLoading(true);
+    setRouteError(null);
+    try {
+      const picked = await fetchTodayRoute(user.id);
+      if (!picked) {
+        setRouteItems([]);
+        setRouteDate(null);
+        return;
+      }
+      const stores = await fetchStoresByIds(picked.route.store_ids);
+      setRouteItems(stores.map((store, i) => ({ store, order: i + 1, status: 'pending' as StoreStatus })));
+      setRouteDate(picked.route.route_date);
+    } catch (e) {
+      setRouteError(e instanceof Error ? e.message : 'Error al cargar la ruta');
+    } finally {
+      setRouteLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => { loadRoute(); }, [loadRoute]);
 
   async function refreshSyncCount() {
     const [visits, reports] = await Promise.all([
@@ -210,7 +241,11 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     setRouteModeState(mode);
     // 'special' = ruta personalizable: arranca vacía y se arma a mano.
     // 'normal' = restaura la ruta configurada (mock).
-    setRouteItems(mode === 'special' ? [] : getMockRouteItems());
+    if (mode === 'special') {
+      setRouteItems([]);
+    } else {
+      loadRoute();
+    }
   }
 
   function addStoreToRoute(storeId: string) {
@@ -237,6 +272,10 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     <RouteContext.Provider
       value={{
         routeItems,
+        routeLoading,
+        routeError,
+        routeDate,
+        reloadRoute: loadRoute,
         sessionActive,
         sessionEnded,
         gpsState,
