@@ -36,7 +36,7 @@ export function ClientesTable({ rows }: { rows: ClientRow[] }) {
         <div>Nombre</div><div>Canal</div><div>Clase</div><div>Actividades</div><div></div>
       </div>
       {rows.map((r, idx) => (
-        <Link key={r.store_id} href={`/supervisor/clientes/${r.store_id}`} style={{ textDecoration: "none" }}>
+        <Link key={r.store_id} href={`/supervisor/tiendas/${r.store_id}`} style={{ textDecoration: "none" }}>
           <div className="contactos-table-row clientes-flat-row" style={{
             gridTemplateColumns: "2fr 1fr 0.6fr 1fr auto",
             borderTop: idx === 0 ? "none" : "1px solid var(--border)",

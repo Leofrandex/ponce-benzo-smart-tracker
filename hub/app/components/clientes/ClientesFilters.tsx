@@ -6,6 +6,7 @@ import { mockStores } from "@/app/lib/mock-data";
 import { Select } from "@/app/components/ui/Select";
 
 export interface ClientesFilterValue {
+  clientId: string;           // "" = all (cadena/cliente)
   estado: string;
   municipio: string;
   urbanizacion: string;
@@ -14,7 +15,7 @@ export interface ClientesFilterValue {
 }
 
 export const EMPTY_FILTERS: ClientesFilterValue = {
-  estado: "", municipio: "", urbanizacion: "", channel: "", classifications: [],
+  clientId: "", estado: "", municipio: "", urbanizacion: "", channel: "", classifications: [],
 };
 
 const CHANNELS = ["drogueria", "farmacia", "supermercado", "autoservicio", "mayorista", "otro"];
@@ -28,8 +29,12 @@ function uniqSorted(values: (string | null)[]): string[] {
 }
 
 export function ClientesFilters({
-  value, onChange,
-}: { value: ClientesFilterValue; onChange: (v: ClientesFilterValue) => void }) {
+  value, onChange, clients = [],
+}: {
+  value: ClientesFilterValue;
+  onChange: (v: ClientesFilterValue) => void;
+  clients?: { client_id: string; name: string }[];
+}) {
   const estados = useMemo(() => uniqSorted(mockStores.map((s) => s.estado)), []);
   const municipios = useMemo(
     () => uniqSorted(mockStores.filter((s) => !value.estado || s.estado === value.estado).map((s) => s.municipio)),
@@ -45,7 +50,7 @@ export function ClientesFilters({
   );
 
   const isDirty =
-    value.estado || value.municipio || value.urbanizacion || value.channel || value.classifications.length > 0;
+    value.clientId || value.estado || value.municipio || value.urbanizacion || value.channel || value.classifications.length > 0;
 
   function toggleClass(c: string) {
     const has = value.classifications.includes(c);
@@ -54,6 +59,9 @@ export function ClientesFilters({
 
   return (
     <div className="card" style={{ padding: "12px", display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "flex-end" }}>
+      <Select label="Cliente" value={value.clientId}
+        options={clients.map((c) => ({ value: c.client_id, label: c.name }))}
+        onChange={(v) => onChange({ ...value, clientId: v })} />
       <Select label="Estado" value={value.estado}
         options={estados.map((o) => ({ value: o, label: o }))}
         onChange={(v) => onChange({ ...value, estado: v, municipio: "", urbanizacion: "" })} />
