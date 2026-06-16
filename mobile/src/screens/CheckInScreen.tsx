@@ -17,6 +17,7 @@ import { CompetitionTab } from '../components/CompetitionTab';
 import { CompetitionPanel } from '../components/CompetitionPanel';
 import { colors, radii, fonts } from '../theme';
 import { useRouteCtx } from '../context/RouteContext';
+import { newId } from '../services/sync/ids';
 import type { StoreStatus, VisitRecord, Visit } from '../types';
 import type { CompetitionReportRecord } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -113,7 +114,7 @@ export function CheckInScreen() {
     setSubmitting(true);
 
     const record: VisitRecord = {
-      visit_id: `visit-${Date.now()}`,
+      visit_id: newId(),
       store_id: store.store_id,
       check_in_time: new Date().toISOString(),
       check_in_location: currentLocation,

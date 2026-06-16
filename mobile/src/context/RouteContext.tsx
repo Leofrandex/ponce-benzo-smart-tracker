@@ -14,6 +14,8 @@ import {
 import { BACKGROUND_LOCATION_TASK } from '../tasks/locationTask';
 import { mockStores } from '../mock-data';
 import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
+import { newId } from '../services/sync/ids';
+import { useSyncCtx } from './SyncContext';
 import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState, CompetitionReportRecord } from '../types';
 
 interface RouteContextValue {
@@ -61,6 +63,8 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
 
   const locationSub = useRef<LocationSubscription | null>(null);
   const sessionId = useRef<string | null>(null);
+  const routeId = useRef<string | null>(null);
+  const { flushNow, refreshCount } = useSyncCtx();
 
   const loadRoute = useCallback(async () => {
     if (!user) return;
@@ -73,6 +77,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         setRouteDate(null);
         return;
       }
+      routeId.current = picked.route.route_id;
       const stores = await fetchStoresByIds(picked.route.store_ids);
       setRouteItems(stores.map((store, i) => ({ store, order: i + 1, status: 'pending' as StoreStatus })));
       setRouteDate(picked.route.route_date);
@@ -98,16 +103,32 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     setGpsState('searching');
 
     // Persist session to SQLite
-    const sid = `session-${Date.now()}`;
+    const sid = newId();
     sessionId.current = sid;
+
+    // Fix GPS inicial para start_location (Supabase lo exige NOT NULL).
+    let startLat: number | null = null, startLng: number | null = null;
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        startLat = pos.coords.latitude; startLng = pos.coords.longitude;
+        setCurrentLocation({ lat: startLat, lng: startLng });
+        setGpsState('found');
+      }
+    } catch { /* sin fix: la sesión sube cuando haya coords */ }
+
     await insertSession(db, {
       session_id: sid,
       user_id: user?.id ?? 'unknown',
-      route_id: 'route-demo-001',
+      route_id: routeId.current ?? 'unknown',
       session_start: new Date().toISOString(),
-      start_lat: null,
-      start_lng: null,
+      start_lat: startLat,
+      start_lng: startLng,
     });
+
+    // Empuje inmediato al servidor (mapa en vivo).
+    flushNow();
 
     // Start GPS tracking
     try {
@@ -177,12 +198,17 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
 
     if (sessionId.current) {
       await updateSessionEnd(db, sessionId.current, new Date().toISOString());
+      // Re-marca la sesión como no sincronizada para propagar session_end.
+      await db.runAsync(`UPDATE sessions SET synced = 0 WHERE session_id = ?`, sessionId.current);
     }
 
     setSessionActive(false);
     setSessionEnded(true);
     setGpsState('idle');
     setCurrentLocation(null);
+
+    flushNow();
+    refreshCount();
   }
 
   async function recordVisit(
@@ -235,6 +261,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     }
 
     await refreshSyncCount();
+    flushNow();
   }
 
   function setRouteMode(mode: 'normal' | 'special') {
