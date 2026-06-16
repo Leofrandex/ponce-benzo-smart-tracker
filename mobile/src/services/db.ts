@@ -74,7 +74,8 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
       ['visit_id', 'TEXT'], // v2.0: reporte ligado al check-in
     ]);
     await addColumnsIfMissing('location_pings', [
-      ['user_id', 'TEXT'], // v2.0: autor del ping, evita inferirlo al sincronizar
+      ['user_id', 'TEXT'],
+      ['synced', 'INTEGER NOT NULL DEFAULT 0'],
     ]);
   });
 }
@@ -199,7 +200,7 @@ export function insertLocationPingSync(
   db.runSync(
     `INSERT INTO location_pings (ping_id, session_id, user_id, timestamp, lat, lng)
      VALUES (?, ?, ?, ?, ?, ?)`,
-    `ping-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    require('../sync/ids').newId(),
     sessionId ?? open?.session_id ?? null,
     open?.user_id ?? null,
     timestamp,
@@ -253,4 +254,39 @@ export async function getUnsyncedCompetitionCount(db: SQLiteDatabase): Promise<n
     `SELECT COUNT(*) as count FROM competition_reports WHERE synced = 0`,
   );
   return row?.count ?? 0;
+}
+
+// ── Sync queue ────────────────────────────────────────────────────────────────
+export interface PingRow {
+  ping_id: string; session_id: string | null; user_id: string | null;
+  timestamp: string; lat: number; lng: number;
+}
+export interface CompetitionRawRow {
+  report_id: string; session_id: string | null; visit_id: string | null; store_id: string | null;
+  user_id: string; brand_id: string | null; activation_type: string | null;
+  photo_uri: string | null; notes: string | null; created_at: string;
+}
+export function getUnsyncedSessions(db: SQLiteDatabase): Promise<SessionRow[]> {
+  return db.getAllAsync<SessionRow>(`SELECT * FROM sessions WHERE synced = 0`);
+}
+export function getUnsyncedPings(db: SQLiteDatabase): Promise<PingRow[]> {
+  return db.getAllAsync<PingRow>(`SELECT ping_id, session_id, user_id, timestamp, lat, lng FROM location_pings WHERE synced = 0`);
+}
+export function getUnsyncedVisits(db: SQLiteDatabase): Promise<VisitRow[]> {
+  return db.getAllAsync<VisitRow>(`SELECT * FROM visits WHERE synced = 0`);
+}
+export function getUnsyncedCompetition(db: SQLiteDatabase): Promise<CompetitionRawRow[]> {
+  return db.getAllAsync<CompetitionRawRow>(`SELECT report_id, session_id, visit_id, store_id, user_id, brand_id, activation_type, photo_uri, notes, created_at FROM competition_reports WHERE synced = 0`);
+}
+export async function markSynced(db: SQLiteDatabase, table: 'sessions'|'location_pings'|'visits'|'competition_reports', idCol: string, id: string): Promise<void> {
+  await db.runAsync(`UPDATE ${table} SET synced = 1 WHERE ${idCol} = ?`, id);
+}
+export async function getTotalUnsyncedCount(db: SQLiteDatabase): Promise<number> {
+  const row = await db.getFirstAsync<{ n: number }>(
+    `SELECT
+       (SELECT COUNT(*) FROM sessions WHERE synced=0) +
+       (SELECT COUNT(*) FROM location_pings WHERE synced=0) +
+       (SELECT COUNT(*) FROM visits WHERE synced=0) +
+       (SELECT COUNT(*) FROM competition_reports WHERE synced=0) AS n`);
+  return row?.n ?? 0;
 }
