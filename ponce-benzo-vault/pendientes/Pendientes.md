@@ -30,9 +30,7 @@ Para realizar la migración completa a producción y conectar a los vendedores r
    * Gerentes de otras zonas (→ supervisor a futuro): Andreina Rangel, Diana Delgado, Dubraska Pérez.
    * Administración (rol por definir): Nidia Rojas, Yelitze Pérez, Iris Mujica.
    * **"Aliado Comercial Caracas"** (`aliadocomercialcaracas@ponce-benzo.com`): correo genérico sin persona; posible relación con la **hoja 5 sin nombre** de `RUTAS` (mini-ruta Melani / Albita / Locatel La Castellana). Falta que el negocio aclare qué es y quién la atiende.
-2. **Coordenadas GPS de Tiendas:**
-   * *Problema:* Los Excel solo contienen direcciones de texto (ej. "Av. Principal local 3"). El geofencing anti-fraude requiere latitud/longitud numérica para verificar la cercanía de la foto.
-   * *Acción:* Obtener las coordenadas maestras. Provisionalmente, la base de datos se inicializará con coordenadas del centro de Caracas (`10.4806, -66.9036`), que deberán actualizarse en la primera visita real del mercaderista (captura de posición inicial).
+2. **Coordenadas GPS de Tiendas:** 🟡 *Parcial (2026-06-15)* — **Farmatodo resuelto**: el piloto se re-pobló desde `Copia de CoordenadasTiendasFarmatodo REVISION.xlsx` con **45 tiendas con GPS real + dirección + encargado + rutas** (ver [[decisiones/ADR-004-Nivel-Cliente-Piloto-Farmatodo|ADR-004]] y [[pendientes/Piloto Farmatodo - Reconciliacion Tiendas|Reconciliación]]). Las **154 tiendas no-piloto** (Locatel/Gama/Plaza's + Farmatodo sin data) están **desactivadas** con el placeholder de Caracas hasta que el negocio entregue su data. Pendiente: confirmar dudosas (`BOULEVAR DE CATIA`/`JARDINES DEL VALLE`) y fusionar duplicados (`FTD TEREPAINA`/`FTD OLIVOS`).
 
 ---
 

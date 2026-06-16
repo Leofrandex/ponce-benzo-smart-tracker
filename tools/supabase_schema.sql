@@ -9,6 +9,21 @@ CREATE EXTENSION IF NOT EXISTS "postgis";
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ============================================================
+-- TABLE: clients (cadena comercial — dueña de varias sucursales)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS clients (
+  client_id        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name             TEXT NOT NULL UNIQUE,
+  business_channel TEXT
+    CHECK (business_channel IN ('drogueria','farmacia','supermercado','autoservicio','mayorista','otro')),
+  active           BOOLEAN DEFAULT TRUE,
+  created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS clients_select ON clients;
+CREATE POLICY clients_select ON clients FOR SELECT TO authenticated USING (true);
+
+-- ============================================================
 -- TABLE: stores (maestro de tiendas + segmentación CRM)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS stores (
@@ -26,10 +41,14 @@ CREATE TABLE IF NOT EXISTS stores (
   business_channel TEXT
     CHECK (business_channel IN ('drogueria','farmacia','supermercado','autoservicio','mayorista','otro')),
   classification   TEXT CHECK (classification IN ('A','B','C')),
+  client_id        UUID REFERENCES clients(client_id) ON DELETE SET NULL,
+  ciudad           TEXT,
+  region           TEXT,
   active           BOOLEAN DEFAULT TRUE,
   created_at       TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_stores_estado         ON stores(estado);
+CREATE INDEX IF NOT EXISTS idx_stores_client         ON stores(client_id);
 CREATE INDEX IF NOT EXISTS idx_stores_channel        ON stores(business_channel);
 CREATE INDEX IF NOT EXISTS idx_stores_classification ON stores(classification);
 CREATE INDEX IF NOT EXISTS idx_stores_location ON stores USING GIST (master_location);

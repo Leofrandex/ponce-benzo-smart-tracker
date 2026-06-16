@@ -81,7 +81,7 @@ export default function ClienteDetailPage() {
   if (!store) {
     return (
       <>
-        <Link href="/supervisor/clientes" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}><ArrowLeft size={15} /> Clientes</Link>
+        <Link href="/supervisor/tiendas" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}><ArrowLeft size={15} /> Tiendas</Link>
         <div className="empty-state"><Building2 size={44} style={{ opacity: 0.2 }} /><div className="empty-title">Cliente no encontrado</div></div>
       </>
     );
@@ -89,7 +89,7 @@ export default function ClienteDetailPage() {
 
   return (
     <>
-      <Link href="/supervisor/clientes" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}><ArrowLeft size={15} /> Clientes</Link>
+      <Link href="/supervisor/tiendas" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}><ArrowLeft size={15} /> Tiendas</Link>
 
       <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
         <div style={{ width: 48, height: 48, borderRadius: "var(--radius-md)", background: "var(--accent-glow)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Building2 size={24} color="var(--accent)" /></div>

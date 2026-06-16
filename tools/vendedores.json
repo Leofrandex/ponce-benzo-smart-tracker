@@ -30,6 +30,13 @@
       "excel_aliases": ["CARLOS ZURITA", "CARLOS  ZURITA"]
     },
     {
+      "full_name": "Jonathan Fernández",
+      "email": "jfernandez@ponce-benzo.com",
+      "role": "merchandiser",
+      "supervisor_email": "mfernandez@ponce-benzo.com",
+      "excel_aliases": ["JONATHAN FERNANDEZ", "JONATHAN FERNÁNDEZ"]
+    },
+    {
       "full_name": "Milagros Fernández",
       "email": "mfernandez@ponce-benzo.com",
       "role": "supervisor",

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, LayoutDashboard, ClipboardList, Map, Building2 } from "lucide-react";
+import { LogOut, LayoutDashboard, ClipboardList, Map, Building2, Store } from "lucide-react";
 import PageTransition from "@/app/components/PageTransition";
 import { useAuth } from "@/app/lib/auth-context";
 
@@ -22,10 +22,11 @@ export default function SupervisorLayout({
   }
 
   const navItems = [
-    { href: "/supervisor",           icon: LayoutDashboard, label: "Panel"     },
-    { href: "/supervisor/clientes",  icon: Building2,       label: "Clientes"  },
-    { href: "/supervisor/tareas",    icon: ClipboardList,   label: "Tareas"    },
-    { href: "/supervisor/mapa",      icon: Map,             label: "Mapa"      },
+    { href: "/supervisor",          icon: LayoutDashboard, label: "Panel"    },
+    { href: "/supervisor/clientes", icon: Building2,       label: "Clientes" },
+    { href: "/supervisor/tiendas",  icon: Store,           label: "Tiendas"  },
+    { href: "/supervisor/tareas",   icon: ClipboardList,   label: "Tareas"   },
+    { href: "/supervisor/mapa",     icon: Map,             label: "Mapa"     },
   ];
 
   const dateStr = new Date().toLocaleDateString("es-VE", {

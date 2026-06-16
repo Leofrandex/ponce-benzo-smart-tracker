@@ -1,31 +1,20 @@
-/**
- * Pipeline de ingesta idempotente — Ponzivenzo Smart Tracker.
- *
- * Pobla Supabase con: 6 usuarios (Auth + users), 192 tiendas y 20 rutas
- * (4 asesores × 5 días de la semana de referencia). Re-ejecutable sin duplicar.
- *
- * Requisitos:
- *   - hub/.env.local con NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY.
- *   - tools/vendedores.json (mapeo) y tools/vendedores.secret.json (contraseñas, gitignored).
- *   - RUTAS 05-12-25 (1).xlsx en la raíz del repo.
- *
- * Uso (desde la raíz, usando node_modules de hub vía junction en la raíz):
- *   cd hub && node --import tsx ../tools/import-data.ts
- */
 import { makeServiceClient } from "./ingesta/supabase";
 import { stageUsers } from "./ingesta/stageUsers";
 import { stageStores } from "./ingesta/stageStores";
-import { stageRoutes } from "./ingesta/stageRoutes";
+import { stageClients } from "./ingesta/stageClients";
+import { stageFarmatodoStores } from "./ingesta/stageFarmatodoStores";
+import { stageFarmatodoRoutes } from "./ingesta/stageFarmatodoRoutes";
+import { deactivateNonPilot } from "./ingesta/deactivateNonPilot";
 
 async function main() {
-  console.log("=== Ingesta Ponzivenzo — inicio ===");
+  console.log("=== Ingesta Ponzivenzo (piloto Farmatodo) — inicio ===");
   const supabase = makeServiceClient();
-
-  const authByEmail = await stageUsers(supabase);
-  const storeByKey = await stageStores(supabase);
-  await stageRoutes(supabase, authByEmail, storeByKey);
-
+  await stageUsers(supabase);
+  await stageStores(supabase);
+  await stageClients(supabase);
+  const pilot = await stageFarmatodoStores(supabase);
+  await stageFarmatodoRoutes(supabase, pilot);
+  await deactivateNonPilot(supabase, pilot);
   console.log("=== Ingesta completada ===");
 }
-
 main().catch((e) => { console.error("ERROR de ingesta:", e.message); process.exit(1); });

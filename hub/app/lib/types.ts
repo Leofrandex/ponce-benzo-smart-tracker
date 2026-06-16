@@ -18,6 +18,8 @@ export interface Store {
     | "drogueria" | "farmacia" | "supermercado"
     | "autoservicio" | "mayorista" | "otro" | null;
   classification: "A" | "B" | "C" | null;
+  client_id?: string | null;
+  client_name?: string | null;
 }
 
 export interface User {
