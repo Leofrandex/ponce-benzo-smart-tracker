@@ -7,6 +7,7 @@ import { ArrowLeft, Building2, Pencil } from "lucide-react";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchStoreById, fetchContacts, fetchEngagements } from "@/app/lib/queries/contacts";
 import { fetchFullTasks } from "@/app/lib/queries/tasks";
+import { fetchStoreReports } from "@/app/lib/queries/reports";
 import { updateStore } from "@/app/lib/mutations/stores";
 import { createContact, updateContact, deleteContact } from "@/app/lib/mutations/contacts";
 import { createEngagement, toggleEngagementDone } from "@/app/lib/mutations/engagements";
@@ -27,7 +28,7 @@ export default function ClienteDetailPage() {
   const { data: engagements, refetch: refetchEngagements } = useSupabaseQuery(() => fetchEngagements(storeId), [storeId]);
   const { data: allTasks } = useSupabaseQuery(fetchFullTasks, []);
   const tasks = useMemo(() => (allTasks ?? []).filter((t) => t.store_id === storeId), [allTasks, storeId]);
-  const reports: never[] = [];
+  const { data: reports } = useSupabaseQuery(() => fetchStoreReports(storeId), [storeId]);
   const lastRestock = null;
 
   const [editOpen, setEditOpen] = useState(false);
@@ -118,7 +119,7 @@ export default function ClienteDetailPage() {
           <LongTermPlaceholders />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <ActivityFeed reports={reports} tasks={[]} />
+          <ActivityFeed reports={reports ?? []} tasks={[]} />
           <EngagementsPanel
             key={storeId}
             engagements={engagements ?? []}

@@ -154,10 +154,10 @@ export default function TareasPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
-                      {task.title ?? task.task_type}
+                      {(task.title ?? task.task_type).replace(/_/g, " ")}
                     </div>
                     <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "1px" }}>
-                      {task.store_id ?? "—"}
+                      {[task.store_name, task.created_by_name].filter(Boolean).join(" · ") || "—"}
                     </div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
