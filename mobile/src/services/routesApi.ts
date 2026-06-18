@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { pickRoute } from './pickRoute';
-import type { Route, Store } from '../types';
+import type { Route, Store, CompetitorBrand } from '../types';
 
 // Rutas del usuario (RLS las filtra a las propias), ordenadas por fecha desc.
 export async function fetchTodayRoute(
@@ -23,4 +23,12 @@ export async function fetchStoresByIds(ids: string[]): Promise<Store[]> {
   })) as Store[];
   const byId = new Map(rows.map((s) => [s.store_id, s]));
   return ids.map((id) => byId.get(id)).filter((s): s is Store => Boolean(s));
+}
+
+// Marcas de competencia activas (brand_id es uuid real, con FK desde competition_reports).
+export async function fetchCompetitorBrands(): Promise<CompetitorBrand[]> {
+  const { data, error } = await supabase
+    .from('competitor_brands').select('brand_id, name, active').eq('active', true).order('name');
+  if (error) throw error;
+  return (data ?? []) as CompetitorBrand[];
 }

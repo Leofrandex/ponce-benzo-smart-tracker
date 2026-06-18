@@ -32,10 +32,13 @@ export const getMockRouteItems = (): RouteStoreItem[] =>
     status: 'pending',
   }));
 
+// UUIDs reales sembrados en competitor_brands (Supabase). Sirven de respaldo
+// offline: si el fetch falla, los reportes igual referencian un brand_id válido
+// (la columna es uuid y tiene FK → competitor_brands).
 export const mockCompetitorBrands: CompetitorBrand[] = [
-  { brand_id: 'brand-001', name: 'Genomma Lab',       active: true },
-  { brand_id: 'brand-002', name: 'Bayer',             active: true },
-  { brand_id: 'brand-003', name: 'Calox',             active: true },
-  { brand_id: 'brand-004', name: 'Leti',              active: true },
-  { brand_id: 'brand-005', name: 'Otra marca',        active: true },
+  { brand_id: 'a1000000-0000-4000-8000-000000000001', name: 'Genomma Lab',         active: true },
+  { brand_id: 'a1000000-0000-4000-8000-000000000002', name: 'Bayer',               active: true },
+  { brand_id: 'a1000000-0000-4000-8000-000000000003', name: 'Calox',               active: true },
+  { brand_id: 'a1000000-0000-4000-8000-000000000004', name: 'Leti',                active: true },
+  { brand_id: 'ea058b2e-3eb1-4126-9a6a-d4e03b7b40f5', name: 'Genérico / Sin marca', active: true },
 ];

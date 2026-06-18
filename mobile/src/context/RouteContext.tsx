@@ -6,6 +6,7 @@ import { useAuth } from './AuthContext';
 import {
   insertSession,
   updateSessionEnd,
+  getOpenSession,
   insertVisit,
   insertLocationPing,
   getUnsyncedCount,
@@ -94,6 +95,26 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { loadRoute(); }, [loadRoute]);
 
+  // Rehidratar sesión: si quedó una jornada abierta (session_end NULL), reanudarla
+  // en vez de ofrecer "Empezar Ruta" otra vez (y evitar sesiones duplicadas).
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const open = await getOpenSession(db, user.id);
+      if (cancelled || !open) return;
+      sessionId.current = open.session_id;
+      routeId.current = open.route_id;
+      lastPingAt.current = null;
+      setSessionActive(true);
+      setSessionEnded(false);
+      setGpsState('searching');
+      await beginTracking();
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   async function refreshSyncCount() {
     const [visits, reports] = await Promise.all([
       getUnsyncedCount(db),
@@ -148,7 +169,14 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     // Empuje inmediato al servidor (mapa en vivo).
     flushNow();
 
-    // Start GPS tracking
+    await beginTracking();
+  }
+
+  // Arranca el watch de GPS en foreground + el tracking en background.
+  // Reutilizado por startSession y por la rehidratación al abrir la app.
+  async function beginTracking() {
+    if (locationSub.current) return; // ya hay un watch activo
+
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {

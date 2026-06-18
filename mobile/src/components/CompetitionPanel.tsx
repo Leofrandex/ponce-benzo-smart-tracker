@@ -8,8 +8,9 @@ import { colors, radii, fonts } from '../theme';
 import { BottomSheetSelect, type SelectOption } from './BottomSheetSelect';
 import { CameraModal } from './CameraModal';
 import { mockCompetitorBrands } from '../mock-data';
+import { fetchCompetitorBrands } from '../services/routesApi';
 import { newId } from '../services/sync/ids';
-import type { CompetitionReportRecord, CompetitionReport } from '../types';
+import type { CompetitionReportRecord, CompetitionReport, CompetitorBrand } from '../types';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const PANEL_W = SCREEN_W * 0.82;
@@ -45,6 +46,16 @@ export function CompetitionPanel({ visible, storeName, initial, onClose, onDone 
   const [brandSheet, setBrandSheet] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
 
+  // Marcas reales desde Supabase (uuid con FK); el mock es respaldo offline.
+  const [brands, setBrands] = useState<CompetitorBrand[]>(mockCompetitorBrands);
+  useEffect(() => {
+    let cancelled = false;
+    fetchCompetitorBrands()
+      .then((rows) => { if (!cancelled && rows.length > 0) setBrands(rows); })
+      .catch(() => { /* offline: queda el respaldo del mock (uuids reales) */ });
+    return () => { cancelled = true; };
+  }, []);
+
   // Re-hidratar el borrador solo al abrir el panel (no al cambiar `initial`
   // con el panel abierto, para no pisar una edición en curso).
   useEffect(() => {
@@ -64,7 +75,7 @@ export function CompetitionPanel({ visible, storeName, initial, onClose, onDone 
     }).start();
   }, [visible, slide]);
 
-  const brandOptions: SelectOption[] = mockCompetitorBrands.map((b) => ({ value: b.brand_id, label: b.name }));
+  const brandOptions: SelectOption[] = brands.map((b) => ({ value: b.brand_id, label: b.name }));
 
   const canSave = activationType !== null && brandId !== null;
 

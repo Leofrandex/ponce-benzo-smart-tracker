@@ -121,6 +121,20 @@ export async function updateSessionEnd(
   );
 }
 
+/** Sesión abierta (session_end IS NULL) más reciente del usuario, o null. */
+export async function getOpenSession(
+  db: SQLiteDatabase,
+  userId: string,
+): Promise<SessionRow | null> {
+  const row = await db.getFirstAsync<SessionRow>(
+    `SELECT * FROM sessions
+     WHERE user_id = ? AND session_end IS NULL
+     ORDER BY session_start DESC LIMIT 1`,
+    userId,
+  );
+  return row ?? null;
+}
+
 // ── Visits ────────────────────────────────────────────────────────────────────
 
 export interface VisitRow {
