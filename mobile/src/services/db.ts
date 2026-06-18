@@ -180,6 +180,25 @@ export async function getUnsyncedCount(db: SQLiteDatabase): Promise<number> {
   return row?.count ?? 0;
 }
 
+// ── Location pings ────────────────────────────────────────────────────────────
+
+// Writer async para el foreground (watchPositionAsync). El background usa la versión sync.
+export async function insertLocationPing(
+  db: SQLiteDatabase,
+  data: { ping_id: string; session_id: string | null; user_id: string; timestamp: string; lat: number; lng: number },
+): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO location_pings (ping_id, session_id, user_id, timestamp, lat, lng, synced)
+     VALUES (?, ?, ?, ?, ?, ?, 0)`,
+    data.ping_id,
+    data.session_id,
+    data.user_id,
+    data.timestamp,
+    data.lat,
+    data.lng,
+  );
+}
+
 // ── Location pings (background tracking) ─────────────────────────────────────
 
 // Called from background task — must be synchronous (no async/await available)

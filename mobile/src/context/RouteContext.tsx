@@ -7,6 +7,7 @@ import {
   insertSession,
   updateSessionEnd,
   insertVisit,
+  insertLocationPing,
   getUnsyncedCount,
   insertCompetitionReport,
   getUnsyncedCompetitionCount,
@@ -15,6 +16,7 @@ import { BACKGROUND_LOCATION_TASK } from '../tasks/locationTask';
 import { mockStores } from '../mock-data';
 import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
 import { newId } from '../services/sync/ids';
+import { shouldEmitPing } from '../services/sync/pingThrottle';
 import { useSyncCtx } from './SyncContext';
 import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState, CompetitionReportRecord } from '../types';
 
@@ -64,6 +66,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
   const locationSub = useRef<LocationSubscription | null>(null);
   const sessionId = useRef<string | null>(null);
   const routeId = useRef<string | null>(null);
+  const lastPingAt = useRef<number | null>(null);
   const { flushNow, refreshCount } = useSyncCtx();
 
   const loadRoute = useCallback(async () => {
@@ -105,6 +108,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     // Persist session to SQLite
     const sid = newId();
     sessionId.current = sid;
+    lastPingAt.current = null;
 
     // Fix GPS inicial para start_location (Supabase lo exige NOT NULL).
     let startLat: number | null = null, startLng: number | null = null;
@@ -127,6 +131,19 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       start_lng: startLng,
     });
 
+    // Ping inicial desde el fix de arranque, para aparecer en el mapa cuanto antes.
+    if (startLat != null && startLng != null) {
+      lastPingAt.current = Date.now();
+      await insertLocationPing(db, {
+        ping_id: newId(),
+        session_id: sid,
+        user_id: user?.id ?? 'unknown',
+        timestamp: new Date().toISOString(),
+        lat: startLat,
+        lng: startLng,
+      });
+    }
+
     // Empuje inmediato al servidor (mapa en vivo).
     flushNow();
 
@@ -142,8 +159,21 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       const sub = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 10 },
         (loc) => {
-          setCurrentLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+          const lat = loc.coords.latitude, lng = loc.coords.longitude;
+          setCurrentLocation({ lat, lng });
           setGpsState('found');
+          // Pings en foreground (funciona en Expo Go); throttle ~30s. Los sube el flush.
+          if (sessionId.current && shouldEmitPing(lastPingAt.current, Date.now())) {
+            lastPingAt.current = Date.now();
+            insertLocationPing(db, {
+              ping_id: newId(),
+              session_id: sessionId.current,
+              user_id: user?.id ?? 'unknown',
+              timestamp: new Date(loc.timestamp).toISOString(),
+              lat,
+              lng,
+            }).catch(() => {});
+          }
         },
       );
       locationSub.current = sub;
