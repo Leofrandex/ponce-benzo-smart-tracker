@@ -200,7 +200,7 @@ export function insertLocationPingSync(
   db.runSync(
     `INSERT INTO location_pings (ping_id, session_id, user_id, timestamp, lat, lng)
      VALUES (?, ?, ?, ?, ?, ?)`,
-    require('../sync/ids').newId(),
+    require('./sync/ids').newId(),
     sessionId ?? open?.session_id ?? null,
     open?.user_id ?? null,
     timestamp,
