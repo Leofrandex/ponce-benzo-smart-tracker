@@ -11,6 +11,7 @@ import {
   Inter_700Bold,
   Inter_800ExtraBold,
 } from '@expo-google-fonts/inter';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { AuthProvider } from './src/context/AuthContext';
 import { SyncProvider } from './src/context/SyncContext';
 import { RouteProvider } from './src/context/RouteContext';
@@ -24,6 +25,9 @@ export default function App() {
     Inter_600SemiBold,
     Inter_700Bold,
     Inter_800ExtraBold,
+    // Precargar las fuentes de íconos para que no dependan de bajarse por el túnel.
+    ...Ionicons.font,
+    ...MaterialIcons.font,
   });
 
   if (!fontsLoaded) return null; // mantiene el splash hasta que cargue Inter

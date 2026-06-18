@@ -15,6 +15,7 @@ import {
 import { BACKGROUND_LOCATION_TASK } from '../tasks/locationTask';
 import { mockStores } from '../mock-data';
 import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
+import { supabase } from '../services/supabase';
 import { newId } from '../services/sync/ids';
 import { shouldEmitPing } from '../services/sync/pingThrottle';
 import { useSyncCtx } from './SyncContext';
@@ -162,7 +163,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
           const lat = loc.coords.latitude, lng = loc.coords.longitude;
           setCurrentLocation({ lat, lng });
           setGpsState('found');
-          // Pings en foreground (funciona en Expo Go); throttle ~30s. Los sube el flush.
+          // Pings en foreground (funciona en Expo Go); throttle ~30s, se suben en el flush.
           if (sessionId.current && shouldEmitPing(lastPingAt.current, Date.now())) {
             lastPingAt.current = Date.now();
             insertLocationPing(db, {
@@ -172,7 +173,8 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
               timestamp: new Date(loc.timestamp).toISOString(),
               lat,
               lng,
-            }).catch(() => {});
+            }).then(() => flushNow())
+              .catch((e) => console.warn('[ping] insert FAIL:', (e as { message?: string })?.message ?? e));
           }
         },
       );
@@ -214,11 +216,17 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function endSession() {
-    // Stop foreground watch
+    const sid = sessionId.current;
+
+    // 1. UI inmediata (el botón siempre responde, pase lo que pase abajo).
+    setSessionActive(false);
+    setSessionEnded(true);
+    setGpsState('idle');
+    setCurrentLocation(null);
+
+    // 2. Parar el watch de foreground y el task de background.
     locationSub.current?.remove();
     locationSub.current = null;
-
-    // Stop background task
     try {
       const running = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
       if (running) await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
@@ -226,16 +234,20 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       console.warn('[RouteContext] could not stop background tracking:', e);
     }
 
-    if (sessionId.current) {
-      await updateSessionEnd(db, sessionId.current, new Date().toISOString());
-      // Re-marca la sesión como no sincronizada para propagar session_end.
-      await db.runAsync(`UPDATE sessions SET synced = 0 WHERE session_id = ?`, sessionId.current);
+    // 3. Cerrar la sesión: local + servidor directo (no depende del flush).
+    if (sid) {
+      const endTime = new Date().toISOString();
+      await updateSessionEnd(db, sid, endTime);
+      try {
+        const { error } = await supabase.from('sessions').update({ session_end: endTime }).eq('session_id', sid);
+        if (error) throw error;
+        await db.runAsync(`UPDATE sessions SET synced = 1 WHERE session_id = ?`, sid);
+      } catch (e) {
+        // Sin red: queda marcada para reintento en el próximo flush.
+        await db.runAsync(`UPDATE sessions SET synced = 0 WHERE session_id = ?`, sid);
+        console.warn('[session] no se pudo cerrar en servidor (reintenta en flush):', (e as { message?: string })?.message ?? e);
+      }
     }
-
-    setSessionActive(false);
-    setSessionEnded(true);
-    setGpsState('idle');
-    setCurrentLocation(null);
 
     flushNow();
     refreshCount();
