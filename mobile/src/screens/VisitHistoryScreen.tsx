@@ -4,7 +4,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { useSQLiteContext } from 'expo-sqlite';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBadge } from '../components/StatusBadge';
 import { colors, radii, fonts } from '../theme';
@@ -13,6 +12,7 @@ import { getTodayVisits } from '../services/db';
 import type { VisitRow } from '../services/db';
 import type { StoreStatus } from '../types';
 import { mockStores } from '../mock-data';
+import { getDb } from '../store/localStore';
 
 function getStoreName(storeId: string): string {
   return mockStores.find((s) => s.store_id === storeId)?.name ?? storeId;
@@ -33,7 +33,6 @@ function statusLabel(status: string): string {
 }
 
 export function VisitHistoryScreen() {
-  const db = useSQLiteContext();
   const { user } = useAuth();
   const [visits, setVisits] = useState<VisitRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,11 +41,15 @@ export function VisitHistoryScreen() {
     useCallback(() => {
       let active = true;
       setLoading(true);
-      getTodayVisits(db, user?.id ?? '')
-        .then((rows) => { if (active) setVisits(rows); })
+      (async () => {
+        const db = await getDb();
+        const rows = await getTodayVisits(db, user?.id ?? '');
+        if (active) setVisits(rows);
+      })()
+        .catch(() => {})
         .finally(() => { if (active) setLoading(false); });
       return () => { active = false; };
-    }, [db, user?.id]),
+    }, [user?.id]),
   );
 
   return (

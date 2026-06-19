@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { SQLiteProvider } from 'expo-sqlite';
 import {
   useFonts,
   Inter_400Regular,
@@ -17,7 +16,8 @@ import { AuthProvider } from './src/context/AuthContext';
 import { SyncProvider } from './src/context/SyncContext';
 import { RouteProvider } from './src/context/RouteContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
-import { initDatabase } from './src/services/db';
+import { getDb } from './src/store/localStore';
+import './src/location/backgroundTask'; // registra el TaskManager.defineTask en el arranque
 
 export default function App() {
   // Sólo Inter bloquea el arranque. Las fuentes de íconos se cargan aparte y NO
@@ -37,20 +37,21 @@ export default function App() {
     );
   }, []);
 
+  // Inicializa el schema SQLite una vez al montar (getDb es un singleton).
+  useEffect(() => { getDb(); }, []);
+
   if (!fontsLoaded) return null; // mantiene el splash hasta que cargue Inter
 
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <SQLiteProvider databaseName="poncebenzo.db" onInit={initDatabase}>
-          <SyncProvider>
-            <RouteProvider>
-              <NavigationContainer>
-                <AppNavigator />
-              </NavigationContainer>
-            </RouteProvider>
-          </SyncProvider>
-        </SQLiteProvider>
+        <SyncProvider>
+          <RouteProvider>
+            <NavigationContainer>
+              <AppNavigator />
+            </NavigationContainer>
+          </RouteProvider>
+        </SyncProvider>
         <StatusBar style="dark" />
       </AuthProvider>
     </SafeAreaProvider>
