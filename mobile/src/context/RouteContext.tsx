@@ -1,27 +1,19 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
-import type { LocationSubscription } from 'expo-location';
-import { useSQLiteContext } from 'expo-sqlite';
+import { AppState } from 'react-native';
 import { useAuth } from './AuthContext';
 import {
-  insertSession,
-  updateSessionEnd,
-  getTodaySession,
-  getOpenSession,
-  closeStaleSessions,
   insertVisit,
-  insertLocationPing,
   getUnsyncedCount,
   insertCompetitionReport,
   getUnsyncedCompetitionCount,
 } from '../services/db';
-import { BACKGROUND_LOCATION_TASK } from '../tasks/locationTask';
 import { mockStores } from '../mock-data';
 import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
-import { supabase } from '../services/supabase';
-import { newId } from '../services/sync/ids';
-import { flush } from '../services/sync/syncClient';
 import { useSyncCtx } from './SyncContext';
+import { getDb } from '../store/localStore';
+import { resolveToday, startSession as ssStart, endSession as ssEnd, closeStaleSessions } from '../session/sessionStore';
+import { startTracking, stopBackground, ensureTracking, requestPermissions, requestBatteryExemption } from '../location/locationTracker';
 import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState, CompetitionReportRecord } from '../types';
 
 interface RouteContextValue {
@@ -53,7 +45,6 @@ interface RouteContextValue {
 const RouteContext = createContext<RouteContextValue | null>(null);
 
 export function RouteProvider({ children }: { children: React.ReactNode }) {
-  const db = useSQLiteContext();
   const { user } = useAuth();
 
   const [routeItems, setRouteItems] = useState<RouteStoreItem[]>([]);
@@ -67,9 +58,8 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [routeMode, setRouteModeState] = useState<'normal' | 'special'>('normal');
 
-  const locationSub = useRef<LocationSubscription | null>(null);
-  const sessionId = useRef<string | null>(null);
   const routeId = useRef<string | null>(null);
+  const stopWatchRef = useRef<null | (() => void)>(null);
   const { flushNow, refreshCount } = useSyncCtx();
 
   const loadRoute = useCallback(async () => {
@@ -96,39 +86,36 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { loadRoute(); }, [loadRoute]);
 
-  // Rehidratar el estado del día al abrir la app:
-  //  - Sesión de HOY abierta  → reanudar (tracking + "Finalizar Ruta").
-  //  - Sesión de HOY cerrada  → ruta finalizada: NO se puede reiniciar el mismo día.
-  //  - Sin sesión hoy         → "Empezar Ruta".
-  // Las sesiones abiertas de días anteriores se cierran para que no reanuden ni
-  // se confundan con la jornada de hoy (causaba "ruta activa" fantasma en Expo Go).
-  useEffect(() => {
+  // Derive session state from SQLite via sessionStore
+  const deriveState = useCallback(async () => {
     if (!user) return;
-    let cancelled = false;
-    (async () => {
-      await closeStaleSessions(db, user.id);
-      const today = await getTodaySession(db, user.id);
-      if (cancelled || !today) return;
+    const db = await getDb();
+    await closeStaleSessions(db, user.id);
+    const { state } = await resolveToday(db, user.id);
+    setSessionActive(state === 'ACTIVE');
+    setSessionEnded(state === 'ENDED');
+    if (state === 'ACTIVE') {
+      setGpsState('searching');
+      stopWatchRef.current = await startTracking(({ lat, lng }) => {
+        setCurrentLocation({ lat, lng });
+        setGpsState('found');
+      });
+      await ensureTracking(user.id);
+    }
+  }, [user]);
 
-      if (today.session_end == null) {
-        // Jornada de hoy aún abierta → reanudar.
-        sessionId.current = today.session_id;
-        routeId.current = today.route_id;
-        setSessionActive(true);
-        setSessionEnded(false);
-        setGpsState('searching');
-        await beginTracking();
-      } else {
-        // Jornada de hoy ya finalizada → bloquear el reinicio.
-        setSessionActive(false);
-        setSessionEnded(true);
-      }
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { deriveState(); }, [deriveState]);
+
+  // Watchdog: when returning to foreground, reassure background tracking is running
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active' && user) ensureTracking(user.id);
+    });
+    return () => sub.remove();
   }, [user]);
 
   async function refreshSyncCount() {
+    const db = await getDb();
     const [visits, reports] = await Promise.all([
       getUnsyncedCount(db),
       getUnsyncedCompetitionCount(db),
@@ -137,178 +124,41 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function startSession() {
-    setSessionActive(true);
-    setGpsState('searching');
-
-    // Persist session to SQLite
-    const sid = newId();
-    sessionId.current = sid;
-
-    // Fix GPS inicial para start_location (Supabase lo exige NOT NULL).
-    let startLat: number | null = null, startLng: number | null = null;
+    if (!user) return;
+    const perms = await requestPermissions();
+    if (!perms.foreground) { setGpsState('error'); return; }
+    await requestBatteryExemption();
+    let lat: number | null = null, lng: number | null = null;
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-        startLat = pos.coords.latitude; startLng = pos.coords.longitude;
-        setCurrentLocation({ lat: startLat, lng: startLng });
-        setGpsState('found');
-      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      lat = pos.coords.latitude;
+      lng = pos.coords.longitude;
     } catch { /* sin fix: la sesión sube cuando haya coords */ }
-
-    await insertSession(db, {
-      session_id: sid,
-      user_id: user?.id ?? 'unknown',
-      route_id: routeId.current ?? 'unknown',
-      session_start: new Date().toISOString(),
-      start_lat: startLat,
-      start_lng: startLng,
+    const db = await getDb();
+    await ssStart(db, { userId: user.id, routeId: routeId.current ?? 'unknown', startLat: lat, startLng: lng });
+    if (lat != null) setCurrentLocation({ lat, lng: lng! });
+    setSessionActive(true);
+    setSessionEnded(false);
+    setGpsState(lat != null ? 'found' : 'searching');
+    stopWatchRef.current = await startTracking(({ lat: a, lng: b }) => {
+      setCurrentLocation({ lat: a, lng: b });
+      setGpsState('found');
     });
-
-    // Ping inicial desde el fix de arranque, para aparecer en el mapa cuanto antes.
-    // (El task de background toma la posta ~30s después, usando este ping como
-    // referencia del throttle compartido.)
-    if (startLat != null && startLng != null) {
-      await insertLocationPing(db, {
-        ping_id: newId(),
-        session_id: sid,
-        user_id: user?.id ?? 'unknown',
-        timestamp: new Date().toISOString(),
-        lat: startLat,
-        lng: startLng,
-      });
-    }
-
-    // Empuje inmediato al servidor (mapa en vivo).
     flushNow();
-
-    await beginTracking();
-  }
-
-  // Arranca el watch de GPS en foreground + el tracking en background.
-  // Reutilizado por startSession y por la rehidratación al abrir la app.
-  async function beginTracking() {
-    if (locationSub.current) return; // ya hay un watch activo
-
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setGpsState('error');
-        return;
-      }
-
-      // Foreground watch — SÓLO actualiza el chip de GPS y la anti-fraude.
-      // Los pings los escribe exclusivamente el task de background (fuente única,
-      // throttleada a ~30s), para no duplicar ni saturar como pasaba antes.
-      const sub = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 0 },
-        (loc) => {
-          setCurrentLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
-          setGpsState('found');
-        },
-      );
-      locationSub.current = sub;
-
-      // Background tracking — saves pings to SQLite even when app is backgrounded
-      await startBackgroundTracking();
-    } catch {
-      setGpsState('error');
-    }
-  }
-
-  async function startBackgroundTracking() {
-    try {
-      const { status } = await Location.requestBackgroundPermissionsAsync();
-      if (status !== 'granted') {
-        // Background permission denied — foreground-only tracking still works
-        return;
-      }
-
-      const alreadyRunning = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-      if (alreadyRunning) return;
-
-      await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 15_000,   // pide updates cada ~15s; el throttle por BD los limita a ~30s
-        distanceInterval: 0,    // por tiempo, no por movimiento (sale aunque esté quieto)
-        // SIN deferredUpdatesInterval: el modo "diferido" de Android agrupa y RETIENE
-        // los updates (sobre todo estando quieto) y cortaba el tracking tras 1 entrega.
-        pausesUpdatesAutomatically: false,
-        foregroundService: {
-          notificationTitle: 'Ponce & Benzo — Ruta activa',
-          notificationBody: 'Registrando tu ubicación durante la ruta.',
-          notificationColor: '#00205C',
-        },
-        showsBackgroundLocationIndicator: true,
-      });
-    } catch (e) {
-      // Non-fatal — background tracking is best-effort
-      console.warn('[RouteContext] background tracking unavailable:', e);
-    }
   }
 
   async function endSession() {
-    // 1. UI inmediata (el botón siempre responde, pase lo que pase abajo).
     setSessionActive(false);
     setSessionEnded(true);
     setGpsState('idle');
     setCurrentLocation(null);
-
-    // 2. Parar el watch de foreground y el task de background.
-    locationSub.current?.remove();
-    locationSub.current = null;
-    try {
-      const running = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-      if (running) await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-    } catch (e) {
-      console.warn('[RouteContext] could not stop background tracking:', e);
+    stopWatchRef.current?.();
+    stopWatchRef.current = null;
+    await stopBackground();
+    if (user) {
+      const db = await getDb();
+      await ssEnd(db, user.id);
     }
-
-    // 3. Resolver la sesión a cerrar. Si se perdió el ref en memoria (remount,
-    //    proceso recreado por el OS), se recupera la jornada abierta desde SQLite
-    //    — así el cierre nunca se "salta" por un sessionId.current nulo.
-    let sid = sessionId.current;
-    if (!sid && user) {
-      try {
-        const open = await getOpenSession(db, user.id);
-        if (open) sid = open.session_id;
-      } catch (e) {
-        console.warn('[session] no se pudo resolver la sesión abierta:', e);
-      }
-    }
-
-    if (sid) {
-      const endTime = new Date().toISOString();
-      let serverOk = false;
-
-      // Servidor PRIMERO (autoritativo para el mapa en vivo y el hub), verificado.
-      // Antes el cierre local iba primero y, si la SQLite estaba ocupada por el
-      // task de background, lanzaba "database is locked" y abortaba TODO el cierre.
-      try {
-        const { data, error } = await supabase
-          .from('sessions')
-          .update({ session_end: endTime })
-          .eq('session_id', sid)
-          .select('session_id');
-        if (error) throw error;
-        serverOk = !!(data && data.length > 0); // 0 filas = no se cerró de verdad
-        if (!serverOk) console.warn('[session] update afectó 0 filas — el flush la subirá por upsert');
-      } catch (e) {
-        console.warn('[session] cierre directo en servidor falló (reintenta en flush):', (e as { message?: string })?.message ?? e);
-      }
-
-      // Local best-effort: no debe tumbar el cierre si la BD está ocupada.
-      // synced=1 sólo si el servidor confirmó; si no, queda pendiente para el flush.
-      try {
-        await updateSessionEnd(db, sid, endTime);
-        await db.runAsync(`UPDATE sessions SET synced = ? WHERE session_id = ?`, serverOk ? 1 : 0, sid);
-      } catch (e) {
-        console.warn('[session] no se pudo escribir el cierre local (la sesión ya cerró en servidor):', (e as { message?: string })?.message ?? e);
-      }
-    }
-
-    // Empuje idempotente: si quedó synced=0, el upsert del flush cierra la sesión.
-    try { await flush(db, supabase); } catch { /* el intervalo de 60s reintenta */ }
     flushNow();
     refreshCount();
   }
@@ -327,10 +177,12 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       ),
     );
 
+    const db = await getDb();
+
     // Persist to SQLite — las fotos van como JSON en la columna photo_uri TEXT
     await insertVisit(db, {
       visit_id: record.visit_id,
-      session_id: sessionId.current ?? null,
+      session_id: null,
       store_id: record.store_id,
       user_id: user?.id ?? 'unknown',
       check_in_time: record.check_in_time,
@@ -353,7 +205,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       try {
         await insertCompetitionReport(db, {
           report_id: competitionReport.report_id,
-          session_id: sessionId.current ?? null,
+          session_id: null,
           visit_id: record.visit_id,
           store_id: storeId,
           user_id: user?.id ?? 'unknown',
