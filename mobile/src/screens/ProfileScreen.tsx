@@ -1,11 +1,15 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet, ScrollView,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/Button';
 import { colors, radii, fonts } from '../theme';
+import { VERSION_STAMP } from '../diagnostics/version';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 
 function getInitials(name: string) {
   return name
@@ -30,8 +34,11 @@ function StatCard({ value, label }: StatCardProps) {
   );
 }
 
+type ProfileNavProp = NativeStackNavigationProp<RootStackParamList, 'Main'>;
+
 export function ProfileScreen() {
   const { user, signOut } = useAuth();
+  const navigation = useNavigation<ProfileNavProp>();
   if (!user) return null;
 
   const initials = getInitials(user.full_name);
@@ -83,6 +90,10 @@ export function ProfileScreen() {
           variant="danger"
           style={styles.signOutBtn}
         />
+
+        <TouchableOpacity onLongPress={() => navigation.navigate('DebugLog')} style={styles.versionStamp}>
+          <Text style={styles.versionText}>{VERSION_STAMP}</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -214,5 +225,14 @@ const styles = StyleSheet.create({
   },
   signOutBtn: {
     marginTop: 4,
+  },
+  versionStamp: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  versionText: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontFamily: 'monospace',
   },
 });
