@@ -11,8 +11,7 @@ const OPTIONAL_COLUMNS: Record<string, Array<[string, string]>> = {
 export function buildMigrations(existing: Record<string, Set<string>>): string[] {
   const out: string[] = [];
   for (const [table, cols] of Object.entries(OPTIONAL_COLUMNS)) {
-    if (!(table in existing)) continue; // Only process tables that exist in the database
-    const have = existing[table];
+    const have = existing[table] ?? new Set<string>();
     for (const [col, type] of cols) {
       if (!have.has(col)) out.push(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
     }

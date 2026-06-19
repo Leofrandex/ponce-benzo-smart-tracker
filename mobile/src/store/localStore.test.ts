@@ -6,11 +6,14 @@ test('buildMigrations: agrega columnas faltantes y omite las presentes', () => {
   const existing = {
     visits: new Set(['visit_id', 'store_id']),
     location_pings: new Set(['ping_id', 'session_id', 'timestamp', 'lat', 'lng']),
+    competition_reports: new Set(['report_id']),
   };
   const stmts = buildMigrations(existing);
+  assert.ok(stmts.some((s) => s.includes('ALTER TABLE visits ADD COLUMN anomaly_type')));
   assert.ok(stmts.some((s) => s.includes('ALTER TABLE location_pings ADD COLUMN user_id')));
   assert.ok(stmts.some((s) => s.includes('ALTER TABLE location_pings ADD COLUMN synced')));
-  assert.ok(!stmts.some((s) => s.includes('ADD COLUMN visit_id')));
+  assert.ok(stmts.some((s) => s.includes('ALTER TABLE competition_reports ADD COLUMN visit_id')));
+  assert.ok(!stmts.some((s) => s.includes('ALTER TABLE visits ADD COLUMN visit_id')));
 });
 
 test('buildMigrations: sin faltantes devuelve []', () => {
@@ -20,4 +23,14 @@ test('buildMigrations: sin faltantes devuelve []', () => {
     competition_reports: new Set(['visit_id']),
   };
   assert.deepEqual(buildMigrations(full), []);
+});
+
+test('buildMigrations: existing vacío emite TODAS las columnas opcionales', () => {
+  const stmts = buildMigrations({});
+  assert.ok(stmts.some((s) => s.includes('ALTER TABLE visits ADD COLUMN anomaly_type')));
+  assert.ok(stmts.some((s) => s.includes('ALTER TABLE visits ADD COLUMN skip_reason')));
+  assert.ok(stmts.some((s) => s.includes('ALTER TABLE visits ADD COLUMN last_restock_date')));
+  assert.ok(stmts.some((s) => s.includes('ALTER TABLE competition_reports ADD COLUMN visit_id')));
+  assert.ok(stmts.some((s) => s.includes('ALTER TABLE location_pings ADD COLUMN user_id')));
+  assert.ok(stmts.some((s) => s.includes('ALTER TABLE location_pings ADD COLUMN synced')));
 });
