@@ -8,6 +8,27 @@ export interface LivePosition {
   last_seen: string;
 }
 
+export interface MerchandiserRosterEntry {
+  user_id: string;
+  full_name: string;
+}
+
+// Roster completo de mercaderistas (todos, activos o no). El filtro del mapa lo usa
+// para mostrar los 5 y marcar cuáles están activos según las posiciones en vivo.
+export async function fetchMerchandisers(): Promise<MerchandiserRosterEntry[]> {
+  const sb = getSupabaseBrowser();
+  const { data, error } = await sb
+    .from("users")
+    .select("id, full_name")
+    .eq("role", "merchandiser")
+    .order("full_name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((u: { id: string; full_name: string | null }) => ({
+    user_id: u.id,
+    full_name: u.full_name ?? "Mercaderista",
+  }));
+}
+
 // Última posición por MERCADERISTA con sesión ABIERTA (session_end IS NULL).
 // Si un usuario tuviera varias sesiones abiertas (p. ej. rutas que no se cerraron),
 // se muestra solo la más reciente — un marcador por persona, nunca duplicados.

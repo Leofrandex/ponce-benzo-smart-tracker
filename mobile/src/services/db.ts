@@ -135,6 +135,45 @@ export async function getOpenSession(
   return row ?? null;
 }
 
+/**
+ * Sesión más reciente del usuario cuya jornada empezó HOY (abierta o cerrada).
+ * Sirve para decidir el estado del día: sin sesión → "Empezar Ruta";
+ * abierta → reanudar; cerrada → ruta finalizada (no se reinicia el mismo día).
+ */
+export async function getTodaySession(
+  db: SQLiteDatabase,
+  userId: string,
+): Promise<SessionRow | null> {
+  const today = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+  const row = await db.getFirstAsync<SessionRow>(
+    `SELECT * FROM sessions
+     WHERE user_id = ? AND session_start LIKE ?
+     ORDER BY session_start DESC LIMIT 1`,
+    userId,
+    `${today}%`,
+  );
+  return row ?? null;
+}
+
+/**
+ * Cierra sesiones que quedaron abiertas de días anteriores (no deben reanudarse
+ * hoy ni mantener el tracking vivo). Las marca para re-sync con su propia hora
+ * de inicio como cierre — un fin "best-effort" mejor que dejarlas colgadas.
+ */
+export async function closeStaleSessions(
+  db: SQLiteDatabase,
+  userId: string,
+): Promise<void> {
+  const today = new Date().toISOString().split('T')[0];
+  await db.runAsync(
+    `UPDATE sessions
+        SET session_end = session_start, synced = 0
+      WHERE user_id = ? AND session_end IS NULL AND session_start NOT LIKE ?`,
+    userId,
+    `${today}%`,
+  );
+}
+
 // ── Visits ────────────────────────────────────────────────────────────────────
 
 export interface VisitRow {
@@ -303,7 +342,17 @@ export function getUnsyncedSessions(db: SQLiteDatabase): Promise<SessionRow[]> {
   return db.getAllAsync<SessionRow>(`SELECT * FROM sessions WHERE synced = 0`);
 }
 export function getUnsyncedPings(db: SQLiteDatabase): Promise<PingRow[]> {
-  return db.getAllAsync<PingRow>(`SELECT ping_id, session_id, user_id, timestamp, lat, lng FROM location_pings WHERE synced = 0`);
+  // Rellena user_id desde la sesión cuando el ping se guardó sin él (lo hacía el
+  // task de background sin sesión resuelta). Sin esto, esos pings se contaban como
+  // pendientes pero el flush los descartaba → contador atascado para siempre.
+  return db.getAllAsync<PingRow>(
+    `SELECT p.ping_id, p.session_id,
+            COALESCE(p.user_id, s.user_id) AS user_id,
+            p.timestamp, p.lat, p.lng
+       FROM location_pings p
+       LEFT JOIN sessions s ON s.session_id = p.session_id
+      WHERE p.synced = 0`,
+  );
 }
 export function getUnsyncedVisits(db: SQLiteDatabase): Promise<VisitRow[]> {
   return db.getAllAsync<VisitRow>(`SELECT * FROM visits WHERE synced = 0`);
@@ -318,7 +367,9 @@ export async function getTotalUnsyncedCount(db: SQLiteDatabase): Promise<number>
   const row = await db.getFirstAsync<{ n: number }>(
     `SELECT
        (SELECT COUNT(*) FROM sessions WHERE synced=0) +
-       (SELECT COUNT(*) FROM location_pings WHERE synced=0) +
+       (SELECT COUNT(*) FROM location_pings p
+          LEFT JOIN sessions s ON s.session_id = p.session_id
+          WHERE p.synced=0 AND COALESCE(p.user_id, s.user_id) IS NOT NULL) +
        (SELECT COUNT(*) FROM visits WHERE synced=0) +
        (SELECT COUNT(*) FROM competition_reports WHERE synced=0) AS n`);
   return row?.n ?? 0;

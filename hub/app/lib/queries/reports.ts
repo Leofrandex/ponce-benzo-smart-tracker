@@ -1,6 +1,80 @@
 import { getSupabaseBrowser } from "../supabase/client";
 import type { SupervisorReport } from "../types";
 
+// ── Reportes de competencia (por tienda) ─────────────────────────────────────
+
+export interface StoreCompetitionReport {
+  report_id: string;
+  store_id: string;
+  brand_name: string;
+  activation_type: string | null;
+  activation_label: string;
+  merchandiser_name: string;
+  notes: string | null;
+  created_at: string;
+  photo_urls: string[];  // ya firmadas, listas para <img>
+}
+
+const ACTIVATION_LABELS: Record<string, string> = {
+  promocion: "Promoción",
+  material_pop: "Material POP",
+  espacios_exhibiciones: "Espacios / Exhibiciones",
+  impulso_activacion: "Impulso / Activación",
+  degustacion: "Degustación",
+  otro: "Otro",
+};
+
+interface CompetitionJoinRow {
+  report_id: string;
+  store_id: string | null;
+  activation_type: string | null;
+  notes: string | null;
+  created_at: string;
+  photo_urls: string[] | null;
+  competitor_brands: { name: string | null } | null;
+  users: { full_name: string | null } | null;
+}
+
+// Reportes de competencia de una tienda, del más reciente al más antiguo.
+export async function fetchStoreCompetition(storeId: string): Promise<StoreCompetitionReport[]> {
+  const sb = getSupabaseBrowser();
+  const { data, error } = await sb
+    .from("competition_reports")
+    .select(
+      "report_id, store_id, activation_type, notes, created_at, photo_urls, " +
+        "competitor_brands(name), users(full_name)",
+    )
+    .eq("store_id", storeId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+
+  const rows = (data ?? []) as unknown as CompetitionJoinRow[];
+
+  // Mismo bucket privado que las visitas: hay que firmar las rutas de storage.
+  const allPaths = Array.from(new Set(rows.flatMap((r) => r.photo_urls ?? [])));
+  const signed = new Map<string, string>();
+  if (allPaths.length > 0) {
+    const { data: signedData } = await sb.storage
+      .from("visit-photos")
+      .createSignedUrls(allPaths, 60 * 60); // 1 hora
+    for (const s of signedData ?? []) {
+      if (s.path && s.signedUrl) signed.set(s.path, s.signedUrl);
+    }
+  }
+
+  return rows.map((r) => ({
+    report_id: r.report_id,
+    store_id: r.store_id ?? storeId,
+    brand_name: r.competitor_brands?.name ?? "Marca no especificada",
+    activation_type: r.activation_type,
+    activation_label: r.activation_type ? (ACTIVATION_LABELS[r.activation_type] ?? r.activation_type) : "—",
+    merchandiser_name: r.users?.full_name ?? "—",
+    notes: r.notes,
+    created_at: r.created_at,
+    photo_urls: (r.photo_urls ?? []).map((p) => signed.get(p) ?? p),
+  }));
+}
+
 const MAX_DISTANCE_METERS = 200;
 
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {

@@ -6,7 +6,8 @@ import { useAuth } from './AuthContext';
 import {
   insertSession,
   updateSessionEnd,
-  getOpenSession,
+  getTodaySession,
+  closeStaleSessions,
   insertVisit,
   insertLocationPing,
   getUnsyncedCount,
@@ -95,21 +96,34 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { loadRoute(); }, [loadRoute]);
 
-  // Rehidratar sesión: si quedó una jornada abierta (session_end NULL), reanudarla
-  // en vez de ofrecer "Empezar Ruta" otra vez (y evitar sesiones duplicadas).
+  // Rehidratar el estado del día al abrir la app:
+  //  - Sesión de HOY abierta  → reanudar (tracking + "Finalizar Ruta").
+  //  - Sesión de HOY cerrada  → ruta finalizada: NO se puede reiniciar el mismo día.
+  //  - Sin sesión hoy         → "Empezar Ruta".
+  // Las sesiones abiertas de días anteriores se cierran para que no reanuden ni
+  // se confundan con la jornada de hoy (causaba "ruta activa" fantasma en Expo Go).
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
-      const open = await getOpenSession(db, user.id);
-      if (cancelled || !open) return;
-      sessionId.current = open.session_id;
-      routeId.current = open.route_id;
-      lastPingAt.current = null;
-      setSessionActive(true);
-      setSessionEnded(false);
-      setGpsState('searching');
-      await beginTracking();
+      await closeStaleSessions(db, user.id);
+      const today = await getTodaySession(db, user.id);
+      if (cancelled || !today) return;
+
+      if (today.session_end == null) {
+        // Jornada de hoy aún abierta → reanudar.
+        sessionId.current = today.session_id;
+        routeId.current = today.route_id;
+        lastPingAt.current = null;
+        setSessionActive(true);
+        setSessionEnded(false);
+        setGpsState('searching');
+        await beginTracking();
+      } else {
+        // Jornada de hoy ya finalizada → bloquear el reinicio.
+        setSessionActive(false);
+        setSessionEnded(true);
+      }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -184,9 +198,11 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Foreground watch — keeps GPS chip and anti-fraud up to date
+      // Foreground watch — keeps GPS chip and anti-fraud up to date.
+      // distanceInterval: 0 → emite por TIEMPO aunque el mercaderista esté quieto
+      // (con distanceInterval > 0 no llegaban callbacks estando parado = sin pings).
       const sub = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 10 },
+        { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 0 },
         (loc) => {
           const lat = loc.coords.latitude, lng = loc.coords.longitude;
           setCurrentLocation({ lat, lng });
@@ -228,8 +244,10 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
 
       await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
         accuracy: Location.Accuracy.Balanced,
-        timeInterval: 30_000,   // every 30 seconds
-        distanceInterval: 50,   // or every 50 metres
+        timeInterval: 30_000,   // cada 30 segundos
+        distanceInterval: 0,    // por tiempo, no por movimiento (sale aunque esté quieto)
+        deferredUpdatesInterval: 30_000,
+        pausesUpdatesAutomatically: false,
         foregroundService: {
           notificationTitle: 'Ponce & Benzo — Ruta activa',
           notificationBody: 'Registrando tu ubicación durante la ruta.',
@@ -314,23 +332,31 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Reporte de competencia opcional: misma tienda, misma operación.
+    // Va en try/catch: si algo falla aquí, la visita YA quedó guardada y la
+    // pantalla debe cerrar igual (antes una excepción acá dejaba el registro
+    // abierto sin volver al menú).
     if (competitionReport) {
-      await insertCompetitionReport(db, {
-        report_id: competitionReport.report_id,
-        session_id: sessionId.current ?? null,
-        visit_id: record.visit_id,
-        store_id: storeId,
-        user_id: user?.id ?? 'unknown',
-        brand_id: competitionReport.brand_id,
-        activation_type: competitionReport.activation_type,
-        photo_uris: competitionReport.photo_uris,
-        notes: competitionReport.notes,
-        created_at: new Date().toISOString(),
-        synced: 0,
-      });
+      try {
+        await insertCompetitionReport(db, {
+          report_id: competitionReport.report_id,
+          session_id: sessionId.current ?? null,
+          visit_id: record.visit_id,
+          store_id: storeId,
+          user_id: user?.id ?? 'unknown',
+          brand_id: competitionReport.brand_id,
+          activation_type: competitionReport.activation_type,
+          photo_uris: competitionReport.photo_uris,
+          notes: competitionReport.notes,
+          created_at: new Date().toISOString(),
+          synced: 0,
+        });
+      } catch (e) {
+        console.warn('[visit] competition insert FAIL:', (e as { message?: string })?.message ?? e);
+      }
     }
 
-    await refreshSyncCount();
+    // Conteo y sync en segundo plano: no se esperan para no bloquear el cierre.
+    refreshSyncCount().catch(() => {});
     flushNow();
   }
 

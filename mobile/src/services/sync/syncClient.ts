@@ -7,6 +7,25 @@ import { toSessionPayload, toPingPayload, toVisitPayload, toCompetitionPayload }
 // Mensaje de error legible para los warns de fallo de sync.
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : JSON.stringify(e));
 
+// Sube SOLO los location_pings pendientes. Liviano y sin fotos, pensado para
+// correr desde el task de background (cada ~30s) sin esperar a que vuelva el
+// foreground. Así el mapa en vivo recibe pings aunque la app esté en segundo plano.
+export async function flushPings(db: SQLiteDatabase, supabase: SupabaseClient): Promise<number> {
+  let pushed = 0;
+  const pings = (await getUnsyncedPings(db)).filter((p) => p.user_id);
+  for (const p of pings) {
+    try {
+      const { error } = await supabase.from("location_pings").upsert(toPingPayload(p), { onConflict: "ping_id" });
+      if (error) throw error;
+      await markSynced(db, "location_pings", "ping_id", p.ping_id);
+      pushed++;
+    } catch (e) {
+      console.warn(`[sync/bg] ping ${p.ping_id} FAIL:`, errMsg(e));
+    }
+  }
+  return pushed;
+}
+
 let isFlushing = false;
 export async function flush(db: SQLiteDatabase, supabase: SupabaseClient): Promise<{ pushed: number; failed: number }> {
   if (isFlushing) return { pushed: 0, failed: 0 };

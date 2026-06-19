@@ -127,12 +127,13 @@ export function CheckInScreen() {
       last_restock_date: lastRestockDate,
     };
 
-    try {
-      await recordVisit(store.store_id, record, competitionDraft ?? undefined);
-      navigation.goBack();
-    } finally {
-      setSubmitting(false);
-    }
+    // recordVisit actualiza la lista (optimista) y persiste en SQLite; la subida a
+    // Supabase corre en segundo plano. No se espera la red para cerrar: así el
+    // registro vuelve al menú de inmediato en vez de quedarse trabado.
+    recordVisit(store.store_id, record, competitionDraft ?? undefined).catch((e) =>
+      console.warn('[checkin] recordVisit FAIL:', (e as { message?: string })?.message ?? e),
+    );
+    navigation.goBack();
   }
 
   return (
