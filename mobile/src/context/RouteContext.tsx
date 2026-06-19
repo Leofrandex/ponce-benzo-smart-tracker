@@ -96,6 +96,8 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     setSessionEnded(state === 'ENDED');
     if (state === 'ACTIVE') {
       setGpsState('searching');
+      stopWatchRef.current?.();
+      stopWatchRef.current = null;
       stopWatchRef.current = await startTracking(({ lat, lng }) => {
         setCurrentLocation({ lat, lng });
         setGpsState('found');
@@ -104,7 +106,10 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  useEffect(() => { deriveState(); }, [deriveState]);
+  useEffect(() => {
+    deriveState();
+    return () => { stopWatchRef.current?.(); stopWatchRef.current = null; };
+  }, [deriveState]);
 
   // Watchdog: when returning to foreground, reassure background tracking is running
   useEffect(() => {
@@ -140,6 +145,8 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     setSessionActive(true);
     setSessionEnded(false);
     setGpsState(lat != null ? 'found' : 'searching');
+    stopWatchRef.current?.();
+    stopWatchRef.current = null;
     stopWatchRef.current = await startTracking(({ lat: a, lng: b }) => {
       setCurrentLocation({ lat: a, lng: b });
       setGpsState('found');
@@ -178,11 +185,12 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     );
 
     const db = await getDb();
+    const { session } = await resolveToday(db, user?.id ?? '');
 
     // Persist to SQLite — las fotos van como JSON en la columna photo_uri TEXT
     await insertVisit(db, {
       visit_id: record.visit_id,
-      session_id: null,
+      session_id: session?.session_id ?? null,
       store_id: record.store_id,
       user_id: user?.id ?? 'unknown',
       check_in_time: record.check_in_time,
@@ -205,7 +213,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       try {
         await insertCompetitionReport(db, {
           report_id: competitionReport.report_id,
-          session_id: null,
+          session_id: session?.session_id ?? null,
           visit_id: record.visit_id,
           store_id: storeId,
           user_id: user?.id ?? 'unknown',
