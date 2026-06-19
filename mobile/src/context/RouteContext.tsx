@@ -96,13 +96,18 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     setSessionEnded(state === 'ENDED');
     if (state === 'ACTIVE') {
       setGpsState('searching');
-      stopWatchRef.current?.();
-      stopWatchRef.current = null;
-      stopWatchRef.current = await startTracking(({ lat, lng }) => {
-        setCurrentLocation({ lat, lng });
-        setGpsState('found');
-      });
-      await ensureTracking(user.id);
+      try {
+        stopWatchRef.current?.();
+        stopWatchRef.current = null;
+        stopWatchRef.current = await startTracking(({ lat, lng }) => {
+          setCurrentLocation({ lat, lng });
+          setGpsState('found');
+        });
+        await ensureTracking(user.id);
+      } catch (e) {
+        setGpsState('error');
+        console.warn('[route] no se pudo reanudar el tracking:', (e as { message?: string })?.message ?? e);
+      }
     }
   }, [user]);
 
