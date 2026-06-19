@@ -19,7 +19,7 @@ import { mockStores } from '../mock-data';
 import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
 import { supabase } from '../services/supabase';
 import { newId } from '../services/sync/ids';
-import { shouldEmitPing } from '../services/sync/pingThrottle';
+import { flush } from '../services/sync/syncClient';
 import { useSyncCtx } from './SyncContext';
 import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState, CompetitionReportRecord } from '../types';
 
@@ -69,7 +69,6 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
   const locationSub = useRef<LocationSubscription | null>(null);
   const sessionId = useRef<string | null>(null);
   const routeId = useRef<string | null>(null);
-  const lastPingAt = useRef<number | null>(null);
   const { flushNow, refreshCount } = useSyncCtx();
 
   const loadRoute = useCallback(async () => {
@@ -114,7 +113,6 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         // Jornada de hoy aún abierta → reanudar.
         sessionId.current = today.session_id;
         routeId.current = today.route_id;
-        lastPingAt.current = null;
         setSessionActive(true);
         setSessionEnded(false);
         setGpsState('searching');
@@ -144,7 +142,6 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     // Persist session to SQLite
     const sid = newId();
     sessionId.current = sid;
-    lastPingAt.current = null;
 
     // Fix GPS inicial para start_location (Supabase lo exige NOT NULL).
     let startLat: number | null = null, startLng: number | null = null;
@@ -168,8 +165,9 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Ping inicial desde el fix de arranque, para aparecer en el mapa cuanto antes.
+    // (El task de background toma la posta ~30s después, usando este ping como
+    // referencia del throttle compartido.)
     if (startLat != null && startLng != null) {
-      lastPingAt.current = Date.now();
       await insertLocationPing(db, {
         ping_id: newId(),
         session_id: sid,
@@ -198,28 +196,14 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Foreground watch — keeps GPS chip and anti-fraud up to date.
-      // distanceInterval: 0 → emite por TIEMPO aunque el mercaderista esté quieto
-      // (con distanceInterval > 0 no llegaban callbacks estando parado = sin pings).
+      // Foreground watch — SÓLO actualiza el chip de GPS y la anti-fraude.
+      // Los pings los escribe exclusivamente el task de background (fuente única,
+      // throttleada a ~30s), para no duplicar ni saturar como pasaba antes.
       const sub = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 0 },
         (loc) => {
-          const lat = loc.coords.latitude, lng = loc.coords.longitude;
-          setCurrentLocation({ lat, lng });
+          setCurrentLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
           setGpsState('found');
-          // Pings en foreground (funciona en Expo Go); throttle ~30s, se suben en el flush.
-          if (sessionId.current && shouldEmitPing(lastPingAt.current, Date.now())) {
-            lastPingAt.current = Date.now();
-            insertLocationPing(db, {
-              ping_id: newId(),
-              session_id: sessionId.current,
-              user_id: user?.id ?? 'unknown',
-              timestamp: new Date(loc.timestamp).toISOString(),
-              lat,
-              lng,
-            }).then(() => flushNow())
-              .catch((e) => console.warn('[ping] insert FAIL:', (e as { message?: string })?.message ?? e));
-          }
         },
       );
       locationSub.current = sub;
@@ -262,8 +246,6 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function endSession() {
-    const sid = sessionId.current;
-
     // 1. UI inmediata (el botón siempre responde, pase lo que pase abajo).
     setSessionActive(false);
     setSessionEnded(true);
@@ -280,21 +262,42 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       console.warn('[RouteContext] could not stop background tracking:', e);
     }
 
-    // 3. Cerrar la sesión: local + servidor directo (no depende del flush).
+    // 3. Resolver la sesión a cerrar. Si se perdió el ref en memoria (remount,
+    //    proceso recreado por el OS), se recupera la jornada abierta de hoy desde
+    //    SQLite — así el cierre nunca se "salta" por un sessionId.current nulo.
+    let sid = sessionId.current;
+    if (!sid && user) {
+      const today = await getTodaySession(db, user.id);
+      if (today && today.session_end == null) sid = today.session_id;
+    }
+
     if (sid) {
       const endTime = new Date().toISOString();
+      // Local primero, marcada como pendiente (synced=0) para que el flush la suba
+      // sí o sí si el update directo no confirma.
       await updateSessionEnd(db, sid, endTime);
+      await db.runAsync(`UPDATE sessions SET synced = 0 WHERE session_id = ?`, sid);
       try {
-        const { error } = await supabase.from('sessions').update({ session_end: endTime }).eq('session_id', sid);
+        // .select() devuelve las filas afectadas → verificamos que SÍ se actualizó
+        // (un update que matchea 0 filas no lanza error; antes lo dábamos por bueno).
+        const { data, error } = await supabase
+          .from('sessions')
+          .update({ session_end: endTime })
+          .eq('session_id', sid)
+          .select('session_id');
         if (error) throw error;
-        await db.runAsync(`UPDATE sessions SET synced = 1 WHERE session_id = ?`, sid);
+        if (data && data.length > 0) {
+          await db.runAsync(`UPDATE sessions SET synced = 1 WHERE session_id = ?`, sid);
+        } else {
+          console.warn('[session] update afectó 0 filas — el flush la subirá por upsert');
+        }
       } catch (e) {
-        // Sin red: queda marcada para reintento en el próximo flush.
-        await db.runAsync(`UPDATE sessions SET synced = 0 WHERE session_id = ?`, sid);
-        console.warn('[session] no se pudo cerrar en servidor (reintenta en flush):', (e as { message?: string })?.message ?? e);
+        console.warn('[session] cierre directo falló (reintenta en flush):', (e as { message?: string })?.message ?? e);
       }
     }
 
+    // Empuje directo (idempotente). Si quedó synced=0, el upsert del flush la cierra.
+    try { await flush(db, supabase); } catch { /* el intervalo de 60s reintenta */ }
     flushNow();
     refreshCount();
   }
