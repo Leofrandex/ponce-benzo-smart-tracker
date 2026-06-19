@@ -60,6 +60,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
 
   const routeId = useRef<string | null>(null);
   const stopWatchRef = useRef<null | (() => void)>(null);
+  const startingRef = useRef(false); // guard de re-entrada para no crear sesiones duplicadas
   const { flushNow, refreshCount } = useSyncCtx();
 
   const loadRoute = useCallback(async () => {
@@ -134,29 +135,40 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function startSession() {
-    if (!user) return;
-    const perms = await requestPermissions();
-    if (!perms.foreground) { setGpsState('error'); return; }
-    await requestBatteryExemption();
-    let lat: number | null = null, lng: number | null = null;
+    // Guard de re-entrada: ignora toques repetidos / re-renders mientras ya se
+    // está arrancando o hay sesión activa (evita crear sesiones duplicadas).
+    if (!user || startingRef.current || sessionActive) return;
+    startingRef.current = true;
     try {
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      lat = pos.coords.latitude;
-      lng = pos.coords.longitude;
-    } catch { /* sin fix: la sesión sube cuando haya coords */ }
-    const db = await getDb();
-    await ssStart(db, { userId: user.id, routeId: routeId.current ?? 'unknown', startLat: lat, startLng: lng });
-    if (lat != null) setCurrentLocation({ lat, lng: lng! });
-    setSessionActive(true);
-    setSessionEnded(false);
-    setGpsState(lat != null ? 'found' : 'searching');
-    stopWatchRef.current?.();
-    stopWatchRef.current = null;
-    stopWatchRef.current = await startTracking(({ lat: a, lng: b }) => {
-      setCurrentLocation({ lat: a, lng: b });
-      setGpsState('found');
-    });
-    flushNow();
+      const perms = await requestPermissions();
+      if (!perms.foreground) { setGpsState('error'); return; }
+      await requestBatteryExemption();
+      const db = await getDb();
+      // Doble chequeo contra SQLite: si ya hay jornada activa hoy (carrera), derivar en vez de duplicar.
+      const existing = await resolveToday(db, user.id);
+      if (existing.state === 'ACTIVE') { setSessionActive(true); setSessionEnded(false); return; }
+
+      let lat: number | null = null, lng: number | null = null;
+      try {
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+      } catch { /* sin fix: la sesión sube cuando haya coords */ }
+      await ssStart(db, { userId: user.id, routeId: routeId.current ?? 'unknown', startLat: lat, startLng: lng });
+      if (lat != null) setCurrentLocation({ lat, lng: lng! });
+      setSessionActive(true);
+      setSessionEnded(false);
+      setGpsState(lat != null ? 'found' : 'searching');
+      stopWatchRef.current?.();
+      stopWatchRef.current = null;
+      stopWatchRef.current = await startTracking(({ lat: a, lng: b }) => {
+        setCurrentLocation({ lat: a, lng: b });
+        setGpsState('found');
+      });
+      flushNow();
+    } finally {
+      startingRef.current = false;
+    }
   }
 
   async function endSession() {
