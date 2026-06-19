@@ -7,6 +7,7 @@ import {
   insertSession,
   updateSessionEnd,
   getTodaySession,
+  getOpenSession,
   closeStaleSessions,
   insertVisit,
   insertLocationPing,
@@ -228,9 +229,10 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
 
       await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
         accuracy: Location.Accuracy.Balanced,
-        timeInterval: 30_000,   // cada 30 segundos
+        timeInterval: 15_000,   // pide updates cada ~15s; el throttle por BD los limita a ~30s
         distanceInterval: 0,    // por tiempo, no por movimiento (sale aunque esté quieto)
-        deferredUpdatesInterval: 30_000,
+        // SIN deferredUpdatesInterval: el modo "diferido" de Android agrupa y RETIENE
+        // los updates (sobre todo estando quieto) y cortaba el tracking tras 1 entrega.
         pausesUpdatesAutomatically: false,
         foregroundService: {
           notificationTitle: 'Ponce & Benzo — Ruta activa',
@@ -263,40 +265,49 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     }
 
     // 3. Resolver la sesión a cerrar. Si se perdió el ref en memoria (remount,
-    //    proceso recreado por el OS), se recupera la jornada abierta de hoy desde
-    //    SQLite — así el cierre nunca se "salta" por un sessionId.current nulo.
+    //    proceso recreado por el OS), se recupera la jornada abierta desde SQLite
+    //    — así el cierre nunca se "salta" por un sessionId.current nulo.
     let sid = sessionId.current;
     if (!sid && user) {
-      const today = await getTodaySession(db, user.id);
-      if (today && today.session_end == null) sid = today.session_id;
+      try {
+        const open = await getOpenSession(db, user.id);
+        if (open) sid = open.session_id;
+      } catch (e) {
+        console.warn('[session] no se pudo resolver la sesión abierta:', e);
+      }
     }
 
     if (sid) {
       const endTime = new Date().toISOString();
-      // Local primero, marcada como pendiente (synced=0) para que el flush la suba
-      // sí o sí si el update directo no confirma.
-      await updateSessionEnd(db, sid, endTime);
-      await db.runAsync(`UPDATE sessions SET synced = 0 WHERE session_id = ?`, sid);
+      let serverOk = false;
+
+      // Servidor PRIMERO (autoritativo para el mapa en vivo y el hub), verificado.
+      // Antes el cierre local iba primero y, si la SQLite estaba ocupada por el
+      // task de background, lanzaba "database is locked" y abortaba TODO el cierre.
       try {
-        // .select() devuelve las filas afectadas → verificamos que SÍ se actualizó
-        // (un update que matchea 0 filas no lanza error; antes lo dábamos por bueno).
         const { data, error } = await supabase
           .from('sessions')
           .update({ session_end: endTime })
           .eq('session_id', sid)
           .select('session_id');
         if (error) throw error;
-        if (data && data.length > 0) {
-          await db.runAsync(`UPDATE sessions SET synced = 1 WHERE session_id = ?`, sid);
-        } else {
-          console.warn('[session] update afectó 0 filas — el flush la subirá por upsert');
-        }
+        serverOk = !!(data && data.length > 0); // 0 filas = no se cerró de verdad
+        if (!serverOk) console.warn('[session] update afectó 0 filas — el flush la subirá por upsert');
       } catch (e) {
-        console.warn('[session] cierre directo falló (reintenta en flush):', (e as { message?: string })?.message ?? e);
+        console.warn('[session] cierre directo en servidor falló (reintenta en flush):', (e as { message?: string })?.message ?? e);
+      }
+
+      // Local best-effort: no debe tumbar el cierre si la BD está ocupada.
+      // synced=1 sólo si el servidor confirmó; si no, queda pendiente para el flush.
+      try {
+        await updateSessionEnd(db, sid, endTime);
+        await db.runAsync(`UPDATE sessions SET synced = ? WHERE session_id = ?`, serverOk ? 1 : 0, sid);
+      } catch (e) {
+        console.warn('[session] no se pudo escribir el cierre local (la sesión ya cerró en servidor):', (e as { message?: string })?.message ?? e);
       }
     }
 
-    // Empuje directo (idempotente). Si quedó synced=0, el upsert del flush la cierra.
+    // Empuje idempotente: si quedó synced=0, el upsert del flush cierra la sesión.
     try { await flush(db, supabase); } catch { /* el intervalo de 60s reintenta */ }
     flushNow();
     refreshCount();
