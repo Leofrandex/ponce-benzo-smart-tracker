@@ -10,6 +10,8 @@ import {
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchFullTasks, type FullTaskRow } from "@/app/lib/queries/tasks";
 import { resolveTask } from "@/app/lib/mutations/tasks";
+import { GeoFilters } from "@/app/components/geo/GeoFilters";
+import { EMPTY_GEO, type GeoFilterValue } from "@/app/components/geo/geoOptions";
 
 type TaskStatus = "open" | "resolved";
 
@@ -42,13 +44,19 @@ export default function TareasPage() {
   const { data: rawTasks, loading, error, refetch } = useSupabaseQuery(fetchFullTasks, []);
   const tasks = rawTasks ?? [];
   const [filter, setFilter] = useState<TaskStatus | "all">("all");
+  const [geo, setGeo] = useState<GeoFilterValue>(EMPTY_GEO);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const open     = tasks.filter((t) => t.status === "open").length;
   const resolved = tasks.filter((t) => t.status === "resolved").length;
 
-  const filtered =
-    filter === "all" ? tasks : tasks.filter((t) => t.status === filter);
+  const filtered = tasks.filter((t) => {
+    if (filter !== "all" && t.status !== filter) return false;
+    if (geo.estado && t.estado !== geo.estado) return false;
+    if (geo.municipio && t.municipio !== geo.municipio) return false;
+    if (geo.urbanizacion && t.urbanizacion !== geo.urbanizacion) return false;
+    return true;
+  });
 
   const handleResolve = async (taskId: string) => {
     const { error: e } = await resolveTask(taskId);
@@ -91,6 +99,16 @@ export default function TareasPage() {
             {label}
           </button>
         ))}
+      </div>
+
+      {/* Filtros geográficos */}
+      <div className="card" style={{ padding: "12px", display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "flex-end" }}>
+        <GeoFilters items={tasks} value={geo} onChange={setGeo} />
+        {(geo.estado || geo.municipio || geo.urbanizacion) && (
+          <button className="filter-chip" onClick={() => setGeo(EMPTY_GEO)} style={{ marginLeft: "auto" }}>
+            Limpiar
+          </button>
+        )}
       </div>
 
       {/* Loading / error states */}
