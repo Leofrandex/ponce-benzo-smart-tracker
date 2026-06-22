@@ -37,7 +37,7 @@ Se adoptó el siguiente modelo de tres capas:
 |---|---|---|
 | SQLite (móvil) | `TEXT` | Array serializado como JSON (`["ETIQUETA","FALTANTE"]`) — mismo patrón que `competition_reports.photo_uri` |
 | Supabase (`visits`) | `TEXT[]` | Columna con CHECK de elemento válido; migración `ALTER COLUMN` directa |
-| Trigger `fn_create_task_from_anomaly` | — | Recorre el array con `UNNEST` y crea una task por elemento, con dedup `ON CONFLICT (source_visit_id, title) DO NOTHING` |
+| Trigger `fn_create_task_from_anomaly` | — | Recorre el array con `FOREACH ... IN ARRAY` y crea una task por elemento; dedup mediante `IF NOT EXISTS` por `(source_visit_id, title)` (no hay constraint UNIQUE) |
 
 El payload de sync (`payloads.ts` en el móvil) parsea el JSON de SQLite y lo envía directamente como array a Supabase.
 
@@ -57,7 +57,7 @@ Se evaluó crear una tabla `visit_anomalies (id, visit_id, anomaly_type)` con un
 
 ### Positivas 👍
 - **Cambio mínimo**: la lógica de sync existente no cambia estructuralmente; sólo se agrega un `JSON.parse` en `payloads.ts`.
-- **Una task por anomalía se preserva**: el trigger con `UNNEST` + dedup mantiene la trazabilidad supervisor→anomalía.
+- **Una task por anomalía se preserva**: el trigger con `FOREACH` + dedup `IF NOT EXISTS` mantiene la trazabilidad supervisor→anomalía.
 - **Migración no destructiva**: 0 filas previas → `ALTER COLUMN` sin pérdida.
 - **Consistente con patrones existentes**: JSON-en-TEXT ya se usa en `competition_reports.photo_uri`.
 
