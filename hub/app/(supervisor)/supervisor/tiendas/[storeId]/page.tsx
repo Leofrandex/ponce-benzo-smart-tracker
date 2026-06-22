@@ -3,10 +3,11 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Building2, Pencil } from "lucide-react";
+import { ArrowLeft, Building2, Pencil, Camera, Megaphone } from "lucide-react";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchStoreById, fetchContacts, fetchEngagements } from "@/app/lib/queries/contacts";
 import { fetchFullTasks } from "@/app/lib/queries/tasks";
+import { fetchStoreReports, fetchStoreCompetition } from "@/app/lib/queries/reports";
 import { updateStore } from "@/app/lib/mutations/stores";
 import { createContact, updateContact, deleteContact } from "@/app/lib/mutations/contacts";
 import { createEngagement, toggleEngagementDone } from "@/app/lib/mutations/engagements";
@@ -16,6 +17,7 @@ import { ClientInfoPanel } from "@/app/components/clientes/ClientInfoPanel";
 import { ContactList } from "@/app/components/clientes/ContactList";
 import { EngagementsPanel } from "@/app/components/clientes/EngagementsPanel";
 import { ActivityFeed } from "@/app/components/clientes/ActivityFeed";
+import { CompetitionReportsPanel } from "@/app/components/clientes/CompetitionReportsPanel";
 import { LongTermPlaceholders } from "@/app/components/clientes/LongTermPlaceholders";
 import { StoreFormModal } from "@/app/components/clientes/StoreFormModal";
 
@@ -27,10 +29,12 @@ export default function ClienteDetailPage() {
   const { data: engagements, refetch: refetchEngagements } = useSupabaseQuery(() => fetchEngagements(storeId), [storeId]);
   const { data: allTasks } = useSupabaseQuery(fetchFullTasks, []);
   const tasks = useMemo(() => (allTasks ?? []).filter((t) => t.store_id === storeId), [allTasks, storeId]);
-  const reports: never[] = [];
+  const { data: reports } = useSupabaseQuery(() => fetchStoreReports(storeId), [storeId]);
+  const { data: competition } = useSupabaseQuery(() => fetchStoreCompetition(storeId), [storeId]);
   const lastRestock = null;
 
   const [editOpen, setEditOpen] = useState(false);
+  const [activityTab, setActivityTab] = useState<"visitas" | "competencia">("visitas");
 
   const onStoreSave = async (updated: Store) => {
     const patch: Partial<Store> = {
@@ -118,7 +122,31 @@ export default function ClienteDetailPage() {
           <LongTermPlaceholders />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <ActivityFeed reports={reports} tasks={[]} />
+          <div>
+            <div style={{ display: "flex", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "3px", marginBottom: "8px" }}>
+              {([["visitas", "Visitas", Camera], ["competencia", "Competencia", Megaphone]] as [typeof activityTab, string, React.ElementType][]).map(([key, label, Icon]) => (
+                <button
+                  key={key}
+                  onClick={() => setActivityTab(key)}
+                  style={{
+                    flex: 1, border: "none", borderRadius: "calc(var(--radius-md) - 2px)", padding: "7px 12px",
+                    fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                    background: activityTab === key ? "var(--bg-surface)" : "transparent",
+                    color: activityTab === key ? "var(--text-primary)" : "var(--text-muted)",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+                  }}
+                >
+                  <Icon size={13} /> {label}
+                  {key === "competencia" && (competition?.length ?? 0) > 0 && (
+                    <span style={{ fontSize: "10px", fontWeight: 700, background: "var(--accent-glow)", color: "var(--accent)", borderRadius: "999px", padding: "1px 6px" }}>{competition!.length}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            {activityTab === "visitas"
+              ? <ActivityFeed reports={reports ?? []} tasks={[]} />
+              : <CompetitionReportsPanel reports={competition ?? []} />}
+          </div>
           <EngagementsPanel
             key={storeId}
             engagements={engagements ?? []}

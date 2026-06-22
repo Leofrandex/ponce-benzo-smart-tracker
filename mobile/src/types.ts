@@ -47,6 +47,10 @@ export interface Session {
   created_at: string;
 }
 
+export type AnomalyType =
+  | 'sin_stock' | 'cambio_planograma' | 'diferencia_precios'
+  | 'producto_danado' | 'otro';
+
 export interface Visit {
   visit_id: string;
   session_id: string;
@@ -59,9 +63,7 @@ export interface Visit {
   status: 'completed' | 'skipped' | 'anomaly';
   synced: boolean;
   created_at: string;
-  anomaly_type:
-    | 'sin_stock' | 'cambio_planograma' | 'diferencia_precios'
-    | 'producto_danado' | 'otro' | null;
+  anomaly_type: AnomalyType[] | null;
   skip_reason: 'fuera_de_ruta' | 'sin_acceso' | 'otro' | null;
   last_restock_date: string | null;
 }

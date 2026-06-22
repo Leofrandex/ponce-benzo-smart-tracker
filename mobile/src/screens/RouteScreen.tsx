@@ -40,7 +40,6 @@ export function RouteScreen() {
     endSession,
     completedCount,
     totalCount,
-    pendingSyncCount,
     routeMode,
     setRouteMode,
     addStoreToRoute,
@@ -129,7 +128,7 @@ export function RouteScreen() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <>
-            <SyncBanner pendingCount={pendingSyncCount} />
+            <SyncBanner />
             {!sessionActive && !sessionEnded && (
               <RouteModeToggle mode={routeMode} onChange={setRouteMode} />
             )}

@@ -24,13 +24,15 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
+      "allowBackup": false,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_LOCATION"
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.WAKE_LOCK"
       ]
     },
     "web": {
@@ -48,6 +50,7 @@
       "expo-font"
     ],
     "extra": {
+      "gitCommit": "dev",
       "eas": {
         "projectId": "d2737f7b-0538-44aa-a579-4ed2e3caa7a6"
       }
@@ -57,7 +60,7 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/d2737f7b-0538-44aa-a579-4ed2e3caa7a6"
+      "enabled": false
     }
   }
 }

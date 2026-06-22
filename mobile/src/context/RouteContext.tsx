@@ -1,19 +1,19 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
-import type { LocationSubscription } from 'expo-location';
-import { useSQLiteContext } from 'expo-sqlite';
+import { AppState } from 'react-native';
 import { useAuth } from './AuthContext';
 import {
-  insertSession,
-  updateSessionEnd,
   insertVisit,
   getUnsyncedCount,
   insertCompetitionReport,
   getUnsyncedCompetitionCount,
 } from '../services/db';
-import { BACKGROUND_LOCATION_TASK } from '../tasks/locationTask';
 import { mockStores } from '../mock-data';
 import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
+import { useSyncCtx } from './SyncContext';
+import { getDb } from '../store/localStore';
+import { resolveToday, startSession as ssStart, endSession as ssEnd, closeStaleSessions } from '../session/sessionStore';
+import { startTracking, stopBackground, ensureTracking, requestPermissions, requestBatteryExemption } from '../location/locationTracker';
 import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState, CompetitionReportRecord } from '../types';
 
 interface RouteContextValue {
@@ -45,7 +45,6 @@ interface RouteContextValue {
 const RouteContext = createContext<RouteContextValue | null>(null);
 
 export function RouteProvider({ children }: { children: React.ReactNode }) {
-  const db = useSQLiteContext();
   const { user } = useAuth();
 
   const [routeItems, setRouteItems] = useState<RouteStoreItem[]>([]);
@@ -59,8 +58,10 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [routeMode, setRouteModeState] = useState<'normal' | 'special'>('normal');
 
-  const locationSub = useRef<LocationSubscription | null>(null);
-  const sessionId = useRef<string | null>(null);
+  const routeId = useRef<string | null>(null);
+  const stopWatchRef = useRef<null | (() => void)>(null);
+  const startingRef = useRef(false); // guard de re-entrada para no crear sesiones duplicadas
+  const { flushNow, refreshCount } = useSyncCtx();
 
   const loadRoute = useCallback(async () => {
     if (!user) return;
@@ -73,6 +74,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         setRouteDate(null);
         return;
       }
+      routeId.current = picked.route.route_id;
       const stores = await fetchStoresByIds(picked.route.store_ids);
       setRouteItems(stores.map((store, i) => ({ store, order: i + 1, status: 'pending' as StoreStatus })));
       setRouteDate(picked.route.route_date);
@@ -85,7 +87,46 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { loadRoute(); }, [loadRoute]);
 
+  // Derive session state from SQLite via sessionStore
+  const deriveState = useCallback(async () => {
+    if (!user) return;
+    const db = await getDb();
+    await closeStaleSessions(db, user.id);
+    const { state } = await resolveToday(db, user.id);
+    setSessionActive(state === 'ACTIVE');
+    setSessionEnded(state === 'ENDED');
+    if (state === 'ACTIVE') {
+      setGpsState('searching');
+      try {
+        stopWatchRef.current?.();
+        stopWatchRef.current = null;
+        stopWatchRef.current = await startTracking(({ lat, lng }) => {
+          setCurrentLocation({ lat, lng });
+          setGpsState('found');
+        });
+        await ensureTracking(user.id);
+      } catch (e) {
+        setGpsState('error');
+        console.warn('[route] no se pudo reanudar el tracking:', (e as { message?: string })?.message ?? e);
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    deriveState();
+    return () => { stopWatchRef.current?.(); stopWatchRef.current = null; };
+  }, [deriveState]);
+
+  // Watchdog: when returning to foreground, reassure background tracking is running
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active' && user) ensureTracking(user.id);
+    });
+    return () => sub.remove();
+  }, [user]);
+
   async function refreshSyncCount() {
+    const db = await getDb();
     const [visits, reports] = await Promise.all([
       getUnsyncedCount(db),
       getUnsyncedCompetitionCount(db),
@@ -94,95 +135,56 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function startSession() {
-    setSessionActive(true);
-    setGpsState('searching');
-
-    // Persist session to SQLite
-    const sid = `session-${Date.now()}`;
-    sessionId.current = sid;
-    await insertSession(db, {
-      session_id: sid,
-      user_id: user?.id ?? 'unknown',
-      route_id: 'route-demo-001',
-      session_start: new Date().toISOString(),
-      start_lat: null,
-      start_lng: null,
-    });
-
-    // Start GPS tracking
+    // Guard de re-entrada: ignora toques repetidos / re-renders mientras ya se
+    // está arrancando o hay sesión activa (evita crear sesiones duplicadas).
+    if (!user || startingRef.current || sessionActive) return;
+    startingRef.current = true;
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setGpsState('error');
-        return;
-      }
+      const perms = await requestPermissions();
+      if (!perms.foreground) { setGpsState('error'); return; }
+      await requestBatteryExemption();
+      const db = await getDb();
+      // Doble chequeo contra SQLite: si ya hay jornada activa hoy (carrera), derivar en vez de duplicar.
+      const existing = await resolveToday(db, user.id);
+      if (existing.state === 'ACTIVE') { setSessionActive(true); setSessionEnded(false); return; }
 
-      // Foreground watch — keeps GPS chip and anti-fraud up to date
-      const sub = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 10 },
-        (loc) => {
-          setCurrentLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
-          setGpsState('found');
-        },
-      );
-      locationSub.current = sub;
-
-      // Background tracking — saves pings to SQLite even when app is backgrounded
-      await startBackgroundTracking();
-    } catch {
-      setGpsState('error');
-    }
-  }
-
-  async function startBackgroundTracking() {
-    try {
-      const { status } = await Location.requestBackgroundPermissionsAsync();
-      if (status !== 'granted') {
-        // Background permission denied — foreground-only tracking still works
-        return;
-      }
-
-      const alreadyRunning = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-      if (alreadyRunning) return;
-
-      await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 30_000,   // every 30 seconds
-        distanceInterval: 50,   // or every 50 metres
-        foregroundService: {
-          notificationTitle: 'Ponce & Benzo — Ruta activa',
-          notificationBody: 'Registrando tu ubicación durante la ruta.',
-          notificationColor: '#00205C',
-        },
-        showsBackgroundLocationIndicator: true,
+      let lat: number | null = null, lng: number | null = null;
+      try {
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+      } catch { /* sin fix: la sesión sube cuando haya coords */ }
+      await ssStart(db, { userId: user.id, routeId: routeId.current ?? 'unknown', startLat: lat, startLng: lng });
+      if (lat != null) setCurrentLocation({ lat, lng: lng! });
+      setSessionActive(true);
+      setSessionEnded(false);
+      setGpsState(lat != null ? 'found' : 'searching');
+      stopWatchRef.current?.();
+      stopWatchRef.current = null;
+      stopWatchRef.current = await startTracking(({ lat: a, lng: b }) => {
+        setCurrentLocation({ lat: a, lng: b });
+        setGpsState('found');
       });
-    } catch (e) {
-      // Non-fatal — background tracking is best-effort
-      console.warn('[RouteContext] background tracking unavailable:', e);
+      flushNow();
+    } finally {
+      startingRef.current = false;
     }
   }
 
   async function endSession() {
-    // Stop foreground watch
-    locationSub.current?.remove();
-    locationSub.current = null;
-
-    // Stop background task
-    try {
-      const running = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-      if (running) await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-    } catch (e) {
-      console.warn('[RouteContext] could not stop background tracking:', e);
-    }
-
-    if (sessionId.current) {
-      await updateSessionEnd(db, sessionId.current, new Date().toISOString());
-    }
-
     setSessionActive(false);
     setSessionEnded(true);
     setGpsState('idle');
     setCurrentLocation(null);
+    stopWatchRef.current?.();
+    stopWatchRef.current = null;
+    await stopBackground();
+    if (user) {
+      const db = await getDb();
+      await ssEnd(db, user.id);
+    }
+    flushNow();
+    refreshCount();
   }
 
   async function recordVisit(
@@ -199,10 +201,13 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       ),
     );
 
+    const db = await getDb();
+    const { session } = await resolveToday(db, user?.id ?? '');
+
     // Persist to SQLite — las fotos van como JSON en la columna photo_uri TEXT
     await insertVisit(db, {
       visit_id: record.visit_id,
-      session_id: sessionId.current ?? null,
+      session_id: session?.session_id ?? null,
       store_id: record.store_id,
       user_id: user?.id ?? 'unknown',
       check_in_time: record.check_in_time,
@@ -211,30 +216,42 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       photo_uri: JSON.stringify(record.photo_uris),
       observations: record.observations ?? null,
       status: record.status,
-      anomaly_type: record.status === 'anomaly' ? record.anomaly_type : null,
+      anomaly_type:
+        record.status === 'anomaly' && record.anomaly_type
+          ? JSON.stringify(record.anomaly_type)
+          : null,
       skip_reason: record.status === 'skipped' ? record.skip_reason : null,
       last_restock_date: record.last_restock_date,
       synced: 0,
     });
 
     // Reporte de competencia opcional: misma tienda, misma operación.
+    // Va en try/catch: si algo falla aquí, la visita YA quedó guardada y la
+    // pantalla debe cerrar igual (antes una excepción acá dejaba el registro
+    // abierto sin volver al menú).
     if (competitionReport) {
-      await insertCompetitionReport(db, {
-        report_id: competitionReport.report_id,
-        session_id: sessionId.current ?? null,
-        visit_id: record.visit_id,
-        store_id: storeId,
-        user_id: user?.id ?? 'unknown',
-        brand_id: competitionReport.brand_id,
-        activation_type: competitionReport.activation_type,
-        photo_uris: competitionReport.photo_uris,
-        notes: competitionReport.notes,
-        created_at: new Date().toISOString(),
-        synced: 0,
-      });
+      try {
+        await insertCompetitionReport(db, {
+          report_id: competitionReport.report_id,
+          session_id: session?.session_id ?? null,
+          visit_id: record.visit_id,
+          store_id: storeId,
+          user_id: user?.id ?? 'unknown',
+          brand_id: competitionReport.brand_id,
+          activation_type: competitionReport.activation_type,
+          photo_uris: competitionReport.photo_uris,
+          notes: competitionReport.notes,
+          created_at: new Date().toISOString(),
+          synced: 0,
+        });
+      } catch (e) {
+        console.warn('[visit] competition insert FAIL:', (e as { message?: string })?.message ?? e);
+      }
     }
 
-    await refreshSyncCount();
+    // Conteo y sync en segundo plano: no se esperan para no bloquear el cierre.
+    refreshSyncCount().catch(() => {});
+    flushNow();
   }
 
   function setRouteMode(mode: 'normal' | 'special') {

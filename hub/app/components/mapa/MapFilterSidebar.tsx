@@ -75,14 +75,28 @@ export function MapFilterSidebar({ value, onChange, stores, merchandisers }: Map
         title="Mercaderistas" open={merchOpen} onToggle={() => setMerchOpen((o) => !o)}
         count={value.merchIds.length === 0 ? "todos" : `${value.merchIds.length} / ${merchandisers.length}`}
       />
-      {merchOpen && merchandisers.map((m) => (
-        <FilterCard key={m.id}
-          icon={<User size={13} />} label={m.name}
-          sub={m.status === "offline" ? "Desconectado" : "Activo"}
-          selected={value.merchIds.includes(m.id)}
-          onClick={() => onChange({ ...value, merchIds: toggle(value.merchIds, m.id) })}
-        />
-      ))}
+      {merchOpen && merchandisers.map((m) => {
+        const active = m.status !== "offline";
+        return (
+          <FilterCard key={m.id}
+            icon={
+              <span style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <User size={13} />
+                <span style={{
+                  position: "absolute", bottom: -2, right: -2,
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: active ? "var(--success, #16a34a)" : "var(--text-muted)",
+                  border: "1.5px solid var(--bg-card)",
+                }} />
+              </span>
+            }
+            label={m.name}
+            sub={active ? "Activo" : "Desconectado"}
+            selected={value.merchIds.includes(m.id)}
+            onClick={() => onChange({ ...value, merchIds: toggle(value.merchIds, m.id) })}
+          />
+        );
+      })}
 
       <SectionHeader
         title="Sucursales" open={storesOpen} onToggle={() => setStoresOpen((o) => !o)}

@@ -2,11 +2,12 @@
 
 import { MapContainer, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LIGHT_TILE_URL, LIGHT_TILE_ATTRIBUTION, CARACAS_CENTER } from "./tiles";
 import { StoreMarkersLayer } from "./StoreMarkersLayer";
 import { HeatmapLayer } from "./HeatmapLayer";
 import { DateRangeChips, presetRange, type DateRange } from "./DateRangeChips";
+import { fetchHeatPoints } from "@/app/lib/queries/sessions";
 import type { MapFilterValue } from "./MapFilterSidebar";
 import type { Store } from "@/app/lib/types";
 
@@ -23,9 +24,15 @@ export default function MapHistoryView({ filters, stores }: MapHistoryViewProps)
     [stores, filters.storeIds],
   );
 
-  // Historical pings from real DB are out of scope for this phase.
-  // The heatmap renders empty — no crash, just no heat points.
-  const points: [number, number][] = [];
+  // Puntos de calor reales desde location_pings, según rango + mercaderistas filtrados.
+  const [points, setPoints] = useState<[number, number][]>([]);
+  useEffect(() => {
+    let active = true;
+    fetchHeatPoints(range.from, range.to, filters.merchIds)
+      .then((p) => { if (active) setPoints(p); })
+      .catch(() => { if (active) setPoints([]); });
+    return () => { active = false; };
+  }, [range.from, range.to, filters.merchIds]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "10px", padding: "10px" }}>

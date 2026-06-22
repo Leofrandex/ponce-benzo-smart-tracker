@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Map as MapIcon, Radio, History, Activity } from "lucide-react";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchStores } from "@/app/lib/queries/stores";
-import { fetchLivePositions, type LivePosition } from "@/app/lib/queries/sessions";
+import { fetchLivePositions, fetchMerchandisers, type LivePosition } from "@/app/lib/queries/sessions";
 import { MapFilterSidebar, EMPTY_MAP_FILTERS, type MapFilterValue } from "@/app/components/mapa/MapFilterSidebar";
 import type { MapMerchandiser } from "@/app/lib/map-data";
 
@@ -31,6 +31,7 @@ export default function MapaPage() {
 
   // --- Real data from Supabase ---
   const { data: stores } = useSupabaseQuery(fetchStores, []);
+  const { data: roster } = useSupabaseQuery(fetchMerchandisers, []);
 
   const [positions, setPositions] = useState<LivePosition[]>([]);
   useEffect(() => {
@@ -49,6 +50,7 @@ export default function MapaPage() {
   const activeCount = positions.length;
 
   // Map LivePosition → MapMerchandiser shape expected by the marker layer
+  // (sólo activos: son los que tienen posición real para dibujar un marcador).
   const merchandisers = useMemo<MapMerchandiser[]>(
     () => positions.map((p) => ({
       id: p.user_id,
@@ -59,6 +61,29 @@ export default function MapaPage() {
     })),
     [positions],
   );
+
+  // Lista del FILTRO: roster completo (los 5), marcando activo/inactivo según
+  // quién tiene posición en vivo. Si por algo falla el roster, cae a los activos.
+  const filterMerchandisers = useMemo<MapMerchandiser[]>(() => {
+    const livePos = new Map(positions.map((p) => [p.user_id, p]));
+    const base = (roster ?? []).map((m) => {
+      const live = livePos.get(m.user_id);
+      return {
+        id: m.user_id,
+        name: m.full_name,
+        status: (live ? "active" : "offline") as "active" | "offline",
+        lat: live?.lat ?? 0,
+        lng: live?.lng ?? 0,
+      };
+    });
+    // Mercaderistas activos que no estén en el roster (defensa) se agregan igual.
+    for (const p of positions) {
+      if (!base.some((b) => b.id === p.user_id)) {
+        base.push({ id: p.user_id, name: p.full_name, status: "active", lat: p.lat, lng: p.lng });
+      }
+    }
+    return base.length > 0 ? base : merchandisers;
+  }, [roster, positions, merchandisers]);
 
   const safeStores = stores ?? [];
 
@@ -74,7 +99,7 @@ export default function MapaPage() {
           value={filters}
           onChange={setFilters}
           stores={safeStores}
-          merchandisers={merchandisers}
+          merchandisers={filterMerchandisers}
         />
 
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "12px" }}>

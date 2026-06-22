@@ -11,13 +11,15 @@ import { GPSChip } from '../components/GPSChip';
 import { CameraModal } from '../components/CameraModal';
 import { Button } from '../components/Button';
 import { BottomSheetSelect, type SelectOption } from '../components/BottomSheetSelect';
+import { BottomSheetMultiSelect } from '../components/BottomSheetMultiSelect';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { StatusBadge } from '../components/StatusBadge';
 import { CompetitionTab } from '../components/CompetitionTab';
 import { CompetitionPanel } from '../components/CompetitionPanel';
 import { colors, radii, fonts } from '../theme';
 import { useRouteCtx } from '../context/RouteContext';
-import type { StoreStatus, VisitRecord, Visit } from '../types';
+import { newId } from '../services/sync/ids';
+import type { StoreStatus, VisitRecord, Visit, AnomalyType } from '../types';
 import type { CompetitionReportRecord } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -49,7 +51,7 @@ const SKIP_REASON_OPTIONS: SelectOption<NonNullable<Visit['skip_reason']>>[] = [
   { value: 'otro',          label: 'Otro' },
 ];
 
-const ANOMALY_TYPE_OPTIONS: SelectOption<NonNullable<Visit['anomaly_type']>>[] = [
+const ANOMALY_TYPE_OPTIONS: SelectOption<AnomalyType>[] = [
   { value: 'sin_stock',          label: 'No hay stock' },
   { value: 'cambio_planograma',  label: 'Cambio en el planograma' },
   { value: 'diferencia_precios', label: 'Diferencia de precios' },
@@ -76,7 +78,7 @@ export function CheckInScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const [skipReason, setSkipReason] = useState<Visit['skip_reason']>(null);
-  const [anomalyType, setAnomalyType] = useState<Visit['anomaly_type']>(null);
+  const [anomalyTypes, setAnomalyTypes] = useState<AnomalyType[]>([]);
   const [lastRestockDate, setLastRestockDate] = useState<string | null>(null);
 
   const [skipSheetOpen, setSkipSheetOpen] = useState(false);
@@ -89,7 +91,7 @@ export function CheckInScreen() {
   // Al cambiar de estado se descartan los valores del estado anterior.
   useEffect(() => {
     setSkipReason(null);
-    setAnomalyType(null);
+    setAnomalyTypes([]);
   }, [selectedStatus]);
 
   const locationVerified = useMemo(() => {
@@ -104,7 +106,7 @@ export function CheckInScreen() {
   const statusValid =
     selectedStatus === 'completed' ||
     (selectedStatus === 'skipped' && skipReason !== null) ||
-    (selectedStatus === 'anomaly' && anomalyType !== null);
+    (selectedStatus === 'anomaly' && anomalyTypes.length > 0);
 
   const canSubmit = !submitting && gpsState === 'found' && photoUris.length > 0 && statusValid;
 
@@ -113,7 +115,7 @@ export function CheckInScreen() {
     setSubmitting(true);
 
     const record: VisitRecord = {
-      visit_id: `visit-${Date.now()}`,
+      visit_id: newId(),
       store_id: store.store_id,
       check_in_time: new Date().toISOString(),
       check_in_location: currentLocation,
@@ -121,17 +123,18 @@ export function CheckInScreen() {
       observations,
       status: selectedStatus,
       synced: false,
-      anomaly_type: selectedStatus === 'anomaly' ? anomalyType : null,
+      anomaly_type: selectedStatus === 'anomaly' ? anomalyTypes : null,
       skip_reason: selectedStatus === 'skipped' ? skipReason : null,
       last_restock_date: lastRestockDate,
     };
 
-    try {
-      await recordVisit(store.store_id, record, competitionDraft ?? undefined);
-      navigation.goBack();
-    } finally {
-      setSubmitting(false);
-    }
+    // recordVisit actualiza la lista (optimista) y persiste en SQLite; la subida a
+    // Supabase corre en segundo plano. No se espera la red para cerrar: así el
+    // registro vuelve al menú de inmediato en vez de quedarse trabado.
+    recordVisit(store.store_id, record, competitionDraft ?? undefined).catch((e) =>
+      console.warn('[checkin] recordVisit FAIL:', (e as { message?: string })?.message ?? e),
+    );
+    navigation.goBack();
   }
 
   return (
@@ -243,17 +246,21 @@ export function CheckInScreen() {
           </View>
         )}
 
-        {/* Tipo de anomalía (solo si es anomalía) */}
+        {/* Tipo(s) de anomalía (solo si es anomalía) */}
         {selectedStatus === 'anomaly' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Tipo de anomalía</Text>
+            <Text style={styles.sectionTitle}>Tipo(s) de anomalía</Text>
             <TouchableOpacity
               style={styles.dropdownField}
               onPress={() => setAnomalySheetOpen(true)}
               activeOpacity={0.75}
             >
-              <Text style={[styles.dropdownText, !anomalyType && styles.dropdownPlaceholder]}>
-                {ANOMALY_TYPE_OPTIONS.find((o) => o.value === anomalyType)?.label ?? 'Seleccioná el tipo'}
+              <Text style={[styles.dropdownText, anomalyTypes.length === 0 && styles.dropdownPlaceholder]}>
+                {anomalyTypes.length === 0
+                  ? 'Seleccioná el/los tipo(s)'
+                  : anomalyTypes.length <= 2
+                    ? anomalyTypes.map((v) => ANOMALY_TYPE_OPTIONS.find((o) => o.value === v)?.label ?? v).join(', ')
+                    : `${anomalyTypes.length} seleccionadas`}
               </Text>
               <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
             </TouchableOpacity>
@@ -321,8 +328,8 @@ export function CheckInScreen() {
             {selectedStatus === 'skipped' && !skipReason && (
               <Text style={styles.blockingItem}>• Seleccioná el motivo de omisión</Text>
             )}
-            {selectedStatus === 'anomaly' && !anomalyType && (
-              <Text style={styles.blockingItem}>• Seleccioná el tipo de anomalía</Text>
+            {selectedStatus === 'anomaly' && anomalyTypes.length === 0 && (
+              <Text style={styles.blockingItem}>• Seleccioná al menos un tipo de anomalía</Text>
             )}
           </View>
         )}
@@ -351,12 +358,12 @@ export function CheckInScreen() {
         onClose={() => setSkipSheetOpen(false)}
       />
 
-      <BottomSheetSelect
+      <BottomSheetMultiSelect
         visible={anomalySheetOpen}
-        title="Tipo de anomalía"
+        title="Tipo(s) de anomalía"
         options={ANOMALY_TYPE_OPTIONS}
-        selectedValue={anomalyType}
-        onSelect={(v) => setAnomalyType(v)}
+        selectedValues={anomalyTypes}
+        onConfirm={(v) => setAnomalyTypes(v)}
         onClose={() => setAnomalySheetOpen(false)}
       />
 
