@@ -17,3 +17,11 @@ test("toPingPayload: shape mínimo", () => {
   const p = toPingPayload({ ping_id:"p1", session_id:"s1", user_id:"u1", timestamp:"t", lat:1, lng:2 });
   assert.equal(p.ping_id,"p1"); assert.equal(p.user_id,"u1");
 });
+test("toVisitPayload: anomaly_type JSON se parsea a array", () => {
+  const p = toVisitPayload({ visit_id:"v3", session_id:"s1", store_id:"st1", user_id:"u1", check_in_time:"t", lat:1, lng:2, photo_uri:null, observations:null, status:"anomaly", anomaly_type:'["sin_stock","producto_danado"]', skip_reason:null, last_restock_date:null, synced:0 }, []);
+  assert.deepEqual(p.anomaly_type, ["sin_stock", "producto_danado"]);
+});
+test("toVisitPayload: anomaly_type null queda null", () => {
+  const p = toVisitPayload({ visit_id:"v4", session_id:"s1", store_id:"st1", user_id:"u1", check_in_time:"t", lat:1, lng:2, photo_uri:null, observations:null, status:"completed", anomaly_type:null, skip_reason:null, last_restock_date:null, synced:0 }, []);
+  assert.equal(p.anomaly_type, null);
+});
