@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS visits (
   photo_urls        TEXT[] DEFAULT '{}',
   observations      TEXT,
   status            TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('completed','skipped','anomaly')),
-  anomaly_type      TEXT CHECK (anomaly_type IN ('sin_stock','cambio_planograma','diferencia_precios','producto_danado','otro')),
+  anomaly_type      TEXT[] CHECK (anomaly_type IS NULL OR anomaly_type <@ ARRAY['sin_stock','cambio_planograma','diferencia_precios','producto_danado','otro']::TEXT[]),
   skip_reason       TEXT CHECK (skip_reason IN ('fuera_de_ruta','sin_acceso','otro')),
   last_restock_date DATE,
   synced            BOOLEAN NOT NULL DEFAULT FALSE,
@@ -210,24 +210,26 @@ CREATE OR REPLACE FUNCTION fn_create_task_from_anomaly()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
   v_supervisor UUID;
+  v_anomaly    TEXT;
+  v_title      TEXT;
 BEGIN
-  IF NEW.status = 'anomaly' THEN
-    IF EXISTS (SELECT 1 FROM public.tasks WHERE source_visit_id = NEW.visit_id) THEN
-      RETURN NEW;
-    END IF;
+  IF NEW.status = 'anomaly' AND NEW.anomaly_type IS NOT NULL THEN
     SELECT supervisor_id INTO v_supervisor FROM public.users WHERE id = NEW.user_id;
-    INSERT INTO public.tasks
-      (assignee_user_id, created_by_user_id, store_id, source_visit_id, task_type, title, description, status)
-    VALUES (
-      v_supervisor,
-      NEW.user_id,
-      NEW.store_id,
-      NEW.visit_id,
-      public.fn_task_type_from_anomaly(NEW.anomaly_type),
-      'Anomalía: ' || COALESCE(NEW.anomaly_type, 'otro'),
-      NEW.observations,   -- v2.0: contexto del check-in directo en la tarea
-      'open'              -- v2.0: vocabulario open/resolved
-    );
+    FOREACH v_anomaly IN ARRAY NEW.anomaly_type LOOP
+      v_title := 'Anomalía: ' || v_anomaly;
+      IF NOT EXISTS (
+        SELECT 1 FROM public.tasks
+        WHERE source_visit_id = NEW.visit_id AND title = v_title
+      ) THEN
+        INSERT INTO public.tasks
+          (assignee_user_id, created_by_user_id, store_id, source_visit_id, task_type, title, description, status)
+        VALUES (
+          v_supervisor, NEW.user_id, NEW.store_id, NEW.visit_id,
+          public.fn_task_type_from_anomaly(v_anomaly),
+          v_title, NEW.observations, 'open'
+        );
+      END IF;
+    END LOOP;
   END IF;
   RETURN NEW;
 END;
