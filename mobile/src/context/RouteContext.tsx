@@ -216,7 +216,10 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       photo_uri: JSON.stringify(record.photo_uris),
       observations: record.observations ?? null,
       status: record.status,
-      anomaly_type: record.status === 'anomaly' ? record.anomaly_type : null,
+      anomaly_type:
+        record.status === 'anomaly' && record.anomaly_type
+          ? JSON.stringify(record.anomaly_type)
+          : null,
       skip_reason: record.status === 'skipped' ? record.skip_reason : null,
       last_restock_date: record.last_restock_date,
       synced: 0,
