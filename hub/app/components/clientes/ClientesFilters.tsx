@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
 import { X } from "lucide-react";
 import { mockStores } from "@/app/lib/mock-data";
 import { Select } from "@/app/components/ui/Select";
+import { GeoFilters } from "@/app/components/geo/GeoFilters";
 
 export interface ClientesFilterValue {
   clientId: string;           // "" = all (cadena/cliente)
@@ -24,10 +24,6 @@ const CHANNEL_LABELS: Record<string, string> = {
   autoservicio: "Autoservicio", mayorista: "Mayorista", otro: "Otro",
 };
 
-function uniqSorted(values: (string | null)[]): string[] {
-  return Array.from(new Set(values.filter((v): v is string => !!v))).sort();
-}
-
 export function ClientesFilters({
   value, onChange, clients = [],
 }: {
@@ -35,19 +31,6 @@ export function ClientesFilters({
   onChange: (v: ClientesFilterValue) => void;
   clients?: { client_id: string; name: string }[];
 }) {
-  const estados = useMemo(() => uniqSorted(mockStores.map((s) => s.estado)), []);
-  const municipios = useMemo(
-    () => uniqSorted(mockStores.filter((s) => !value.estado || s.estado === value.estado).map((s) => s.municipio)),
-    [value.estado],
-  );
-  const urbanizaciones = useMemo(
-    () => uniqSorted(
-      mockStores
-        .filter((s) => (!value.estado || s.estado === value.estado) && (!value.municipio || s.municipio === value.municipio))
-        .map((s) => s.urbanizacion),
-    ),
-    [value.estado, value.municipio],
-  );
 
   const isDirty =
     value.clientId || value.estado || value.municipio || value.urbanizacion || value.channel || value.classifications.length > 0;
@@ -62,15 +45,11 @@ export function ClientesFilters({
       <Select label="Cliente" value={value.clientId}
         options={clients.map((c) => ({ value: c.client_id, label: c.name }))}
         onChange={(v) => onChange({ ...value, clientId: v })} />
-      <Select label="Estado" value={value.estado}
-        options={estados.map((o) => ({ value: o, label: o }))}
-        onChange={(v) => onChange({ ...value, estado: v, municipio: "", urbanizacion: "" })} />
-      <Select label="Municipio" value={value.municipio} disabled={!value.estado}
-        options={municipios.map((o) => ({ value: o, label: o }))}
-        onChange={(v) => onChange({ ...value, municipio: v, urbanizacion: "" })} />
-      <Select label="Urbanización" value={value.urbanizacion} disabled={!value.municipio}
-        options={urbanizaciones.map((o) => ({ value: o, label: o }))}
-        onChange={(v) => onChange({ ...value, urbanizacion: v })} />
+      <GeoFilters
+        items={mockStores}
+        value={{ estado: value.estado, municipio: value.municipio, urbanizacion: value.urbanizacion }}
+        onChange={(g) => onChange({ ...value, ...g })}
+      />
       <Select label="Canal" value={value.channel}
         options={CHANNELS.map((c) => ({ value: c, label: CHANNEL_LABELS[c] ?? c }))}
         onChange={(v) => onChange({ ...value, channel: v })} />
