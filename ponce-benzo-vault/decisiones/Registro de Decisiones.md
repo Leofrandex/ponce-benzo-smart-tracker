@@ -19,6 +19,7 @@ Este documento actúa como índice histórico de todas las decisiones importante
 | [[decisiones/ADR-002-Modelo-CRM\|ADR-002 — Modelo de Datos CRM]] | Modelo de Datos CRM (Contactos, Tareas, Competencia y Anomalías) | `aceptado` | 2026-06-01 | Expansión del esquema para CRM: contactos, bitácora, tareas, competencia, jerarquía supervisor y trigger anomalía→tarea. |
 | [[decisiones/ADR-003-Supabase-Desde-Cero\|ADR-003]] | Recrear el proyecto Supabase desde cero con Schema v2.0 consolidado | `aceptado` | 2026-06-07 | Proyecto nuevo + schema de una sola capa alineado 1:1 con el UI; hardening RLS (SECURITY DEFINER, tasks sin INSERT de cliente); priority eliminado del producto. |
 | [[decisiones/ADR-004-Nivel-Cliente-Piloto-Farmatodo\|ADR-004]] | Nivel Cliente (cadena) + Piloto Farmatodo como fuente de verdad | `aceptado` | 2026-06-15 | Tabla `clients` (cadena) + FK en stores; Excel de Farmatodo como SSOT del piloto (45 tiendas con datos + rutas); resto desactivado; alta de Jonathan. |
+| [[decisiones/ADR-005-Anomaly-Type-Array\|ADR-005]] | Anomaly Type como Array (TEXT[] en Supabase + JSON en SQLite) | `aceptado` | 2026-06-22 | `visits.anomaly_type` migrado de `TEXT` a `TEXT[]`; móvil usa JSON-en-TEXT en SQLite; trigger `fn_create_task_from_anomaly` con UNNEST crea una task por anomalía con dedup. Alternativa `visit_anomalies` descartada por mayor complejidad de sync. |
 
 ---
 
