@@ -10,6 +10,7 @@ import {
 } from '../services/db';
 import { mockStores } from '../mock-data';
 import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
+import { resolveRouteLoad, saveRouteSnapshot, loadRouteSnapshot, type OnlineResult } from '../services/routeCache';
 import { useSyncCtx } from './SyncContext';
 import { getDb } from '../store/localStore';
 import { resolveToday, startSession as ssStart, endSession as ssEnd, closeStaleSessions } from '../session/sessionStore';
@@ -21,6 +22,7 @@ interface RouteContextValue {
   routeLoading: boolean;
   routeError: string | null;
   routeDate: string | null;
+  routeFromCache: boolean;
   reloadRoute: () => void;
   sessionActive: boolean;
   sessionEnded: boolean;
@@ -51,6 +53,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
   const [routeLoading, setRouteLoading] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [routeDate, setRouteDate] = useState<string | null>(null);
+  const [routeFromCache, setRouteFromCache] = useState(false);
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [gpsState, setGpsState] = useState<GPSState>('idle');
@@ -68,18 +71,47 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     setRouteLoading(true);
     setRouteError(null);
     try {
-      const picked = await fetchTodayRoute(user.id);
-      if (!picked) {
-        setRouteItems([]);
-        setRouteDate(null);
+      // 1) Intento online. Un null autoritativo ("sin ruta asignada hoy") NO cae a caché.
+      let online: OnlineResult;
+      try {
+        const picked = await fetchTodayRoute(user.id);
+        if (!picked) {
+          setRouteItems([]);
+          setRouteDate(null);
+          setRouteFromCache(false);
+          return;
+        }
+        const stores = await fetchStoresByIds(picked.route.store_ids);
+        online = { ok: true, route_id: picked.route.route_id, route_date: picked.route.route_date, stores };
+      } catch {
+        online = { ok: false };
+      }
+
+      // 2) Fallback a caché sólo si el online falló (offline / red caída).
+      const db = await getDb();
+      const cached = online.ok ? null : await loadRouteSnapshot(db, user.id);
+      const result = resolveRouteLoad(online, cached);
+
+      if (result.source === 'error') {
+        setRouteError('No se pudo cargar la ruta y no hay copia guardada. Conectate al menos una vez.');
+        setRouteFromCache(false);
         return;
       }
-      routeId.current = picked.route.route_id;
-      const stores = await fetchStoresByIds(picked.route.store_ids);
-      setRouteItems(stores.map((store, i) => ({ store, order: i + 1, status: 'pending' as StoreStatus })));
-      setRouteDate(picked.route.route_date);
-    } catch (e) {
-      setRouteError(e instanceof Error ? e.message : 'Error al cargar la ruta');
+
+      routeId.current = result.route_id;
+      setRouteItems(result.stores.map((store, i) => ({ store, order: i + 1, status: 'pending' as StoreStatus })));
+      setRouteDate(result.route_date);
+      setRouteFromCache(result.source === 'cache');
+
+      // 3) En éxito online, refrescar el snapshot para el próximo cold-start offline (no bloquea).
+      if (result.source === 'online') {
+        saveRouteSnapshot(db, user.id, {
+          route_id: result.route_id,
+          route_date: result.route_date,
+          cached_at: new Date().toISOString(),
+          stores: result.stores,
+        }).catch((e) => console.warn('[route] no se pudo cachear la ruta:', (e as { message?: string })?.message ?? e));
+      }
     } finally {
       setRouteLoading(false);
     }
@@ -292,6 +324,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         routeLoading,
         routeError,
         routeDate,
+        routeFromCache,
         reloadRoute: loadRoute,
         sessionActive,
         sessionEnded,

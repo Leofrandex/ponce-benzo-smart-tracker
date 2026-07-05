@@ -33,6 +33,7 @@ export function RouteScreen() {
     routeLoading,
     routeError,
     routeDate,
+    routeFromCache,
     reloadRoute,
     sessionActive,
     sessionEnded,
@@ -129,6 +130,14 @@ export function RouteScreen() {
         ListHeaderComponent={
           <>
             <SyncBanner />
+            {routeFromCache && (
+              <View style={styles.cacheBanner}>
+                <Ionicons name="cloud-offline-outline" size={16} color={colors.warning} />
+                <Text style={styles.cacheBannerText}>
+                  Modo offline · ruta en caché{routeDate ? ` del ${formatRouteDate(routeDate)}` : ''}
+                </Text>
+              </View>
+            )}
             {!sessionActive && !sessionEnded && (
               <RouteModeToggle mode={routeMode} onChange={setRouteMode} />
             )}
@@ -243,6 +252,24 @@ const styles = StyleSheet.create({
   },
   sessionBtn: {
     marginBottom: 16,
+  },
+  cacheBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.warningBg,
+    borderRadius: radii.md,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.warning,
+  },
+  cacheBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.warning,
+    ...fonts.medium,
   },
   empty: {
     alignItems: 'center',
