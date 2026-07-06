@@ -14,6 +14,7 @@ import { resolveRouteLoad, saveRouteSnapshot, loadRouteSnapshot, type OnlineResu
 import { useSyncCtx } from './SyncContext';
 import { getDb } from '../store/localStore';
 import { resolveToday, startSession as ssStart, endSession as ssEnd, closeStaleSessions } from '../session/sessionStore';
+import { logEvent } from '../diagnostics/log';
 import { startTracking, stopBackground, ensureTracking, requestPermissions, requestBatteryExemption } from '../location/locationTracker';
 import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState, CompetitionReportRecord } from '../types';
 
@@ -91,6 +92,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       const db = await getDb();
       const cached = online.ok ? null : await loadRouteSnapshot(db, user.id);
       const result = resolveRouteLoad(online, cached);
+      await logEvent(db, result.source === 'error' ? 'warn' : 'info', 'route_load', result.source, user.id);
 
       if (result.source === 'error') {
         setRouteError('No se pudo cargar la ruta y no hay copia guardada. Conectate al menos una vez.');
