@@ -15,6 +15,7 @@ import { useSyncCtx } from './SyncContext';
 import { getDb } from '../store/localStore';
 import { resolveToday, startSession as ssStart, endSession as ssEnd, closeStaleSessions } from '../session/sessionStore';
 import { logEvent } from '../diagnostics/log';
+import { withTimeout } from '../utils/withTimeout';
 import { startTracking, stopBackground, ensureTracking, requestPermissions, requestBatteryExemption } from '../location/locationTracker';
 import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState, CompetitionReportRecord } from '../types';
 
@@ -182,12 +183,19 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       const existing = await resolveToday(db, user.id);
       if (existing.state === 'ACTIVE') { setSessionActive(true); setSessionEnded(false); return; }
 
+      // El fix de GPS no debe bloquear el arranque: precisión Balanced (rápida) con
+      // timeout de 3s. Si no llega, la sesión arranca sin coords y el tracker las
+      // completa a los pocos segundos (evita que "Empezar Ruta" se sienta trabado).
       let lat: number | null = null, lng: number | null = null;
-      try {
-        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const pos = await withTimeout(
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        3000,
+        null,
+      );
+      if (pos) {
         lat = pos.coords.latitude;
         lng = pos.coords.longitude;
-      } catch { /* sin fix: la sesión sube cuando haya coords */ }
+      }
       await ssStart(db, { userId: user.id, routeId: routeId.current ?? 'unknown', startLat: lat, startLng: lng });
       if (lat != null) setCurrentLocation({ lat, lng: lng! });
       setSessionActive(true);
