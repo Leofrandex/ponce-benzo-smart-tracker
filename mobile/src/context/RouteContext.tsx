@@ -7,10 +7,11 @@ import {
   getUnsyncedCount,
   insertCompetitionReport,
   getUnsyncedCompetitionCount,
+  getTodayVisits,
 } from '../services/db';
 import { mockStores } from '../mock-data';
 import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
-import { resolveRouteLoad, saveRouteSnapshot, loadRouteSnapshot, type OnlineResult } from '../services/routeCache';
+import { resolveRouteLoad, saveRouteSnapshot, loadRouteSnapshot, mergeRecordedStatuses, type OnlineResult } from '../services/routeCache';
 import { useSyncCtx } from './SyncContext';
 import { getDb } from '../store/localStore';
 import { resolveToday, startSession as ssStart, endSession as ssEnd, closeStaleSessions } from '../session/sessionStore';
@@ -102,7 +103,12 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       }
 
       routeId.current = result.route_id;
-      setRouteItems(result.stores.map((store, i) => ({ store, order: i + 1, status: 'pending' as StoreStatus })));
+      // Reproyectar el estado desde las visitas ya registradas hoy (SQLite). routeItems
+      // es efímero: sin esta fusión, cada recarga (refresh de token, reconexión, foreground)
+      // dejaba todas las tiendas en 'pending' y el conteo colapsaba al último registro.
+      const baseItems = result.stores.map((store, i) => ({ store, order: i + 1, status: 'pending' as StoreStatus }));
+      const todayVisits = await getTodayVisits(db, user.id).catch(() => []);
+      setRouteItems(mergeRecordedStatuses(baseItems, todayVisits));
       setRouteDate(result.route_date);
       setRouteFromCache(result.source === 'cache');
 
@@ -118,7 +124,9 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setRouteLoading(false);
     }
-  }, [user]);
+    // Depende solo del id: un refresh de token reemplaza el objeto `user` pero
+    // mantiene el mismo id, así que la ruta NO debe recargarse (y borrar el progreso).
+  }, [user?.id]);
 
   useEffect(() => { loadRoute(); }, [loadRoute]);
 

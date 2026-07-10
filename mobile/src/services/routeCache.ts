@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getMeta, setMeta } from '../store/localStore';
-import type { Store } from '../types';
+import type { Store, RouteStoreItem, StoreStatus } from '../types';
 
 /** Snapshot de solo-lectura del plano de lectura (ruta + tiendas), para cold-start offline. */
 export interface RouteSnapshot {
@@ -30,6 +30,38 @@ export function resolveRouteLoad(online: OnlineResult, cached: RouteSnapshot | n
     return { source: 'cache', route_id: cached.route_id, route_date: cached.route_date, stores: cached.stores };
   }
   return { source: 'error' };
+}
+
+/** Forma mínima de una visita persistida que necesitamos para reconstruir el estado de la ruta. */
+export interface RecordedVisit {
+  store_id: string;
+  status: string;         // 'completed' | 'skipped' | 'anomaly' (texto guardado en SQLite)
+  check_in_time: string;  // ISO — desempata cuando hay varias visitas de la misma tienda
+}
+
+const KNOWN_STATUSES: ReadonlySet<StoreStatus> = new Set(['completed', 'skipped', 'anomaly']);
+
+/**
+ * Puro: reproyecta el estado de la ruta a partir de las visitas ya registradas hoy.
+ * `routeItems` es efímero (se reconstruye en cada recarga), pero las visitas viven en
+ * SQLite. Sin esta fusión, cualquier recarga (refresh de token, reconexión, foreground)
+ * dejaba todas las tiendas en 'pending' y el conteo colapsaba al último registro.
+ * Para cada tienda con visita, aplica el status de la visita MÁS RECIENTE.
+ */
+export function mergeRecordedStatuses(
+  items: RouteStoreItem[],
+  visits: RecordedVisit[],
+): RouteStoreItem[] {
+  const latestByStore = new Map<string, RecordedVisit>();
+  for (const v of visits) {
+    if (!KNOWN_STATUSES.has(v.status as StoreStatus)) continue;
+    const prev = latestByStore.get(v.store_id);
+    if (!prev || v.check_in_time > prev.check_in_time) latestByStore.set(v.store_id, v);
+  }
+  return items.map((item) => {
+    const v = latestByStore.get(item.store.store_id);
+    return v ? { ...item, status: v.status as StoreStatus } : item;
+  });
 }
 
 export function serializeSnapshot(snapshot: RouteSnapshot): string {

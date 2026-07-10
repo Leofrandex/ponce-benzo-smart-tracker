@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveRouteLoad, parseSnapshot, serializeSnapshot, type RouteSnapshot } from './routeCache';
-import type { Store } from '../types';
+import { resolveRouteLoad, parseSnapshot, serializeSnapshot, mergeRecordedStatuses, type RouteSnapshot, type RecordedVisit } from './routeCache';
+import type { Store, RouteStoreItem } from '../types';
 
 function makeStore(id: string): Store {
   return {
@@ -65,4 +65,52 @@ test('parseSnapshot: null devuelve null', () => {
 
 test('parseSnapshot: JSON corrupto devuelve null (no lanza)', () => {
   assert.equal(parseSnapshot('{no es json'), null);
+});
+
+// ── mergeRecordedStatuses: reproyecta el estado de la ruta desde SQLite ──────────
+
+function makeItem(id: string): RouteStoreItem {
+  return { store: makeStore(id), order: 1, status: 'pending' };
+}
+
+test('mergeRecordedStatuses: sin visitas → todo queda pending', () => {
+  const items = [makeItem('s1'), makeItem('s2')];
+  const merged = mergeRecordedStatuses(items, []);
+  assert.deepEqual(merged.map((i) => i.status), ['pending', 'pending']);
+});
+
+test('mergeRecordedStatuses: restaura status de cada tienda visitada (el bug del piloto)', () => {
+  const items = [makeItem('s1'), makeItem('s2'), makeItem('s3')];
+  const visits: RecordedVisit[] = [
+    { store_id: 's1', status: 'completed', check_in_time: '2026-07-09T12:00:00.000Z' },
+    { store_id: 's2', status: 'anomaly', check_in_time: '2026-07-09T13:00:00.000Z' },
+  ];
+  const merged = mergeRecordedStatuses(items, visits);
+  assert.deepEqual(merged.map((i) => i.status), ['completed', 'anomaly', 'pending']);
+});
+
+test('mergeRecordedStatuses: con varias visitas de una tienda gana la más reciente', () => {
+  const items = [makeItem('s1')];
+  const visits: RecordedVisit[] = [
+    { store_id: 's1', status: 'skipped', check_in_time: '2026-07-09T10:00:00.000Z' },
+    { store_id: 's1', status: 'completed', check_in_time: '2026-07-09T15:00:00.000Z' },
+  ];
+  const merged = mergeRecordedStatuses(items, visits);
+  assert.equal(merged[0].status, 'completed');
+});
+
+test('mergeRecordedStatuses: status desconocido se ignora (no rompe el pending)', () => {
+  const items = [makeItem('s1')];
+  const merged = mergeRecordedStatuses(items, [
+    { store_id: 's1', status: 'garbage', check_in_time: '2026-07-09T10:00:00.000Z' },
+  ]);
+  assert.equal(merged[0].status, 'pending');
+});
+
+test('mergeRecordedStatuses: no muta el arreglo de entrada', () => {
+  const items = [makeItem('s1')];
+  mergeRecordedStatuses(items, [
+    { store_id: 's1', status: 'completed', check_in_time: '2026-07-09T10:00:00.000Z' },
+  ]);
+  assert.equal(items[0].status, 'pending');
 });
