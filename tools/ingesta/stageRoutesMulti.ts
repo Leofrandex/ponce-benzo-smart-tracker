@@ -21,7 +21,9 @@ export async function stageRoutesMulti(
   const idByEmail = new Map<string, string>();
   for (const u of users ?? []) idByEmail.set(u.email.toLowerCase(), u.id);
 
-  // (user_id, route_date) -> Set<store_id>
+  // Plan por (user_id, fecha) -> Set<CLAVE de tienda>. Se agrupa por la clave
+  // natural de la tienda (cliente+coord), NO por store_id, para que el conteo
+  // del dry-run sea exacto aunque las tiendas nuevas todavía no tengan id.
   const plan = new Map<string, Set<string>>();
   let skipped = 0;
   for (const r of completas) {
@@ -29,30 +31,64 @@ export async function stageRoutesMulti(
     if (!email) { console.warn(`⚠ Mercaderista sin mapear: "${r.merch}"`); skipped++; continue; }
     const userId = idByEmail.get(email.toLowerCase());
     if (!userId) { console.warn(`⚠ Sin user id para ${email}`); skipped++; continue; }
-    const storeId = idByKey.get(storeKeyFor(r));
-    if (!storeId) { if (commit) console.warn(`⚠ Tienda sin id: ${r.nombreTienda}`); continue; }
+    const key = storeKeyFor(r);
     for (const date of generateRouteDates({ weekdays: r.weekdays, weeks: r.weeks }, from, to)) {
       const k = `${userId}|${date}`;
       if (!plan.has(k)) plan.set(k, new Set());
-      plan.get(k)!.add(storeId);
+      plan.get(k)!.add(key);
     }
   }
 
-  const routeRows = [...plan.entries()].map(([k, ids]) => {
+  const totalVisits = [...plan.values()].reduce((s, set) => s + set.size, 0);
+  console.log(`✓ Rutas: ${plan.size} filas (user,fecha), ${totalVisits} visitas, ${skipped} filas saltadas. ${commit ? "ESCRIBIENDO..." : "dry-run"}.`);
+  if (!commit) return;
+
+  // Resolver CLAVE de tienda -> store_id (ya creadas por stageStoresMulti).
+  const routeRows: { user_id: string; route_date: string; store_ids: string[] }[] = [];
+  let missing = 0;
+  for (const [k, keys] of plan) {
     const [user_id, route_date] = k.split("|");
-    return { user_id, route_date, store_ids: [...ids] };
-  });
-  const totalVisits = routeRows.reduce((s, r) => s + r.store_ids.length, 0);
-
-  if (commit) {
-    const { error: delErr } = await supabase.from("routes").delete()
-      .neq("route_id", "00000000-0000-0000-0000-000000000000");
-    if (delErr) throw new Error(`delete routes: ${delErr.message}`);
-    // Insert en lotes de 500.
-    for (let i = 0; i < routeRows.length; i += 500) {
-      const { error: insErr } = await supabase.from("routes").insert(routeRows.slice(i, i + 500));
-      if (insErr) throw new Error(`insert routes: ${insErr.message}`);
+    const store_ids: string[] = [];
+    for (const key of keys) {
+      const id = idByKey.get(key);
+      if (!id) { missing++; continue; }
+      store_ids.push(id);
     }
+    if (store_ids.length) routeRows.push({ user_id, route_date, store_ids });
   }
-  console.log(`✓ Rutas: ${routeRows.length} filas (user,fecha), ${totalVisits} visitas, ${skipped} filas saltadas. ${commit ? "ESCRITAS" : "dry-run"}.`);
+  if (missing) console.warn(`⚠ ${missing} referencias tienda→id sin resolver (se omiten).`);
+
+  const fromISO = from.toISOString().slice(0, 10);
+
+  // SEGURIDAD: nunca borrar todas las rutas. `sessions.route_id` es
+  // ON DELETE CASCADE hacia sessions -> visits/location_pings, así que borrar
+  // una ruta con historial destruiría check-ins, fotos y GPS. Se borran SOLO
+  // rutas FUTURAS (route_date >= hoy) que NO tengan sesión asociada; el resto
+  // (pasado + rutas ya trabajadas) se preserva intacto.
+  const { data: sess, error: sErr } = await supabase.from("sessions").select("route_id");
+  if (sErr) throw new Error(`select sessions: ${sErr.message}`);
+  const withSession = new Set((sess ?? []).map((s: { route_id: string }) => s.route_id));
+
+  const { data: future, error: fErr } = await supabase.from("routes")
+    .select("route_id").gte("route_date", fromISO);
+  if (fErr) throw new Error(`select routes futuras: ${fErr.message}`);
+  const toDelete = (future ?? [])
+    .map((r: { route_id: string }) => r.route_id)
+    .filter((id: string) => !withSession.has(id));
+
+  for (let i = 0; i < toDelete.length; i += 500) {
+    const { error } = await supabase.from("routes").delete().in("route_id", toDelete.slice(i, i + 500));
+    if (error) throw new Error(`delete routes futuras: ${error.message}`);
+  }
+
+  // Upsert por (user_id, route_date): actualiza store_ids de las rutas que
+  // sobrevivieron (las que tenían sesión) e inserta las nuevas. Idempotente:
+  // una re-corrida o un fallo parcial no destruye historial, solo hay que
+  // volver a ejecutar.
+  for (let i = 0; i < routeRows.length; i += 500) {
+    const { error } = await supabase.from("routes")
+      .upsert(routeRows.slice(i, i + 500), { onConflict: "user_id,route_date" });
+    if (error) throw new Error(`upsert routes: ${error.message}`);
+  }
+  console.log(`✓ Rutas escritas: ${routeRows.length} filas; ${toDelete.length} rutas futuras sin sesión eliminadas; historial preservado.`);
 }
