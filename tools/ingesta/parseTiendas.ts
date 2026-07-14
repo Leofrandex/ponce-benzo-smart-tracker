@@ -116,5 +116,29 @@ export function resolveStoreNames(
   return result;
 }
 
+// Guard de integridad: dos sucursales DISTINTAS con la misma coordenada rompen
+// la llave única cliente+coord (una se perdería y no se rutearía). Es un error
+// de datos, así que se marcan como incompletas ("coord_duplicada") para que
+// vuelvan a revisión en vez de corromper la ingesta. Muta `faltantes` in situ.
+// Devuelve las claves en conflicto (para reporte).
+export function markCoordCollisions(rows: TiendaRow[]): string[] {
+  const groups = new Map<string, TiendaRow[]>();
+  for (const r of rows) {
+    if (!isComplete(r) || r.lat == null || r.lng == null) continue;
+    const key = `${normClient(r.cliente)}|${r.lat.toFixed(5)},${r.lng.toFixed(5)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(r);
+  }
+  const conflicts: string[] = [];
+  for (const [key, group] of groups) {
+    const distinctNames = new Set(group.map((r) => r.nombreTienda));
+    if (distinctNames.size > 1) {
+      conflicts.push(`${key} → ${[...distinctNames].join(" / ")}`);
+      for (const r of group) r.faltantes.push("coord_duplicada");
+    }
+  }
+  return conflicts;
+}
+
 // Reexport para consumidores.
 export { normClient };
