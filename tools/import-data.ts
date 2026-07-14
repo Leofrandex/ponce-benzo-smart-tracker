@@ -28,8 +28,13 @@ async function main() {
   const incompletas = rows.filter((r) => !isComplete(r));
   console.log(`Filas: ${rows.length} | completas: ${completas.length} | incompletas: ${incompletas.length}`);
 
-  // El Excel de revisión se genera SIEMPRE (no toca DB).
-  exportIncompletas(incompletas, FUENTE, REVISION);
+  // El Excel de revisión se genera SIEMPRE (no toca DB). Si el archivo está
+  // bloqueado (abierto en Excel), no debe abortar la ingesta a la DB: se avisa.
+  try {
+    exportIncompletas(incompletas, FUENTE, REVISION);
+  } catch (e) {
+    console.warn(`⚠ No se pudo escribir el Excel de revisión (¿abierto en Excel?): ${(e as Error).message}. La ingesta continúa.`);
+  }
 
   const supabase = makeServiceClient();
   if (commit) await stageUsers(supabase);

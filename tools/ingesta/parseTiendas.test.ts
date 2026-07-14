@@ -6,12 +6,19 @@ import { parseTiendas, isComplete, resolveStoreNames, markCoordCollisions, Tiend
 
 const FILE = path.join(__dirname, "../../datos/fuentes/tiendas.xlsx");
 
-test("parseTiendas: 176 completas / 149 incompletas", () => {
+test("parseTiendas: 191 completas / 134 incompletas (sin guard de colisión)", () => {
   const rows = parseTiendas(FILE);
   const completas = rows.filter(isComplete);
   const incompletas = rows.filter((r) => !isComplete(r));
-  assert.equal(completas.length, 176);
-  assert.equal(incompletas.length, 149);
+  assert.equal(completas.length, 191);
+  assert.equal(incompletas.length, 134);
+});
+
+test("markCoordCollisions sobre archivo real: degrada 4 (2 pares) → 187 completas", () => {
+  const rows = parseTiendas(FILE);
+  const conflicts = markCoordCollisions(rows);
+  assert.equal(conflicts.length, 2);
+  assert.equal(rows.filter(isComplete).length, 187);
 });
 
 test("parseTiendas: 'ARCO' completa, Farmatodo, Elvis Rondon, martes(4=jue?) ...", () => {

@@ -30,7 +30,16 @@ export function parseCoord(cell: unknown): { lat: number; lng: number } | null {
   if (lat < 8 || lat > 13 || lng < -74 || lng > -59) return null;
   return { lat, lng };
 }
-const DAY_MAP: Record<string, number> = { LUN: 1, MAR: 2, MIE: 3, JUE: 4, VIE: 5, SAB: 6, DOM: 7 };
+// Incluye variantes/typos vistos en el Excel del cliente: VIR=viernes,
+// MIR=miércoles, LUM=lunes. "MR" se deja fuera a propósito (ambiguo: martes/miércoles).
+const DAY_MAP: Record<string, number> = {
+  LUN: 1, LUM: 1,
+  MAR: 2,
+  MIE: 3, MIR: 3,
+  JUE: 4,
+  VIE: 5, VIR: 5,
+  SAB: 6, DOM: 7,
+};
 export function parseVisitDays(cell: unknown): number[] {
   if (cell == null) return [];
   return String(cell).toUpperCase().split(/[-/,]/).map((t) => DAY_MAP[stripAccents(t).trim()])

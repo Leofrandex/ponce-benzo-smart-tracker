@@ -26,3 +26,10 @@ test("parseVisitDays: tokens ES -> numero de dia (LUN=1..VIE=5)", () => {
   assert.deepEqual(parseVisitDays("MIE-VIE"), [3, 5]);
   assert.deepEqual(parseVisitDays(""), []);
 });
+test("parseVisitDays: variantes/typos del Excel (VIR/MIR/LUM); MR ambiguo se ignora", () => {
+  assert.deepEqual(parseVisitDays("VIR"), [5]);      // viernes
+  assert.deepEqual(parseVisitDays("MIR"), [3]);      // miércoles
+  assert.deepEqual(parseVisitDays("LUM"), [1]);      // lunes
+  assert.deepEqual(parseVisitDays("LUN-VIR"), [1, 5]);
+  assert.deepEqual(parseVisitDays("MR"), []);        // ambiguo: no se mapea
+});
