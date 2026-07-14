@@ -13,6 +13,12 @@ tools/vendedores.secret.json
 # Temporary workbench
 .tmp/
 
+# Datos crudos de negocio — solo local, no versionar (ver datos/README.md)
+# Se versiona la estructura (README + .gitkeep), NO los archivos de datos.
+datos/**/*.xlsx
+datos/**/*.xls
+datos/**/*.csv
+
 # Python
 __pycache__/
 *.pyc

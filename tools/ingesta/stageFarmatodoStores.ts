@@ -9,7 +9,7 @@ const ALIAS: Record<string, string> = {
   "EXPRESO": "FTD BARUTA C.C EXPRESO", "RIOFARO": "TDF RIO FARO",
 };
 export async function stageFarmatodoStores(supabase: SupabaseClient): Promise<Set<string>> {
-  const rows = parseFarmatodo(path.join(__dirname, "../../coordenadas-farmatodo.xlsx"));
+  const rows = parseFarmatodo(path.join(__dirname, "../../datos/fuentes/coordenadas-farmatodo.xlsx"));
   const { data: stores, error } = await supabase.from("stores").select("store_id, name");
   if (error) throw new Error(`select stores: ${error.message}`);
   const byBranch = new Map<string, { store_id: string; name: string }>();

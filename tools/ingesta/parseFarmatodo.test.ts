@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import * as path from "path";
 import { parseFarmatodo } from "./parseFarmatodo";
 
-const FILE = path.join(__dirname, "../../coordenadas-farmatodo.xlsx");
+const FILE = path.join(__dirname, "../../datos/fuentes/coordenadas-farmatodo.xlsx");
 test("parseFarmatodo: 45 filas con coords + ruteo", () => {
   const rows = parseFarmatodo(FILE);
   assert.equal(rows.length, 45);

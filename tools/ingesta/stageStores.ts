@@ -9,7 +9,7 @@ const DEFAULT_LNG = -66.9036;
 
 // Devuelve mapa storeKey -> store_id (creando las tiendas que falten). Idempotente.
 export async function stageStores(supabase: SupabaseClient): Promise<Map<string, string>> {
-  const rutasPath = path.join(__dirname, "../../RUTAS 05-12-25 (1).xlsx");
+  const rutasPath = path.join(__dirname, "../../datos/fuentes/rutas.xlsx");
   const names = uniqueStores(parseRutas(rutasPath));
 
   // 1. Tiendas existentes -> mapa por clave normalizada.

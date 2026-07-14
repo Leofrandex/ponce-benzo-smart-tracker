@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import * as path from "path";
 import { parseRutas, uniqueStores, type AdvisorRoutes } from "./parseRutas";
 
-const RUTAS = path.join(__dirname, "../../RUTAS 05-12-25 (1).xlsx");
+const RUTAS = path.join(__dirname, "../../datos/fuentes/rutas.xlsx");
 const byName = (advs: AdvisorRoutes[], re: RegExp) =>
   advs.find((a) => re.test(a.sheetName.toUpperCase()))!;
 

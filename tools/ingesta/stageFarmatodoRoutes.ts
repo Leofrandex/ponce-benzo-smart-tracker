@@ -28,7 +28,7 @@ export async function stageFarmatodoRoutes(supabase: SupabaseClient, pilot: Set<
   const idByBranch = new Map<string, string>();
   for (const s of stores ?? []) if (pilot.has(s.store_id)) idByBranch.set(normalizeBranch(s.name), s.store_id);
 
-  const rows = parseFarmatodo(path.join(__dirname, "../../coordenadas-farmatodo.xlsx"));
+  const rows = parseFarmatodo(path.join(__dirname, "../../datos/fuentes/coordenadas-farmatodo.xlsx"));
   const ALIAS: Record<string, string> = { "EL AVILA":"AVILA","CLAVELINAS":"CLAVELINA","JOYA":"LA JOYA","MONJES":"LOS MONJES","LA CASTELLANA VE":"LA CASTELLANA","EXPRESO":"BARUTA C.C EXPRESO","RIOFARO":"RIO FARO" };
   const plan = new Map<string, Map<number, string[]>>();
   for (const r of rows) {

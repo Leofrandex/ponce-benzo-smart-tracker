@@ -27,7 +27,7 @@ export async function stageRoutes(
     for (const a of v.excel_aliases) emailByAlias.set(a.toUpperCase().replace(/\s+/g, " ").trim(), v.email);
 
   const now = new Date();
-  const advisors = parseRutas(path.join(__dirname, "../../RUTAS 05-12-25 (1).xlsx"));
+  const advisors = parseRutas(path.join(__dirname, "../../datos/fuentes/rutas.xlsx"));
 
   const routeRows: { user_id: string; route_date: string; store_ids: string[] }[] = [];
   for (const adv of advisors) {
