@@ -36,3 +36,14 @@ export function parseVisitDays(cell: unknown): number[] {
   return String(cell).toUpperCase().split(/[-/,]/).map((t) => DAY_MAP[stripAccents(t).trim()])
     .filter((d): d is number => Boolean(d));
 }
+
+// Semanas del mes (1..5). Separadores: . - / , y espacios. Dedup + orden asc.
+export function parseWeeks(cell: unknown): number[] {
+  if (cell == null) return [];
+  const set = new Set<number>();
+  for (const t of String(cell).split(/[.\-/,\s]+/)) {
+    const n = parseInt(t.trim(), 10);
+    if (n >= 1 && n <= 5) set.add(n);
+  }
+  return [...set].sort((a, b) => a - b);
+}
