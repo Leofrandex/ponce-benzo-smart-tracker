@@ -30,7 +30,11 @@ Para realizar la migración completa a producción y conectar a los vendedores r
    * Gerentes de otras zonas (→ supervisor a futuro): Andreina Rangel, Diana Delgado, Dubraska Pérez.
    * Administración (rol por definir): Nidia Rojas, Yelitze Pérez, Iris Mujica.
    * **"Aliado Comercial Caracas"** (`aliadocomercialcaracas@ponce-benzo.com`): correo genérico sin persona; posible relación con la **hoja 5 sin nombre** de `RUTAS` (mini-ruta Melani / Albita / Locatel La Castellana). Falta que el negocio aclare qué es y quién la atiende.
-2. **Coordenadas GPS de Tiendas:** 🟡 *Parcial (2026-06-15)* — **Farmatodo resuelto**: el piloto se re-pobló desde `Copia de CoordenadasTiendasFarmatodo REVISION.xlsx` con **45 tiendas con GPS real + dirección + encargado + rutas** (ver [[decisiones/ADR-004-Nivel-Cliente-Piloto-Farmatodo|ADR-004]] y [[pendientes/Piloto Farmatodo - Reconciliacion Tiendas|Reconciliación]]). Las **154 tiendas no-piloto** (Locatel/Gama/Plaza's + Farmatodo sin data) están **desactivadas** con el placeholder de Caracas hasta que el negocio entregue su data. Pendiente: confirmar dudosas (`BOULEVAR DE CATIA`/`JARDINES DEL VALLE`) y fusionar duplicados (`FTD TEREPAINA`/`FTD OLIVOS`).
+2. **Coordenadas GPS de Tiendas:** 🟢 *Gran avance (2026-07-14)* — el negocio entregó la data ampliada (`datos/fuentes/tiendas.xlsx`, ex `Coordenadas Tiendas 09 07 2026.xlsx`): **red multi-cadena nacional** (~19 cadenas). Ingesta rediseñada cargó **187 sucursales activas** (20 cadenas) con GPS/dirección/encargado + rutas jul→dic 2026. Ver [[logs/Log-2026-07-14|Log 2026-07-14]]. **Pendiente del negocio (Excel de revisión `datos/revision/tiendas-incompletas-2026-07-14.xlsx`, 138 filas):**
+   - Completar día de visita / mercaderista / semana de las tiendas incompletas (col "Qué falta").
+   - Corregir **4 coordenadas duplicadas** (2 pares: EL AVILA/LA CANDELARIA y INDIGO/RUBI comparten coordenada exacta) → hoy excluidas.
+   - Aclarar **1 día ambiguo "MR"** (¿martes o miércoles?).
+   Al recibir correcciones, se re-corre la ingesta (idempotente) para ampliar el piloto. *(Histórico: el piloto arrancó con 45 tiendas Farmatodo desde `Copia de CoordenadasTiendasFarmatodo REVISION.xlsx`, ahora superado; ver [[decisiones/ADR-004-Nivel-Cliente-Piloto-Farmatodo|ADR-004]].)*
 
 ---
 
