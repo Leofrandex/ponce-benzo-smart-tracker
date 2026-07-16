@@ -9,23 +9,21 @@ import {
   Cell,
   Tooltip,
 } from "recharts";
-import { SupervisorReport } from "@/app/lib/mock-data";
+import type { DashboardVisitRow } from "@/app/lib/queries/derive";
 
 interface Props {
-  reports: SupervisorReport[];
+  visits: DashboardVisitRow[];
 }
 
 const ACCENT = "#00205C";
 const MUTED = "#8C9091";
 
-export default function StoresPerMerchandiserChart({ reports }: Props) {
-  // Count unique store_ids per merchandiser
+export default function StoresPerMerchandiserChart({ visits }: Props) {
   const storesByMerc: Record<string, Set<string>> = {};
-  for (const r of reports) {
-    if (!storesByMerc[r.merchandiser_name]) {
-      storesByMerc[r.merchandiser_name] = new Set();
-    }
-    storesByMerc[r.merchandiser_name].add(r.store_id);
+  for (const v of visits) {
+    const name = v.merchandiser_name ?? "—";
+    if (!storesByMerc[name]) storesByMerc[name] = new Set();
+    storesByMerc[name].add(v.store_id);
   }
 
   const data = Object.entries(storesByMerc)
@@ -41,7 +39,7 @@ export default function StoresPerMerchandiserChart({ reports }: Props) {
   return (
     <div className="chart-card">
       <div className="chart-title">Sucursales visitadas por mercaderista</div>
-      <div className="chart-subtitle">{total} visita{total !== 1 ? "s" : ""} únicas en el período</div>
+      <div className="chart-subtitle">{total} tienda{total !== 1 ? "s" : ""} visitadas en el período</div>
 
       {data.length === 0 ? (
         <div style={{ textAlign: "center", color: MUTED, fontSize: "13px", padding: "24px 0" }}>
