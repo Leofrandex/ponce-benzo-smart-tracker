@@ -40,6 +40,11 @@ Para realizar la migración completa a producción y conectar a los vendedores r
 
 ## ⚙️ Pendientes de Desarrollo Técnico
 
+- [ ] **🔥 Post-fix motor offline (2026-07-15, BUG-020/021) — validación en campo:**
+  * Pedir a Eduward y Elvis abrir la app con WiFi ~2 min (antes de salir a ruta) para rescatar los registros del 15-jul atrapados en sus teléfonos; validar contra la DB (jornada de Elvis completa + visitas de Eduward posteriores a las 12:46 UTC).
+  * Distribuir el build con los fixes (OTA vía `expo-updates` si el canal lo permite — no se agregaron módulos nativos a propósito; si no, APK nuevo).
+  * Investigar por qué el teléfono de Elvis no subió ni los `device_logs` del 15-jul (¿app nunca abierta con conexión? ¿auth caducada?).
+  * Considerar dead-letter para fotos con URI perdida (hoy reintentan por siempre; el registro ya está a salvo).
 - [x] **Configuración de Variables de Entorno:** ✅ *(2026-06-07)* `hub/.env.local` y `.env` raíz con las claves del proyecto nuevo `poncebenzo`; handshake Python verificado.
 - [x] **Modificar Ingesta de Excel:** ✅ *(2026-06-08)* `tools/import-data.ts` reescrito como pipeline idempotente (`tools/ingesta/`). Cargó 6 usuarios + 192 tiendas + 20 rutas. **Cambio de fuente:** las tiendas salen de `RUTAS`, no de MAESTRO (ver [[arquitectura/Ingesta - Mapeo de Datos|Mapeo]]). Falta el **enriquecimiento** de sucursales (dirección/encargado/clasificación/GPS) → [[pendientes/Solicitud de Datos a P&B|Solicitud a P&B]].
 - [ ] **Validación de RLS Móvil:**
