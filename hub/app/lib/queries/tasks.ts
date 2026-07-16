@@ -23,6 +23,7 @@ export interface FullTaskRow {
   status: "open" | "resolved";
   created_at: string;
   assignee_user_id: string | null;
+  source_visit_id: string | null;
 }
 
 interface TaskJoinRow {
@@ -34,6 +35,7 @@ interface TaskJoinRow {
   status: "open" | "resolved";
   created_at: string;
   assignee_user_id: string | null;
+  source_visit_id: string | null;
   stores: { name: string | null; estado: string | null; municipio: string | null; urbanizacion: string | null } | null;
   creator: { full_name: string | null } | null;
 }
@@ -43,7 +45,7 @@ export async function fetchFullTasks(): Promise<FullTaskRow[]> {
   const { data, error } = await sb
     .from("tasks")
     .select(
-      "task_id, store_id, task_type, title, description, status, created_at, assignee_user_id, " +
+      "task_id, store_id, task_type, title, description, status, created_at, assignee_user_id, source_visit_id, " +
         "stores(name, estado, municipio, urbanizacion), creator:users!tasks_created_by_user_id_fkey(full_name)",
     )
     .order("created_at", { ascending: false });
@@ -62,5 +64,6 @@ export async function fetchFullTasks(): Promise<FullTaskRow[]> {
     status: t.status,
     created_at: t.created_at,
     assignee_user_id: t.assignee_user_id,
+    source_visit_id: t.source_visit_id,
   }));
 }

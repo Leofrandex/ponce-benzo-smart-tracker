@@ -1,9 +1,9 @@
 "use client";
 
-import { SupervisorTask } from "@/app/lib/mock-data";
+import type { DashboardTaskRow } from "@/app/lib/queries/derive";
 
 interface Props {
-  tasks: SupervisorTask[];
+  tasks: DashboardTaskRow[];
 }
 
 const SUCCESS = "#16a34a";
@@ -18,9 +18,10 @@ export default function TasksProgress({ tasks }: Props) {
   // Per-merchandiser breakdown
   const byMerc: Record<string, { total: number; resolved: number }> = {};
   for (const t of tasks) {
-    if (!byMerc[t.merchandiser_name]) byMerc[t.merchandiser_name] = { total: 0, resolved: 0 };
-    byMerc[t.merchandiser_name].total++;
-    if (t.status === "resolved") byMerc[t.merchandiser_name].resolved++;
+    const name = t.merchandiser_name ?? "—";
+    if (!byMerc[name]) byMerc[name] = { total: 0, resolved: 0 };
+    byMerc[name].total++;
+    if (t.status === "resolved") byMerc[name].resolved++;
   }
 
   const rows = Object.entries(byMerc).sort(

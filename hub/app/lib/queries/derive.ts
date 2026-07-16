@@ -48,22 +48,48 @@ export function deriveClientRows(
   });
 }
 
+// Filas enriquecidas para el dashboard (joins de nombres hechos en dashboard.ts).
+export interface DashboardVisitRow extends VisitRow {
+  merchandiser_name: string | null;
+  client_name: string | null;
+}
+export interface DashboardTaskRow extends TaskRow {
+  created_at: string;
+  merchandiser_name: string | null;
+}
+
 export interface DashboardStats {
   totalVisits: number;
   totalAnomalies: number;
   resolvedTasks: number;
+  visitedStores: { count: number; total: number; pct: number };
+}
+
+export function visitsInRange<T extends VisitRow>(visits: T[], cutoffMs: number): T[] {
+  return visits.filter((v) => new Date(v.check_in_time).getTime() >= cutoffMs);
+}
+
+export function tasksInRange<T extends DashboardTaskRow>(tasks: T[], cutoffMs: number): T[] {
+  return tasks.filter((t) => new Date(t.created_at).getTime() >= cutoffMs);
 }
 
 export function deriveDashboard(
   visits: VisitRow[],
-  tasks: TaskRow[],
+  tasks: DashboardTaskRow[],
   cutoffMs: number,
+  activeStoreCount: number,
 ): DashboardStats {
-  const inRange = visits.filter((v) => new Date(v.check_in_time).getTime() >= cutoffMs);
+  const inRange = visitsInRange(visits, cutoffMs);
+  const visitedIds = new Set(inRange.map((v) => v.store_id));
   return {
     totalVisits: inRange.length,
     totalAnomalies: inRange.filter((v) => v.status === "anomaly").length,
-    resolvedTasks: tasks.filter((t) => t.status === "resolved").length,
+    resolvedTasks: tasksInRange(tasks, cutoffMs).filter((t) => t.status === "resolved").length,
+    visitedStores: {
+      count: visitedIds.size,
+      total: activeStoreCount,
+      pct: activeStoreCount > 0 ? Math.round((visitedIds.size / activeStoreCount) * 100) : 0,
+    },
   };
 }
 

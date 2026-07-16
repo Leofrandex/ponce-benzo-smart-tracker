@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { mockStores } from "@/app/lib/mock-data";
+import type { GeoItem } from "@/app/components/geo/geoOptions";
 import { Select } from "@/app/components/ui/Select";
 import { GeoFilters } from "@/app/components/geo/GeoFilters";
 
@@ -25,11 +25,12 @@ const CHANNEL_LABELS: Record<string, string> = {
 };
 
 export function ClientesFilters({
-  value, onChange, clients = [],
+  value, onChange, clients = [], stores = [],
 }: {
   value: ClientesFilterValue;
   onChange: (v: ClientesFilterValue) => void;
   clients?: { client_id: string; name: string }[];
+  stores?: GeoItem[];
 }) {
 
   const isDirty =
@@ -46,7 +47,7 @@ export function ClientesFilters({
         options={clients.map((c) => ({ value: c.client_id, label: c.name }))}
         onChange={(v) => onChange({ ...value, clientId: v })} />
       <GeoFilters
-        items={mockStores}
+        items={stores}
         value={{ estado: value.estado, municipio: value.municipio, urbanizacion: value.urbanizacion }}
         onChange={(g) => onChange({ ...value, ...g })}
       />
