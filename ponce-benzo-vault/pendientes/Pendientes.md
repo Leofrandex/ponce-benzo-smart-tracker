@@ -40,6 +40,15 @@ Para realizar la migración completa a producción y conectar a los vendedores r
 
 ## ⚙️ Pendientes de Desarrollo Técnico
 
+- [ ] **Post mejoras hub (2026-07-16, sesión 2):**
+  * Mergear `feat/hub-dashboard-filtros-anomalias` a `master` y **pushear a origin** (hay 27+ commits locales sin push acumulados de sesiones previas).
+  * Semántica de "Resueltas" en el dashboard: cuenta tareas resueltas *creadas* en el período (no existe `resolved_at`); decidir si se agrega la columna para contar por fecha de resolución.
+  * Limpieza de datos: el cliente viejo "Farmatodo" (pre-ingesta multi-cadena) sigue activo con 0 sucursales y sale en el panel de Clientes — desactivarlo en la tabla `clients`.
+  * Refactor menor: helper compartido `signPhotoPaths()` (3 copias en `reports.ts`/`visitDetail.ts`) con manejo del error de firmado; a11y de thumbnails (role/tabIndex) como barrida única.
+- [ ] **🔥 Post BUG-022 (2026-07-16) — ingesta debe hacer *match-y-actualizar*:**
+  * Corregir `tools/ingesta/` para que al re-ingestar haga match de tiendas existentes (cliente+coordenada o dirección normalizada) y las **actualice** en vez de desactivar-y-crear; si no, cada re-ingesta vuelve a dejar el historial (visitas/contactos/tareas/rutas) huérfano. Ver [[logs/Log-2026-07-16|Log 2026-07-16]].
+  * Decidir con el negocio qué hacer con **FTD AVILA** y **FTD LA CANDELARIA** (Sambil La Candelaria, 1 visita c/u): completar su data en el Excel de revisión para que entren al catálogo, o dejar sus visitas solo en respaldo.
+  * Borrar las tablas de respaldo `_mig_*_20260716` de Supabase cuando se confirme en el hub que el historial migrado se ve bien.
 - [ ] **🔥 Post-fix motor offline (2026-07-15, BUG-020/021) — validación en campo:**
   * Pedir a Eduward y Elvis abrir la app con WiFi ~2 min (antes de salir a ruta) para rescatar los registros del 15-jul atrapados en sus teléfonos; validar contra la DB (jornada de Elvis completa + visitas de Eduward posteriores a las 12:46 UTC).
   * Distribuir el build con los fixes (OTA vía `expo-updates` si el canal lo permite — no se agregaron módulos nativos a propósito; si no, APK nuevo).
