@@ -3,7 +3,7 @@ import * as Location from 'expo-location';
 import { getDb } from '../store/localStore';
 import { shouldEmitPing } from './pingThrottle';
 import { logEvent } from '../diagnostics/log';
-import { flushPings } from '../sync/syncEngine';
+import { flush } from '../sync/syncEngine';
 import { supabase } from '../services/supabase';
 import { newId } from '../services/sync/ids';
 
@@ -39,7 +39,11 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: TaskMan
       await logEvent(db, 'info', 'ping_skip', `throttle`, open.user_id);
     }
 
-    await flushPings(db, supabase);
+    // Flush COMPLETO (sesiones + visitas + reportes + pings + fotos), no sólo pings:
+    // el timer JS de SyncContext se suspende con la app en background, así que este
+    // callback es la única vía para que el último punto de la ruta suba si el
+    // promotor guarda el teléfono al terminar. Todos los requests tienen deadline.
+    await flush(db, supabase);
   } catch (e) {
     console.warn('[bgTask] failed:', e);
   }

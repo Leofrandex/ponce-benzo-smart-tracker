@@ -28,6 +28,8 @@ export interface VisitRow {
   skip_reason: string | null;
   last_restock_date: string | null;
   synced: number;
+  /** 0 = fotos aún no subidas (el registro puede estar arriba sin ellas). */
+  photos_synced?: number;
 }
 
 export interface CompetitionReportRow {
@@ -60,8 +62,8 @@ export interface CompetitionRawRow {
 export async function insertVisit(db: SQLiteDatabase, data: VisitRow): Promise<void> {
   await db.runAsync(
     `INSERT OR REPLACE INTO visits
-      (visit_id, session_id, store_id, user_id, check_in_time, lat, lng, photo_uri, observations, status, anomaly_type, skip_reason, last_restock_date, synced)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (visit_id, session_id, store_id, user_id, check_in_time, lat, lng, photo_uri, observations, status, anomaly_type, skip_reason, last_restock_date, synced, photos_synced)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
     data.visit_id,
     data.session_id ?? null,
     data.store_id,
@@ -79,22 +81,26 @@ export async function insertVisit(db: SQLiteDatabase, data: VisitRow): Promise<v
   );
 }
 
-export async function getTodayVisits(db: SQLiteDatabase, userId: string): Promise<VisitRow[]> {
-  const today = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
-  return db.getAllAsync<VisitRow>(
-    `SELECT * FROM visits
-     WHERE user_id = ? AND check_in_time LIKE ?
-     ORDER BY check_in_time DESC`,
-    userId,
-    `${today}%`,
-  );
+/**
+ * Puro: rango [inicio, fin) del día LOCAL del dispositivo, expresado en UTC.
+ * Antes se filtraba por el día UTC del ISO: en Venezuela (UTC-4) el "día" cambiaba
+ * a las 8:00 PM hora local y las visitas de la mañana desaparecían de la ruta.
+ */
+export function localDayRangeUtc(now: Date = new Date()): { startIso: string; endIso: string } {
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // medianoche local
+  return { startIso: start.toISOString(), endIso: new Date(start.getTime() + 86_400_000).toISOString() };
 }
 
-export async function getUnsyncedCount(db: SQLiteDatabase): Promise<number> {
-  const row = await db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) as count FROM visits WHERE synced = 0`,
+export async function getTodayVisits(db: SQLiteDatabase, userId: string): Promise<VisitRow[]> {
+  const { startIso, endIso } = localDayRangeUtc();
+  return db.getAllAsync<VisitRow>(
+    `SELECT * FROM visits
+     WHERE user_id = ? AND check_in_time >= ? AND check_in_time < ?
+     ORDER BY check_in_time DESC`,
+    userId,
+    startIso,
+    endIso,
   );
-  return row?.count ?? 0;
 }
 
 // ── Competition reports ──────────────────────────────────────────────────────
@@ -107,8 +113,8 @@ export async function insertCompetitionReport(
   // para soportar varias sin migrar el schema.
   await db.runAsync(
     `INSERT OR REPLACE INTO competition_reports
-      (report_id, session_id, visit_id, store_id, user_id, brand_id, activation_type, photo_uri, notes, created_at, synced)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (report_id, session_id, visit_id, store_id, user_id, brand_id, activation_type, photo_uri, notes, created_at, synced, photos_synced)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
     data.report_id,
     data.session_id ?? null,
     data.visit_id ?? null,
@@ -121,11 +127,4 @@ export async function insertCompetitionReport(
     data.created_at,
     data.synced,
   );
-}
-
-export async function getUnsyncedCompetitionCount(db: SQLiteDatabase): Promise<number> {
-  const row = await db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) as count FROM competition_reports WHERE synced = 0`,
-  );
-  return row?.count ?? 0;
 }

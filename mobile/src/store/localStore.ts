@@ -2,8 +2,10 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 // Columnas opcionales por tabla (migraciones idempotentes; SQLite no soporta IF NOT EXISTS en ADD COLUMN).
 const OPTIONAL_COLUMNS: Record<string, Array<[string, string]>> = {
-  visits: [['anomaly_type', 'TEXT'], ['skip_reason', 'TEXT'], ['last_restock_date', 'TEXT']],
-  competition_reports: [['visit_id', 'TEXT']],
+  // photos_synced DEFAULT 1: las filas viejas ya sincronizadas subieron sus fotos con el
+  // motor anterior (fotos-antes-que-registro); los inserts nuevos ponen 0 explícitamente.
+  visits: [['anomaly_type', 'TEXT'], ['skip_reason', 'TEXT'], ['last_restock_date', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1']],
+  competition_reports: [['visit_id', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1']],
   location_pings: [['user_id', 'TEXT'], ['synced', 'INTEGER NOT NULL DEFAULT 0']],
 };
 

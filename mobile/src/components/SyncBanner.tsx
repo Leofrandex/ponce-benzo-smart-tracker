@@ -9,11 +9,12 @@ const TONE_COLORS: Record<BannerTone, { fg: string; bg: string }> = {
   syncing: { fg: colors.accent, bg: colors.accentGlow },
   offline: { fg: colors.warning, bg: colors.warningBg },
   pending: { fg: colors.warning, bg: colors.warningBg },
+  synced: { fg: colors.success, bg: colors.successBg },
 };
 
 export function SyncBanner() {
-  const { pendingCount, status } = useSyncCtx();
-  const banner = deriveSyncBanner({ status, pendingCount });
+  const { counts, status } = useSyncCtx();
+  const banner = deriveSyncBanner({ status, records: counts.records, photos: counts.photos });
   if (!banner) return null;
 
   const tone = TONE_COLORS[banner.tone];

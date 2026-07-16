@@ -9,14 +9,12 @@ const mk = (id: string, date: string): Route => ({
 
 test('pickRoute elige la ruta de hoy cuando existe', () => {
   const r = pickRoute([mk('a', '2026-06-09'), mk('b', '2026-06-08')], '2026-06-08');
-  assert.equal(r?.route.route_id, 'b');
-  assert.equal(r?.isFallback, false);
+  assert.equal(r?.route_id, 'b');
 });
 
-test('pickRoute cae a la más reciente cuando no hay ruta de hoy', () => {
+test('pickRoute devuelve null cuando no hay ruta de hoy (sin fallback)', () => {
   const r = pickRoute([mk('a', '2026-06-09'), mk('b', '2026-06-11')], '2026-06-15');
-  assert.equal(r?.route.route_id, 'b');
-  assert.equal(r?.isFallback, true);
+  assert.equal(r, null);
 });
 
 test('pickRoute devuelve null sin rutas', () => {

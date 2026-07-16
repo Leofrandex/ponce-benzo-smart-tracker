@@ -2,13 +2,7 @@ import React, { createContext, useContext, useState, useRef, useEffect, useCallb
 import * as Location from 'expo-location';
 import { AppState } from 'react-native';
 import { useAuth } from './AuthContext';
-import {
-  insertVisit,
-  getUnsyncedCount,
-  insertCompetitionReport,
-  getUnsyncedCompetitionCount,
-  getTodayVisits,
-} from '../services/db';
+import { insertVisit, insertCompetitionReport, getTodayVisits } from '../services/db';
 import { mockStores } from '../mock-data';
 import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
 import { resolveRouteLoad, saveRouteSnapshot, loadRouteSnapshot, mergeRecordedStatuses, type OnlineResult } from '../services/routeCache';
@@ -31,7 +25,6 @@ interface RouteContextValue {
   sessionEnded: boolean;
   gpsState: GPSState;
   currentLocation: { lat: number; lng: number } | null;
-  pendingSyncCount: number;
   completedCount: number;
   totalCount: number;
   routeMode: 'normal' | 'special';
@@ -61,7 +54,6 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
   const [sessionEnded, setSessionEnded] = useState(false);
   const [gpsState, setGpsState] = useState<GPSState>('idle');
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [routeMode, setRouteModeState] = useState<'normal' | 'special'>('normal');
 
   const routeId = useRef<string | null>(null);
@@ -84,8 +76,8 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
           setRouteFromCache(false);
           return;
         }
-        const stores = await fetchStoresByIds(picked.route.store_ids);
-        online = { ok: true, route_id: picked.route.route_id, route_date: picked.route.route_date, stores };
+        const stores = await fetchStoresByIds(picked.store_ids);
+        online = { ok: true, route_id: picked.route_id, route_date: picked.route_date, stores };
       } catch {
         online = { ok: false };
       }
@@ -168,15 +160,6 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [user]);
 
-  async function refreshSyncCount() {
-    const db = await getDb();
-    const [visits, reports] = await Promise.all([
-      getUnsyncedCount(db),
-      getUnsyncedCompetitionCount(db),
-    ]);
-    setPendingSyncCount(visits + reports);
-  }
-
   async function startSession() {
     // Guard de re-entrada: ignora toques repetidos / re-renders mientras ya se
     // está arrancando o hay sesión activa (evita crear sesiones duplicadas).
@@ -242,19 +225,12 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     record: VisitRecord,
     competitionReport?: CompetitionReportRecord,
   ) {
-    // Update in-memory route state
-    setRouteItems((prev) =>
-      prev.map((item) =>
-        item.store.store_id === storeId
-          ? { ...item, status: record.status as StoreStatus, visit: record }
-          : item,
-      ),
-    );
-
     const db = await getDb();
     const { session } = await resolveToday(db, user?.id ?? '');
 
-    // Persist to SQLite — las fotos van como JSON en la columna photo_uri TEXT
+    // SQLite PRIMERO, UI después: la pantalla nunca debe mostrar como completado
+    // algo que no está guardado en disco. Si este insert falla, el punto queda
+    // 'pending' (la verdad) en vez de un falso completado que se revierte al recargar.
     await insertVisit(db, {
       visit_id: record.visit_id,
       session_id: session?.session_id ?? null,
@@ -274,6 +250,15 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       last_restock_date: record.last_restock_date,
       synced: 0,
     });
+
+    // Ya está en disco: ahora sí, reflejar en la ruta.
+    setRouteItems((prev) =>
+      prev.map((item) =>
+        item.store.store_id === storeId
+          ? { ...item, status: record.status as StoreStatus, visit: record }
+          : item,
+      ),
+    );
 
     // Reporte de competencia opcional: misma tienda, misma operación.
     // Va en try/catch: si algo falla aquí, la visita YA quedó guardada y la
@@ -300,7 +285,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Conteo y sync en segundo plano: no se esperan para no bloquear el cierre.
-    refreshSyncCount().catch(() => {});
+    refreshCount().catch(() => {});
     flushNow();
   }
 
@@ -348,7 +333,6 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         sessionEnded,
         gpsState,
         currentLocation,
-        pendingSyncCount,
         completedCount,
         totalCount,
         routeMode,

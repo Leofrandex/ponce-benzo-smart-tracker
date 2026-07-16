@@ -2,44 +2,57 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deriveSyncBanner } from './bannerState';
 
-test('sincronizando sin cola → "Sincronizando…"', () => {
-  const b = deriveSyncBanner({ status: 'syncing', pendingCount: 0 });
+test('syncing sin cola → "Sincronizando…"', () => {
+  const b = deriveSyncBanner({ status: 'syncing', records: 0, photos: 0 });
   assert.equal(b?.tone, 'syncing');
   assert.equal(b?.text, 'Sincronizando…');
 });
 
-test('sincronizando con cola → incluye el conteo', () => {
-  const b = deriveSyncBanner({ status: 'syncing', pendingCount: 3 });
-  assert.equal(b?.tone, 'syncing');
-  assert.equal(b?.text, 'Sincronizando 3…');
+test('syncing con cola → muestra el total (records + photos)', () => {
+  const b = deriveSyncBanner({ status: 'syncing', records: 3, photos: 2 });
+  assert.equal(b?.text, 'Sincronizando 5…');
 });
 
-test('offline con cola → "Sin conexión · N en cola"', () => {
-  const b = deriveSyncBanner({ status: 'offline', pendingCount: 2 });
+test('offline con registros → "Sin conexión · N en cola"', () => {
+  const b = deriveSyncBanner({ status: 'offline', records: 2, photos: 0 });
   assert.equal(b?.tone, 'offline');
   assert.equal(b?.text, 'Sin conexión · 2 en cola');
 });
 
-test('cola esperando con red (no offline, no syncing) → singular', () => {
-  const b = deriveSyncBanner({ status: 'idle', pendingCount: 1 });
+test('idle con 1 registro → singular', () => {
+  const b = deriveSyncBanner({ status: 'idle', records: 1, photos: 0 });
   assert.equal(b?.tone, 'pending');
   assert.equal(b?.text, '1 registro por subir');
 });
 
-test('cola esperando → plural', () => {
-  const b = deriveSyncBanner({ status: 'synced', pendingCount: 5 });
+test('synced con registros pendientes → sigue mostrando la cola', () => {
+  const b = deriveSyncBanner({ status: 'synced', records: 5, photos: 0 });
   assert.equal(b?.tone, 'pending');
   assert.equal(b?.text, '5 registros por subir');
 });
 
-test('nada pendiente y sincronizado → oculto (null)', () => {
-  assert.equal(deriveSyncBanner({ status: 'synced', pendingCount: 0 }), null);
+test('sólo fotos pendientes → deja claro que los REGISTROS ya están arriba', () => {
+  const b = deriveSyncBanner({ status: 'idle', records: 0, photos: 3 });
+  assert.equal(b?.tone, 'pending');
+  assert.equal(b?.text, 'Registros arriba ✓ · 3 fotos por subir');
 });
 
-test('nada pendiente e idle → oculto (null)', () => {
-  assert.equal(deriveSyncBanner({ status: 'idle', pendingCount: 0 }), null);
+test('offline con sólo fotos → registros arriba + fotos en cola', () => {
+  const b = deriveSyncBanner({ status: 'offline', records: 0, photos: 1 });
+  assert.equal(b?.tone, 'offline');
+  assert.equal(b?.text, 'Registros arriba ✓ · 1 foto en cola');
+});
+
+test('synced y todo en cero → confirmación verde "Todo sincronizado"', () => {
+  const b = deriveSyncBanner({ status: 'synced', records: 0, photos: 0 });
+  assert.equal(b?.tone, 'synced');
+  assert.equal(b?.text, 'Todo sincronizado');
+});
+
+test('idle sin nada → oculto (null)', () => {
+  assert.equal(deriveSyncBanner({ status: 'idle', records: 0, photos: 0 }), null);
 });
 
 test('offline sin cola → oculto (no hay nada que avisar)', () => {
-  assert.equal(deriveSyncBanner({ status: 'offline', pendingCount: 0 }), null);
+  assert.equal(deriveSyncBanner({ status: 'offline', records: 0, photos: 0 }), null);
 });

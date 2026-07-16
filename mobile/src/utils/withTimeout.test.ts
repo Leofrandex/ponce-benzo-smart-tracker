@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { withTimeout } from './withTimeout';
+import { withTimeout, withDeadline } from './withTimeout';
 
 const delay = <T>(ms: number, value: T): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
@@ -23,4 +23,17 @@ test('devuelve el fallback si la promesa rechaza', async () => {
 test('funciona con fallback null (patrón del fix GPS)', async () => {
   const r = await withTimeout<{ x: number } | null>(delay(100, { x: 1 }), 20, null);
   assert.equal(r, null);
+});
+
+test('withDeadline: resuelve si llega a tiempo', async () => {
+  const r = await withDeadline(delay(10, 'ok'), 100);
+  assert.equal(r, 'ok');
+});
+
+test('withDeadline: RECHAZA al vencer el plazo (con la etiqueta)', async () => {
+  await assert.rejects(() => withDeadline(delay(100, 'lento'), 20, 'upsert visita'), /timeout 20ms: upsert visita/);
+});
+
+test('withDeadline: propaga el rechazo original', async () => {
+  await assert.rejects(() => withDeadline(Promise.reject(new Error('boom')), 100), /boom/);
 });

@@ -2,14 +2,16 @@ import { supabase } from './supabase';
 import { pickRoute } from './pickRoute';
 import type { Route, Store, CompetitorBrand } from '../types';
 
-// Rutas del usuario (RLS las filtra a las propias), ordenadas por fecha desc.
-export async function fetchTodayRoute(
-  userId: string,
-): Promise<{ route: Route; isFallback: boolean } | null> {
+// Ruta de HOY del usuario (RLS la filtra a las propias). null si no hay ruta hoy.
+export async function fetchTodayRoute(userId: string): Promise<Route | null> {
   const { data, error } = await supabase
     .from('routes').select('*').eq('user_id', userId).order('route_date', { ascending: false });
   if (error) throw error;
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  // Fecha LOCAL del dispositivo (route_date es una fecha de negocio local). Con
+  // toISOString (UTC), después de las 8:00 PM en Venezuela "hoy" era mañana → la
+  // app cargaba la ruta del día siguiente y escondía la vigente (familia BUG-021).
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   return pickRoute((data ?? []) as Route[], today);
 }
 
