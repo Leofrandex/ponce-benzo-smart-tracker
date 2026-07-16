@@ -1,6 +1,14 @@
 import { getSupabaseBrowser } from "../supabase/client";
 import type { DashboardVisitRow, DashboardTaskRow } from "./derive";
 
+// El dashboard solo muestra hasta 30 días; acotar server-side evita el tope
+// silencioso de 1000 filas de PostgREST cuando la tabla crezca.
+const DASHBOARD_WINDOW_DAYS = 31;
+
+function dashboardWindowStart(): string {
+  return new Date(Date.now() - DASHBOARD_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+}
+
 interface VisitJoin {
   visit_id: string;
   store_id: string;
@@ -14,7 +22,8 @@ export async function fetchDashboardVisits(): Promise<DashboardVisitRow[]> {
   const sb = getSupabaseBrowser();
   const { data, error } = await sb
     .from("visits")
-    .select("visit_id, store_id, check_in_time, status, users(full_name), stores(clients(name))");
+    .select("visit_id, store_id, check_in_time, status, users(full_name), stores(clients(name))")
+    .gte("check_in_time", dashboardWindowStart());
   if (error) throw error;
   return ((data ?? []) as unknown as VisitJoin[]).map((v) => ({
     visit_id: v.visit_id,
@@ -38,7 +47,8 @@ export async function fetchDashboardTasks(): Promise<DashboardTaskRow[]> {
   const sb = getSupabaseBrowser();
   const { data, error } = await sb
     .from("tasks")
-    .select("task_id, store_id, status, created_at, creator:users!tasks_created_by_user_id_fkey(full_name)");
+    .select("task_id, store_id, status, created_at, creator:users!tasks_created_by_user_id_fkey(full_name)")
+    .gte("created_at", dashboardWindowStart());
   if (error) throw error;
   return ((data ?? []) as unknown as TaskJoin[]).map((t) => ({
     task_id: t.task_id,

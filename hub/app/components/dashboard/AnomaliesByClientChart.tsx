@@ -42,7 +42,7 @@ export default function AnomaliesByClientChart({ visits }: Props) {
 
       {data.length === 0 ? (
         <div style={{ textAlign: "center", color: MUTED, fontSize: "13px", padding: "24px 0" }}>
-          Sin anomalías en este período
+          Sin incidencias en este período
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={180}>
@@ -69,7 +69,7 @@ export default function AnomaliesByClientChart({ visits }: Props) {
               }}
               formatter={(value, _, props) => [
                 `${value} (${(props?.payload as { pct?: number })?.pct ?? 0}%)`,
-                "Anomalías",
+                "Incidencias",
               ]}
             />
             <Bar dataKey="anomalias" radius={[4, 4, 0, 0]}>
