@@ -12,6 +12,7 @@ import { fetchFullTasks, type FullTaskRow } from "@/app/lib/queries/tasks";
 import { resolveTask } from "@/app/lib/mutations/tasks";
 import { GeoFilters } from "@/app/components/geo/GeoFilters";
 import { EMPTY_GEO, type GeoFilterValue } from "@/app/components/geo/geoOptions";
+import { TaskVisitDetail } from "@/app/components/tareas/TaskVisitDetail";
 
 type TaskStatus = "open" | "resolved";
 
@@ -227,6 +228,8 @@ export default function TareasPage() {
                     >
                       {task.description ?? "Sin descripción."}
                     </p>
+
+                    {task.source_visit_id && <TaskVisitDetail visitId={task.source_visit_id} />}
 
                     {task.status !== "resolved" && (
                       <button
