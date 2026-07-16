@@ -76,7 +76,7 @@ function TiendasInner() {
         <input className="form-input" placeholder="Buscar por nombre..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ paddingLeft: "34px" }} />
       </div>
 
-      <ClientesFilters value={filters} onChange={setFilters} clients={clients ?? []} />
+      <ClientesFilters value={filters} onChange={setFilters} clients={clients ?? []} stores={stores ?? []} />
       <ClientesTable rows={rows} />
     </>
   );
