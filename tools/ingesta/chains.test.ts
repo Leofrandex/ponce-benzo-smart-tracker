@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chainForStore, normalizeBranch, parseCoord, parseVisitDays } from "./chains";
+import { chainForStore, normalizeBranch, parseCoord, parseVisitDays, parseWeeks } from "./chains";
 
 test("chainForStore: cadenas por prefijo", () => {
   assert.equal(chainForStore("FTD CUARZO"), "Farmatodo");
@@ -33,3 +33,10 @@ test("parseVisitDays: variantes/typos del Excel (VIR/MIR/LUM); MR ambiguo se ign
   assert.deepEqual(parseVisitDays("LUN-VIR"), [1, 5]);
   assert.deepEqual(parseVisitDays("MR"), []);        // ambiguo: no se mapea
 });
+test("parseWeeks: amplía semanas 1-2-3-4 y 1-3 a semana 5", () => {
+  assert.deepEqual(parseWeeks("1-2-3-4"), [1, 2, 3, 4, 5]);
+  assert.deepEqual(parseWeeks("1-3"), [1, 3, 5]);
+  assert.deepEqual(parseWeeks("2-4"), [2, 4]);
+  assert.deepEqual(parseWeeks(null), []);
+});
+

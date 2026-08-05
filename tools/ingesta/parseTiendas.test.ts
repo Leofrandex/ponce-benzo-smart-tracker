@@ -6,19 +6,20 @@ import { parseTiendas, isComplete, resolveStoreNames, markCoordCollisions, Tiend
 
 const FILE = path.join(__dirname, "../../datos/fuentes/tiendas.xlsx");
 
-test("parseTiendas: 191 completas / 134 incompletas (sin guard de colisión)", () => {
+test("parseTiendas: Excel 2026-08-05 → 197 completas / 2 incompletas (SABANA GRANDE sin coord)", () => {
   const rows = parseTiendas(FILE);
   const completas = rows.filter(isComplete);
   const incompletas = rows.filter((r) => !isComplete(r));
-  assert.equal(completas.length, 191);
-  assert.equal(incompletas.length, 134);
+  assert.equal(completas.length, 197);
+  assert.equal(incompletas.length, 2);
+  assert.ok(incompletas.every((r) => r.nombreTienda === "SABANA GRANDE" && r.faltantes.includes("coord")));
 });
 
-test("markCoordCollisions sobre archivo real: degrada 4 (2 pares) → 187 completas", () => {
+test("markCoordCollisions sobre archivo real: reporta 2 pares pero NO degrada (mismo centro comercial es válido)", () => {
   const rows = parseTiendas(FILE);
   const conflicts = markCoordCollisions(rows);
   assert.equal(conflicts.length, 2);
-  assert.equal(rows.filter(isComplete).length, 187);
+  assert.equal(rows.filter(isComplete).length, 197);
 });
 
 test("parseTiendas: 'ARCO' completa, Farmatodo, Elvis Rondon, martes(4=jue?) ...", () => {
@@ -28,11 +29,11 @@ test("parseTiendas: 'ARCO' completa, Farmatodo, Elvis Rondon, martes(4=jue?) ...
   assert.equal(arco.cliente, "FARMATODO,C.A.");
   assert.equal(arco.merch, "ELVIS RONDON");
   assert.deepEqual(arco.weekdays, [4]); // JUE
-  assert.deepEqual(arco.weeks, [1, 2, 3, 4]);
+  assert.deepEqual(arco.weeks, [1, 2, 3, 4, 5]); // semanal, incluye 5ª semana
   assert.ok(isComplete(arco));
 });
 
-test("markCoordCollisions: dos tiendas distintas misma coord → coord_duplicada; misma tienda repetida NO", () => {
+test("markCoordCollisions: reporta pares distintos en misma coord SIN marcarlos incompletos", () => {
   const mk = (nombre: string, cliente: string, lat: number, lng: number): TiendaRow => ({
     rowIndex: 0, raw: [], cliente, canal: "Cadenas de Farmacias", tienda2: "",
     nombreTienda: nombre, lat, lng, municipio: null, ciudad: null, estado: null,
@@ -48,10 +49,8 @@ test("markCoordCollisions: dos tiendas distintas misma coord → coord_duplicada
   ];
   const conflicts = markCoordCollisions(rows);
   assert.equal(conflicts.length, 1);
-  assert.ok(rows[0].faltantes.includes("coord_duplicada"));
-  assert.ok(rows[1].faltantes.includes("coord_duplicada"));
-  assert.ok(isComplete(rows[2]));                                 // ARCO intacta
-  assert.ok(isComplete(rows[3]) && isComplete(rows[4]));          // DUP homónima no se marca
+  assert.ok(conflicts[0].includes("EL AVILA") && conflicts[0].includes("LA CANDELARIA"));
+  assert.ok(rows.every(isComplete)); // ninguna se degrada: ambas se ingieren
 });
 
 test("resolveStoreNames: desempate municipio y luego índice", () => {

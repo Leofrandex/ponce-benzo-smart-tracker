@@ -47,12 +47,19 @@ export function parseVisitDays(cell: unknown): number[] {
 }
 
 // Semanas del mes (1..5). Separadores: . - / , y espacios. Dedup + orden asc.
+// Si incluye semanas 1..4 (semanal), amplía a la semana 5 para meses con 5 semanas.
+// Si incluye semanas 1 y 3 (semanas impares), amplía a la semana 5.
 export function parseWeeks(cell: unknown): number[] {
   if (cell == null) return [];
   const set = new Set<number>();
   for (const t of String(cell).split(/[.\-/,\s]+/)) {
     const n = parseInt(t.trim(), 10);
     if (n >= 1 && n <= 5) set.add(n);
+  }
+  if (set.has(1) && set.has(2) && set.has(3) && set.has(4)) {
+    set.add(5);
+  } else if (set.has(1) && set.has(3) && !set.has(2) && !set.has(4)) {
+    set.add(5);
   }
   return [...set].sort((a, b) => a - b);
 }

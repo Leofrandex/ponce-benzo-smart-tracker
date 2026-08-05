@@ -3,8 +3,58 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { TiendaRow, resolveStoreNames } from "./parseTiendas";
 import { prefixForClient, normClient } from "./tiendasConfig";
 
+// La llave incluye el NOMBRE además de cliente+coord: dos locales distintos en
+// el mismo centro comercial comparten coordenada legítimamente (BUG-024).
 export function storeKeyFor(r: TiendaRow): string {
-  return `${normClient(r.cliente)}|${r.lat!.toFixed(5)},${r.lng!.toFixed(5)}`;
+  return `${normClient(r.cliente)}|${r.lat!.toFixed(5)},${r.lng!.toFixed(5)}|${r.nombreTienda}`;
+}
+
+export interface ExistingStore { store_id: string; name: string }
+
+// Asigna tiendas existentes de la DB a filas del Excel, por grupo de coordenada
+// (key = cliente/client_id + coord SIN nombre). Dentro de cada grupo: nombre
+// exacto primero, luego contención (｢FTD AVILA｣ ⊂ ｢FTD EL AVILA｣); si sobra una
+// sola fila y un solo candidato, se emparejan (renombre en misma coord). Cada
+// candidato se consume una vez; lo no asignado se crea nuevo.
+export function assignExistingStores(
+  rows: { key: string; finalName: string }[],
+  existingByCoord: Map<string, ExistingStore[]>,
+): Map<number, string> {
+  const byKey = new Map<string, number[]>();
+  rows.forEach((r, i) => {
+    if (!byKey.has(r.key)) byKey.set(r.key, []);
+    byKey.get(r.key)!.push(i);
+  });
+
+  const core = (name: string) => name.replace(/\s+/g, " ").trim().toUpperCase();
+  const assigned = new Map<number, string>();
+
+  for (const [key, idxs] of byKey) {
+    const cands = [...(existingByCoord.get(key) ?? [])];
+    if (!cands.length) continue;
+
+    let pending = [...idxs];
+    // 1) nombre exacto
+    pending = pending.filter((i) => {
+      const j = cands.findIndex((c) => core(c.name) === core(rows[i].finalName));
+      if (j < 0) return true;
+      assigned.set(i, cands[j].store_id); cands.splice(j, 1); return false;
+    });
+    // 2) contención (uno contiene al otro)
+    pending = pending.filter((i) => {
+      const j = cands.findIndex((c) => {
+        const a = core(c.name), b = core(rows[i].finalName);
+        return a.includes(b) || b.includes(a);
+      });
+      if (j < 0) return true;
+      assigned.set(i, cands[j].store_id); cands.splice(j, 1); return false;
+    });
+    // 3) última fila + único candidato: renombre en la misma coordenada
+    if (pending.length === 1 && cands.length === 1) {
+      assigned.set(pending[0], cands[0].store_id);
+    }
+  }
+  return assigned;
 }
 
 export async function stageStoresMulti(
@@ -18,15 +68,27 @@ export async function stageStoresMulti(
     prefix: prefixForClient(r.cliente)!, nombre: r.nombreTienda, municipio: r.municipio,
   })));
 
-  // Índice de tiendas existentes por (client_id + coord redondeada).
+  // Índice de tiendas existentes por (client_id + coord redondeada). Varias
+  // tiendas pueden compartir coordenada (mismo centro comercial): se guardan
+  // todas y `assignExistingStores` desambigua por nombre.
   const { data: existing, error } = await supabase
-    .from("stores").select("store_id, client_id, master_lat, master_lng");
+    .from("stores").select("store_id, name, client_id, master_lat, master_lng");
   if (error) throw new Error(`select stores: ${error.message}`);
-  const existingByKey = new Map<string, string>();
+  const existingByCoord = new Map<string, ExistingStore[]>();
   for (const s of existing ?? []) {
     if (s.client_id == null || s.master_lat == null || s.master_lng == null) continue;
-    existingByKey.set(`${s.client_id}|${Number(s.master_lat).toFixed(5)},${Number(s.master_lng).toFixed(5)}`, s.store_id);
+    const k = `${s.client_id}|${Number(s.master_lat).toFixed(5)},${Number(s.master_lng).toFixed(5)}`;
+    if (!existingByCoord.has(k)) existingByCoord.set(k, []);
+    existingByCoord.get(k)!.push({ store_id: s.store_id, name: s.name });
   }
+  const matchRows = completas.map((r, i) => {
+    const chain = chainMap.get(normClient(r.cliente))!;
+    return {
+      key: chain.client_id ? `${chain.client_id}|${r.lat!.toFixed(5)},${r.lng!.toFixed(5)}` : `sin-cliente|${i}`,
+      finalName: names[i],
+    };
+  });
+  const assigned = assignExistingStores(matchRows, existingByCoord);
 
   const pilot = new Set<string>();
   const idByKey = new Map<string, string | null>();
@@ -41,8 +103,7 @@ export async function stageStoresMulti(
       municipio: r.municipio, ciudad: r.ciudad, estado: r.estado, region: r.region,
       business_channel: chain.channel, client_id: chain.client_id, active: true,
     };
-    const dbKey = chain.client_id ? `${chain.client_id}|${r.lat!.toFixed(5)},${r.lng!.toFixed(5)}` : null;
-    let storeId: string | null = dbKey ? existingByKey.get(dbKey) ?? null : null;
+    let storeId: string | null = assigned.get(i) ?? null;
 
     if (commit) {
       if (storeId) {

@@ -40,6 +40,10 @@ Para realizar la migración completa a producción y conectar a los vendedores r
 
 ## ⚙️ Pendientes de Desarrollo Técnico
 
+- [x] **Carga del Excel de coordenadas del 2026-08-05** ✅ — validado en seco contra Supabase (`tools/ingesta/diffExcelVsDb.ts`) y cargado con `--commit`: **197 sucursales activas**, 470 rutas / 4.193 visitas hasta diciembre, historial preservado. Corrigió de paso el canal de **74 supermercados** mal clasificados como `otro` (typo "Super**n**ercados" en los Excel previos). Ver [[logs/Log-2026-08-05|Log 2026-08-05]].
+  * Pendiente: **avisar a los mercaderistas** que recarguen la ruta — 5 tiendas cambiaron de día (FTD TEREPAIMA MAR→VIE, FTD LA CASTELLANA VE VIE→LUN, FTD ZONA FRANCA JUE→MIE, FTD GRACIELA VIE→MAR, RIO LOS NARANJOS MAR→MIE).
+  * Pendiente del negocio: coordenadas de las **2 tiendas SABANA GRANDE** (TIO AMMI y MUNDO TOTAL) — siguen siendo las únicas 2 filas incompletas del archivo.
+
 - [ ] **Fotos del hub para el rol `admin` (BUG-025, 2026-08-05)** — policy RLS corregida **en producción** ✅ y fix de código **desplegado** ✅ (monorepo `b95439e`; commit espejo `e658b1f` en `Leofrandex/ponce-benzo-hub`, deploy Vercel `READY`).
   * Pendiente: confirmar con el coordinador que ya ve las fotos en la ficha de sucursal.
   * A futuro: si entran gerentes de otras zonas, revisar si necesitan acceso a fotos fuera de la cadena supervisor↔mercaderista.

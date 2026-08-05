@@ -1,7 +1,7 @@
 // tools/ingesta/tiendasConfig.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normClient, prefixForClient, channelForCanal } from "./tiendasConfig";
+import { normClient, prefixForClient, channelForCanal, fixStoreName } from "./tiendasConfig";
 
 test("normClient: mayúsculas, sin acentos/apóstrofes, espacios colapsados", () => {
   assert.equal(normClient(" Plaza´s "), "PLAZAS");
@@ -17,6 +17,18 @@ test("prefixForClient: mapa cerrado, tolera variantes", () => {
   assert.equal(prefixForClient("RIO SUPERMARKET"), "RIO");
   assert.equal(prefixForClient("RIO VIDA"), "RIO VIDA");
   assert.equal(prefixForClient("DESCONOCIDO"), null);
+});
+
+test("fixStoreName: corrige typos del Excel confirmados con el cliente", () => {
+  // El Excel del 2026-08-05 trae "PLAZA LAS AMERICA"; el cliente confirmó que
+  // el nombre correcto lleva S final.
+  assert.equal(fixStoreName("CENTRAL MADEIRENSE", "PLAZA LAS AMERICA"), "PLAZA LAS AMERICAS");
+  // Idempotente: el nombre ya correcto no se toca.
+  assert.equal(fixStoreName("CENTRAL MADEIRENSE", "PLAZA LAS AMERICAS"), "PLAZA LAS AMERICAS");
+  // El fix es por cliente: no se aplica a otra cadena.
+  assert.equal(fixStoreName("GAMA", "PLAZA LAS AMERICA"), "PLAZA LAS AMERICA");
+  // Nombres sin fix pasan tal cual.
+  assert.equal(fixStoreName("CENTRAL MADEIRENSE", "MONTALBAN"), "MONTALBAN");
 });
 
 test("channelForCanal", () => {

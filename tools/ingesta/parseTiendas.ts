@@ -1,7 +1,7 @@
 // tools/ingesta/parseTiendas.ts
 import * as xlsx from "xlsx";
 import { parseCoord, parseVisitDays, parseWeeks } from "./chains";
-import { normClient } from "./tiendasConfig";
+import { normClient, fixStoreName } from "./tiendasConfig";
 
 export interface TiendaRow {
   rowIndex: number; raw: unknown[];
@@ -68,7 +68,7 @@ export function parseTiendas(filePath: string): TiendaRow[] {
     out.push({
       rowIndex: i, raw: r,
       cliente, canal, tienda2: txt(r[C.tienda2]) ?? "",
-      nombreTienda: nombre.toUpperCase(),
+      nombreTienda: fixStoreName(cliente, nombre.toUpperCase()),
       lat: coord?.lat ?? null, lng: coord?.lng ?? null,
       municipio: txt(r[C.municipio]), ciudad: txt(r[C.ciudad]), estado: txt(r[C.estado]),
       direccion: txt(r[C.direccion]), region: txt(r[C.region]),
@@ -116,11 +116,10 @@ export function resolveStoreNames(
   return result;
 }
 
-// Guard de integridad: dos sucursales DISTINTAS con la misma coordenada rompen
-// la llave única cliente+coord (una se perdería y no se rutearía). Es un error
-// de datos, así que se marcan como incompletas ("coord_duplicada") para que
-// vuelvan a revisión en vez de corromper la ingesta. Muta `faltantes` in situ.
-// Devuelve las claves en conflicto (para reporte).
+// Sucursales DISTINTAS con la misma coordenada son un caso REAL (dos locales en
+// el mismo centro comercial, ej. INDIGO/RUBI en el Sambil Chacao — BUG-024). La
+// llave de tienda incluye el nombre (cliente+coord+nombre), así que ya no se
+// excluyen: esta función solo las reporta para visibilidad en el log de ingesta.
 export function markCoordCollisions(rows: TiendaRow[]): string[] {
   const groups = new Map<string, TiendaRow[]>();
   for (const r of rows) {
@@ -134,7 +133,6 @@ export function markCoordCollisions(rows: TiendaRow[]): string[] {
     const distinctNames = new Set(group.map((r) => r.nombreTienda));
     if (distinctNames.size > 1) {
       conflicts.push(`${key} → ${[...distinctNames].join(" / ")}`);
-      for (const r of group) r.faltantes.push("coord_duplicada");
     }
   }
   return conflicts;
