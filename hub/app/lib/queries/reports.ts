@@ -1,4 +1,5 @@
 import { getSupabaseBrowser } from "../supabase/client";
+import { signVisitPhotos } from "./photos";
 import type { SupervisorReport } from "../types";
 
 // ── Reportes de competencia (por tienda) ─────────────────────────────────────
@@ -51,16 +52,7 @@ export async function fetchStoreCompetition(storeId: string): Promise<StoreCompe
   const rows = (data ?? []) as unknown as CompetitionJoinRow[];
 
   // Mismo bucket privado que las visitas: hay que firmar las rutas de storage.
-  const allPaths = Array.from(new Set(rows.flatMap((r) => r.photo_urls ?? [])));
-  const signed = new Map<string, string>();
-  if (allPaths.length > 0) {
-    const { data: signedData } = await sb.storage
-      .from("visit-photos")
-      .createSignedUrls(allPaths, 60 * 60); // 1 hora
-    for (const s of signedData ?? []) {
-      if (s.path && s.signedUrl) signed.set(s.path, s.signedUrl);
-    }
-  }
+  const signed = await signVisitPhotos(Array.from(new Set(rows.flatMap((r) => r.photo_urls ?? []))));
 
   return rows.map((r) => ({
     report_id: r.report_id,
@@ -71,7 +63,7 @@ export async function fetchStoreCompetition(storeId: string): Promise<StoreCompe
     merchandiser_name: r.users?.full_name ?? "—",
     notes: r.notes,
     created_at: r.created_at,
-    photo_urls: (r.photo_urls ?? []).map((p) => signed.get(p) ?? p),
+    photo_urls: (r.photo_urls ?? []).map((p) => signed.get(p)).filter((u): u is string => u != null),
   }));
 }
 
@@ -116,22 +108,14 @@ export async function fetchStoreReports(storeId: string): Promise<SupervisorRepo
 
   const rows = (data ?? []) as unknown as VisitJoinRow[];
 
-  // El bucket `visit-photos` es privado: las visitas guardan rutas de storage,
-  // no URLs. Hay que firmarlas para poder mostrarlas en <img>.
-  const allPaths = Array.from(new Set(rows.flatMap((r) => r.photo_urls ?? [])));
-  const signed = new Map<string, string>();
-  if (allPaths.length > 0) {
-    const { data: signedData } = await sb.storage
-      .from("visit-photos")
-      .createSignedUrls(allPaths, 60 * 60); // 1 hora
-    for (const s of signedData ?? []) {
-      if (s.path && s.signedUrl) signed.set(s.path, s.signedUrl);
-    }
-  }
+  const signed = await signVisitPhotos(Array.from(new Set(rows.flatMap((r) => r.photo_urls ?? []))));
 
   return rows.map((v) => {
     const loc = v.check_in_location;
     const store = v.stores;
+    // Sólo las fotos que se pudieron firmar: el contador debe coincidir con las
+    // miniaturas que realmente se muestran.
+    const photoUrls = (v.photo_urls ?? []).map((p) => signed.get(p)).filter((u): u is string => u != null);
     const verified =
       loc != null && store?.master_lat != null && store?.master_lng != null
         ? haversineMeters(loc.lat, loc.lng, store.master_lat, store.master_lng) <= MAX_DISTANCE_METERS
@@ -147,10 +131,10 @@ export async function fetchStoreReports(storeId: string): Promise<SupervisorRepo
       duration_minutes: 0, // sin check-out en BD
       status: v.status,
       observations: v.observations ?? "",
-      photos_count: v.photo_urls?.length ?? 0,
+      photos_count: photoUrls.length,
       location_verified: verified,
       tasks_count: 0,
-      photo_urls: (v.photo_urls ?? []).map((p) => signed.get(p) ?? p),
+      photo_urls: photoUrls,
       last_restock_date: v.last_restock_date,
     };
   });

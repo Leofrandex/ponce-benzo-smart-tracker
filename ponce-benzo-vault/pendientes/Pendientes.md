@@ -40,14 +40,27 @@ Para realizar la migración completa a producción y conectar a los vendedores r
 
 ## ⚙️ Pendientes de Desarrollo Técnico
 
+- [ ] **Fotos del hub para el rol `admin` (BUG-025, 2026-08-05)** — la policy RLS ya está corregida **en producción**, así que el coordinador debería ver las fotos de inmediato (no depende del deploy).
+  * Pendiente: **espejar el fix de código al repo `Leofrandex/ponce-benzo-hub`** para que llegue a Vercel (helper `photos.ts` + `reports.ts`/`visitDetail.ts`). Sin esto, una foto sin permiso sigue mostrándose como imagen rota en producción.
+  * Pendiente: confirmar con el coordinador que ya ve las fotos en la ficha de sucursal.
+  * A futuro: si entran gerentes de otras zonas, revisar si necesitan acceso a fotos fuera de la cadena supervisor↔mercaderista.
+
+- [x] **Corrección de 5 rutas (Día de visita)** ✅ *(2026-07-23)* — el usuario cargó un Excel actualizado; validado contra Supabase: coordenadas sin cambios, las correcciones eran 5 cambios de día de visita (LA CASTELLANA VE LUN→VIE, RIOFARO JUE→LUN, CLAVELINAS JUE→LUN-JUE, MUCURA LUN→VIE, MONICA LUN→MIE). Aplicadas quirúrgicamente en `datos/fuentes/tiendas.xlsx` + `import-data.ts --commit` (191 sucursales actualizadas, 458 rutas regeneradas, historial preservado). Verificado en `routes`. Ver [[logs/Log-2026-07-23|Log 2026-07-23]].
+  * Pendiente: **avisar a los mercaderistas afectados** que recarguen su ruta en la app (los días cambiaron).
+  * Pendiente: commitear a git `datos/fuentes/tiendas.xlsx` + archivos del vault.
+- [x] **Carga del Excel definitivo de rutas** ✅ *(2026-07-17, sesión 2)* — cargado con `--commit` tras el OK del usuario: 188 sucursales actualizadas + 3 creadas (191 activas), 476 rutas (4.122 visitas) jul→dic, historial preservado. BUG-024 resuelto en la ingesta (llave `cliente+coord+nombre` + matching por nombre en coords compartidas — el negocio descartó el micro-offset). Verificado: la ruta del viernes de Willian ya incluye FTD INDIGO y FTD RUBI; AVILA/LA CANDELARIA reactivadas con su historial. Ver [[logs/Log-2026-07-17|Log 2026-07-17]].
+  * Pendiente: coordenadas de las 2 filas **SABANA GRANDE** (Eduward, MIE) — siguen fuera del catálogo por falta de coord.
+  * Pendiente: commitear a git los cambios de `tools/ingesta/`.
+  * Avisar a Willian que recargue la ruta en la app para ver las 2 tiendas hoy.
 - [ ] **Post mejoras hub (2026-07-16, sesión 2):**
-  * Mergear `feat/hub-dashboard-filtros-anomalias` a `master` y **pushear a origin** (hay 27+ commits locales sin push acumulados de sesiones previas).
+  * ~~Mergear a `master` y pushear~~ ✅ hecho (merge `fc11f29`, push a origin con los 27 commits acumulados). **Desplegado en Vercel** ✅ (commit espejo `1d21873` en `Leofrandex/ponce-benzo-hub`).
+  * > [!IMPORTANT] **Deploy del hub**: Vercel despliega desde el repo espejo `Leofrandex/ponce-benzo-hub` (contenido de `hub/` en la raíz), NO desde el monorepo. Tras cambios en `hub/`: espejar `app/`+`public/`+configs al repo espejo y pushear a `master` con autor `sebastiancm7162@gmail.com` (Vercel bloquea el email autogenerado de la máquina). A futuro: unificar apuntando Vercel al monorepo con root `hub/`.
   * Semántica de "Resueltas" en el dashboard: cuenta tareas resueltas *creadas* en el período (no existe `resolved_at`); decidir si se agrega la columna para contar por fecha de resolución.
-  * Limpieza de datos: el cliente viejo "Farmatodo" (pre-ingesta multi-cadena) sigue activo con 0 sucursales y sale en el panel de Clientes — desactivarlo en la tabla `clients`.
-  * Refactor menor: helper compartido `signPhotoPaths()` (3 copias en `reports.ts`/`visitDetail.ts`) con manejo del error de firmado; a11y de thumbnails (role/tabIndex) como barrida única.
+  * ~~Limpieza de datos: el cliente viejo "Farmatodo"~~ ✅ *(2026-07-17)* — eliminado junto con sus 84 tiendas huérfanas del seed; FTD AVILA y FTD LA CANDELARIA (con historial) reasignadas a `FARMATODO,C.A.`. Además, nombres de clientes estandarizados a MAYÚSCULAS (`GAMA`, `LOCATEL`, `PLAZA'S`). Ver [[logs/Log-2026-07-17|Log 2026-07-17]].
+  * ~~Refactor menor: helper compartido `signPhotoPaths()` (3 copias en `reports.ts`/`visitDetail.ts`) con manejo del error de firmado~~ ✅ *(2026-08-05)* — hecho como parte de `BUG-025`: `hub/app/lib/queries/photos.ts` (`signVisitPhotos`/`signedPhotoUrls`), las 3 copias eliminadas y las fotos sin permiso ya no se renderizan como imagen rota. Queda pendiente la a11y de thumbnails (role/tabIndex) como barrida única.
 - [ ] **🔥 Post BUG-022 (2026-07-16) — ingesta debe hacer *match-y-actualizar*:**
   * Corregir `tools/ingesta/` para que al re-ingestar haga match de tiendas existentes (cliente+coordenada o dirección normalizada) y las **actualice** en vez de desactivar-y-crear; si no, cada re-ingesta vuelve a dejar el historial (visitas/contactos/tareas/rutas) huérfano. Ver [[logs/Log-2026-07-16|Log 2026-07-16]].
-  * Decidir con el negocio qué hacer con **FTD AVILA** y **FTD LA CANDELARIA** (Sambil La Candelaria, 1 visita c/u): completar su data en el Excel de revisión para que entren al catálogo, o dejar sus visitas solo en respaldo.
+  * Decidir con el negocio qué hacer con **FTD AVILA** y **FTD LA CANDELARIA** (Sambil La Candelaria, 1 visita c/u): *(avance 2026-07-17)* reasignadas al cliente `FARMATODO,C.A.` (inactivas, historial visible bajo el cliente correcto); entrarán al catálogo cuando se resuelva BUG-024 y se cargue el Excel del 17-jul.
   * Borrar las tablas de respaldo `_mig_*_20260716` de Supabase cuando se confirme en el hub que el historial migrado se ve bien.
 - [ ] **🔥 Post-fix motor offline (2026-07-15, BUG-020/021) — validación en campo:**
   * Pedir a Eduward y Elvis abrir la app con WiFi ~2 min (antes de salir a ruta) para rescatar los registros del 15-jul atrapados en sus teléfonos; validar contra la DB (jornada de Elvis completa + visitas de Eduward posteriores a las 12:46 UTC).

@@ -1,4 +1,5 @@
 import { getSupabaseBrowser } from "../supabase/client";
+import { signedPhotoUrls } from "./photos";
 import type { AnomalyType } from "../types";
 
 export const ANOMALY_LABELS: Record<AnomalyType, string> = {
@@ -53,16 +54,7 @@ export async function fetchVisitDetail(visitId: string): Promise<VisitDetail | n
   if (!data) return null;
 
   const v = data as unknown as VisitDetailJoin;
-  const paths = v.photo_urls ?? [];
-  const signed = new Map<string, string>();
-  if (paths.length > 0) {
-    const { data: signedData } = await sb.storage
-      .from("visit-photos")
-      .createSignedUrls(paths, 60 * 60); // 1 hora
-    for (const s of signedData ?? []) {
-      if (s.path && s.signedUrl) signed.set(s.path, s.signedUrl);
-    }
-  }
+  const photoUrls = await signedPhotoUrls(v.photo_urls ?? []);
 
   return {
     visit_id: v.visit_id,
@@ -73,6 +65,6 @@ export async function fetchVisitDetail(visitId: string): Promise<VisitDetail | n
     status: v.status,
     anomaly_type: v.anomaly_type,
     observations: v.observations,
-    photo_urls: paths.map((p) => signed.get(p) ?? p),
+    photo_urls: photoUrls,
   };
 }

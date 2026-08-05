@@ -480,6 +480,9 @@ CREATE POLICY "visit_photos_insert_own" ON storage.objects
     AND (storage.foldername(name))[1] = auth.uid()::text
   );
 
+-- El admin ve TODAS las fotos, igual que ya ve todas las visitas y tareas
+-- (políticas "_admin_read" más arriba). Sin esta rama, el hub le muestra el
+-- reporte pero no puede firmar las imágenes del bucket privado. [BUG-025]
 CREATE POLICY "visit_photos_select_own_or_supervisor" ON storage.objects
   FOR SELECT TO authenticated
   USING (
@@ -491,5 +494,6 @@ CREATE POLICY "visit_photos_select_own_or_supervisor" ON storage.objects
         WHERE u.id::text = (storage.foldername(name))[1]
           AND u.supervisor_id = auth.uid()
       )
+      OR public.fn_is_admin()
     )
   );
