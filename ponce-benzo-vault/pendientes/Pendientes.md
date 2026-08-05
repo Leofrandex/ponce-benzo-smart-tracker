@@ -40,8 +40,7 @@ Para realizar la migración completa a producción y conectar a los vendedores r
 
 ## ⚙️ Pendientes de Desarrollo Técnico
 
-- [ ] **Fotos del hub para el rol `admin` (BUG-025, 2026-08-05)** — la policy RLS ya está corregida **en producción**, así que el coordinador debería ver las fotos de inmediato (no depende del deploy).
-  * Pendiente: **espejar el fix de código al repo `Leofrandex/ponce-benzo-hub`** para que llegue a Vercel (helper `photos.ts` + `reports.ts`/`visitDetail.ts`). Sin esto, una foto sin permiso sigue mostrándose como imagen rota en producción.
+- [ ] **Fotos del hub para el rol `admin` (BUG-025, 2026-08-05)** — policy RLS corregida **en producción** ✅ y fix de código **desplegado** ✅ (monorepo `b95439e`; commit espejo `e658b1f` en `Leofrandex/ponce-benzo-hub`, deploy Vercel `READY`).
   * Pendiente: confirmar con el coordinador que ya ve las fotos en la ficha de sucursal.
   * A futuro: si entran gerentes de otras zonas, revisar si necesitan acceso a fotos fuera de la cadena supervisor↔mercaderista.
 
