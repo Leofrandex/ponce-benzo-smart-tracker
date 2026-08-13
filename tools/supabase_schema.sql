@@ -567,13 +567,15 @@ DROP POLICY IF EXISTS "visits_assigned_read" ON visits;
 CREATE POLICY "visits_assigned_read" ON visits
   FOR SELECT TO authenticated USING (public.fn_can_see_store(store_id));
 
--- tasks
+-- tasks: la tarea sigue a su tienda (spec §4.2, "el acceso lo da la
+-- asignación del cliente, no assignee_user_id"). Se conserva
+-- created_by_user_id para que el mercaderista siga viendo las que él mismo
+-- generó desde la app, aunque la tienda no esté en su cartera comercial.
 DROP POLICY IF EXISTS "tasks_select" ON tasks;
 CREATE POLICY "tasks_select" ON tasks
   FOR SELECT TO authenticated
   USING (
-    assignee_user_id = auth.uid()
-    OR created_by_user_id = auth.uid()
+    created_by_user_id = auth.uid()
     OR (store_id IS NOT NULL AND public.fn_can_see_store(store_id))
   );
 
@@ -581,8 +583,11 @@ DROP POLICY IF EXISTS "tasks_update" ON tasks;
 CREATE POLICY "tasks_update" ON tasks
   FOR UPDATE TO authenticated
   USING (
-    assignee_user_id = auth.uid()
-    OR created_by_user_id = auth.uid()
+    created_by_user_id = auth.uid()
+    OR (store_id IS NOT NULL AND public.fn_can_see_store(store_id))
+  )
+  WITH CHECK (
+    created_by_user_id = auth.uid()
     OR (store_id IS NOT NULL AND public.fn_can_see_store(store_id))
   );
 
