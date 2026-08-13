@@ -883,3 +883,61 @@ as $$
   group by 1
   order by 2 desc;
 $$;
+
+-- ============================================================
+-- fn_dash_tiendas_sin_visita() / fn_dash_tiendas_criticas(): tiendas
+-- abandonadas (sin visita reciente) y tiendas con mas anomalias, para
+-- las tablas accionables del panel gerencial. Van despues de
+-- fn_is_admin()/fn_my_client_ids()/fn_fecha_local()/fn_hoy(), a las
+-- que invocan. SECURITY INVOKER: el recorte por cliente se aplica
+-- explicitamente, no se delega solo a RLS (stores_read expone las
+-- 197 tiendas a todo mercaderista para la cache offline movil).
+-- ============================================================
+
+-- Tiendas activas sin ninguna visita en los ultimos p_dias. Una tienda que nunca
+-- se ha visitado tambien aparece: dias_sin_visita queda en NULL y ordena primero.
+create or replace function public.fn_dash_tiendas_sin_visita(p_dias integer)
+returns table (store_id uuid, tienda text, cliente text, clasificacion text, dias_sin_visita integer)
+language sql
+stable
+security invoker
+set search_path to ''
+as $$
+  select s.store_id,
+         s.name,
+         coalesce(c.name, 'Sin cadena'),
+         s.classification,
+         (public.fn_hoy() - max(public.fn_fecha_local(v.check_in_time)))::int
+  from public.stores s
+  left join public.clients c on c.client_id = s.client_id
+  left join public.visits v on v.store_id = s.store_id
+  where s.active
+    and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
+  group by s.store_id, s.name, c.name, s.classification
+  having max(public.fn_fecha_local(v.check_in_time)) is null
+      or max(public.fn_fecha_local(v.check_in_time)) < public.fn_hoy() - p_dias
+  order by 5 desc nulls first, 2;
+$$;
+
+create or replace function public.fn_dash_tiendas_criticas(p_desde date, p_hasta date, p_limite integer)
+returns table (store_id uuid, tienda text, cliente text, anomalias bigint, visitas bigint)
+language sql
+stable
+security invoker
+set search_path to ''
+as $$
+  select s.store_id,
+         s.name,
+         coalesce(c.name, 'Sin cadena'),
+         count(*) filter (where v.status = 'anomaly')::bigint,
+         count(*)::bigint
+  from public.visits v
+  join public.stores s on s.store_id = v.store_id
+  left join public.clients c on c.client_id = s.client_id
+  where public.fn_fecha_local(v.check_in_time) between p_desde and p_hasta
+    and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
+  group by s.store_id, s.name, c.name
+  having count(*) filter (where v.status = 'anomaly') > 0
+  order by 4 desc, 5 desc
+  limit p_limite;
+$$;
