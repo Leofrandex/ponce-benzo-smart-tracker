@@ -491,6 +491,57 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.fn_my_client_ids() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fn_my_client_ids() TO authenticated;
 
+-- Cumplimiento de ruta: de las visitas que la ruta planificaba para los dias ya
+-- transcurridos, cuantas se hicieron. Una visita cuenta como hecha si existe un
+-- check-in de ese usuario, en esa tienda, ese mismo dia, y no fue una omision.
+-- SECURITY INVOKER (a diferencia de fn_is_admin()/fn_my_client_ids()): el
+-- recorte por cliente se aplica explicitamente dentro de la funcion, no se
+-- delega solo a RLS, porque stores_read expone las 197 tiendas a cualquier
+-- mercaderista (cache offline de la app) y varios de ellos tambien entran al panel.
+create or replace function public.fn_dash_cumplimiento(p_desde date, p_hasta date)
+returns table (user_id uuid, full_name text, planificadas bigint, hechas bigint, pct integer)
+language sql
+stable
+security invoker
+set search_path to ''
+as $$
+  with planificado as (
+    select r.user_id as uid, r.route_date, unnest(r.store_ids) as store_id
+    from public.routes r
+    -- Solo dias transcurridos: las rutas estan materializadas hasta diciembre.
+    where r.route_date between p_desde and least(p_hasta, current_date)
+  ),
+  en_alcance as (
+    select p.uid, p.route_date, p.store_id
+    from planificado p
+    join public.stores s on s.store_id = p.store_id
+    where public.fn_is_admin()
+       or s.client_id in (select public.fn_my_client_ids())
+  ),
+  evaluado as (
+    select e.uid,
+           exists (
+             select 1 from public.visits v
+             where v.user_id = e.uid
+               and v.store_id = e.store_id
+               and (v.check_in_time at time zone 'UTC')::date = e.route_date
+               and v.status <> 'skipped'
+           ) as hecha
+    from en_alcance e
+  )
+  select ev.uid,
+         u.full_name,
+         count(*)::bigint as planificadas,
+         count(*) filter (where ev.hecha)::bigint as hechas,
+         case when count(*) = 0 then 0
+              else round(100.0 * count(*) filter (where ev.hecha) / count(*))::int
+         end as pct
+  from evaluado ev
+  join public.users u on u.id = ev.uid
+  group by 1, 2
+  order by 3 desc;
+$$;
+
 create or replace function public.fn_is_merchandiser()
 returns boolean
 language sql
