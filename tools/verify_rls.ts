@@ -11,6 +11,8 @@ const PW: Record<string, string> = JSON.parse(
   fs.readFileSync(path.join(__dirname, "vendedores.secret.json"), "utf8"),
 );
 
+const TAM_PAGINA = 1000;
+
 let fallos = 0;
 function check(nombre: string, ok: boolean, detalle: string = "") {
   console.log(`  ${ok ? "✓" : "✗"} ${nombre}${ok ? "" : ` — ${detalle}`}`);
@@ -24,9 +26,41 @@ async function sesion(email: string) {
   return sb;
 }
 
+// PostgREST corta en 1000 filas por defecto: sin paginar, una comprobacion de
+// fugas se volveria ciega en silencio en cuanto una tabla supere las mil filas.
+// Este helper pagina con .range() hasta agotar resultados y lanza si algun
+// tramo falla, en vez de tragarse el error como data ?? [].
+async function paginado<T>(
+  sb: ReturnType<typeof createClient>,
+  tabla: string,
+  select: string,
+): Promise<T[]> {
+  const todas: T[] = [];
+  for (let desde = 0; ; desde += TAM_PAGINA) {
+    const { data, error } = await sb.from(tabla).select(select).range(desde, desde + TAM_PAGINA - 1);
+    if (error) throw new Error(`${tabla} (rango ${desde}): ${error.message}`);
+    const lote = (data ?? []) as unknown as T[];
+    todas.push(...lote);
+    if (lote.length < TAM_PAGINA) break;
+  }
+  return todas;
+}
+
+async function contar(
+  sb: ReturnType<typeof createClient>,
+  tabla: string,
+  filtro?: (q: any) => any,
+): Promise<number> {
+  let q: any = sb.from(tabla).select("*", { count: "exact", head: true });
+  if (filtro) q = filtro(q);
+  const { count, error } = await q;
+  if (error) throw new Error(`count ${tabla}: ${error.message}`);
+  return count ?? 0;
+}
+
 async function nombresDeClientes(sb: ReturnType<typeof createClient>) {
-  const { data } = await sb.from("clients").select("name");
-  return new Set((data ?? []).map((c: { name: string }) => c.name));
+  const filas = await paginado<{ name: string }>(sb, "clients", "name");
+  return new Set(filas.map((c) => c.name));
 }
 
 async function main() {
@@ -37,19 +71,14 @@ async function main() {
     const cli = await nombresDeClientes(sb);
     check("ve los 19 clientes", cli.size === 19, `vio ${cli.size}`);
 
-    const { count: sc } = await sb
-      .from("stores")
-      .select("store_id", { count: "exact", head: true })
-      .eq("active", true);
+    const sc = await contar(sb, "stores", (q) => q.eq("active", true));
     check("ve las 197 tiendas activas", sc === 197, `vio ${sc}`);
 
-    const { count: cc } = await sb
-      .from("contacts")
-      .select("contact_id", { count: "exact", head: true });
+    const cc = await contar(sb, "contacts");
     check("ve los 234 contactos", cc === 234, `vio ${cc}`);
 
-    const { count } = await sb.from("visits").select("visit_id", { count: "exact", head: true });
-    check("ve todas las visitas (>= 654)", (count ?? 0) >= 654, `vio ${count}`);
+    const vc = await contar(sb, "visits");
+    check("ve todas las visitas (>= 654)", vc >= 654, `vio ${vc}`);
     await sb.auth.signOut();
   }
 
@@ -65,26 +94,26 @@ async function main() {
     check("NO ve LOCATEL", !cli.has("LOCATEL"), "¡FUGA! ve Locatel");
     check("NO ve RED VITAL", !cli.has("RED VITAL"), "¡FUGA! ve Red Vital");
 
-    // Tiendas: solo las de sus clientes, y exactamente 10 activas.
-    const { data: st } = await sb.from("stores").select("store_id, active, clients(name)");
-    const ajenas = (st ?? []).filter(
-      (s: { clients: { name: string } | null }) => !cli.has(s.clients?.name ?? ""),
-    );
+    // Tiendas: solo las de sus clientes, y exactamente 10 activas. Paginado
+    // por prudencia (hoy ~197 filas, cifra estable, pero el patron es el mismo).
+    type ST = { store_id: string; active: boolean; clients: { name: string } | null };
+    const st = await paginado<ST>(sb, "stores", "store_id, active, clients(name)");
+    const ajenas = st.filter((s) => !cli.has(s.clients?.name ?? ""));
     check("no ve tiendas de clientes ajenos", ajenas.length === 0, `${ajenas.length} tiendas ajenas`);
-    const activas = (st ?? []).filter((s: { active: boolean }) => s.active);
+    const activas = st.filter((s) => s.active);
     check("ve exactamente 10 tiendas activas", activas.length === 10, `vio ${activas.length}`);
 
     // Contactos: exactamente los de su cartera.
-    const { count: cc } = await sb.from("contacts").select("contact_id", { count: "exact", head: true });
+    const cc = await contar(sb, "contacts");
     check("ve exactamente 10 contactos (los suyos)", cc === 10, `vio ${cc}`);
 
     // Visitas: solo las suyas, > 0.
-    const { count: vc } = await sb.from("visits").select("visit_id", { count: "exact", head: true });
-    check("ve al menos sus 29 visitas", (vc ?? 0) >= 29, `vio ${vc}`);
+    const vc = await contar(sb, "visits");
+    check("ve al menos sus 29 visitas", vc >= 29, `vio ${vc}`);
 
     // Mapa: excepcion deliberada, si ve las rutas completas.
-    const { count: rc } = await sb.from("routes").select("route_id", { count: "exact", head: true });
-    check("SI ve las rutas (excepcion del Mapa)", (rc ?? 0) > 0, "no ve ninguna");
+    const rc = await contar(sb, "routes");
+    check("SI ve las rutas (excepcion del Mapa)", rc > 0, "no ve ninguna");
     await sb.auth.signOut();
   }
 
@@ -98,19 +127,18 @@ async function main() {
     check("NO ve FARMATODO", !cli.has("FARMATODO,C.A."), "¡FUGA! ve Farmatodo");
     check("NO ve LOCATEL", !cli.has("LOCATEL"), "¡FUGA! ve Locatel");
 
-    const { data: st } = await sb.from("stores").select("store_id, active, clients(name)");
-    const ajenas = (st ?? []).filter(
-      (s: { clients: { name: string } | null }) => !cli.has(s.clients?.name ?? ""),
-    );
+    type ST = { store_id: string; active: boolean; clients: { name: string } | null };
+    const st = await paginado<ST>(sb, "stores", "store_id, active, clients(name)");
+    const ajenas = st.filter((s) => !cli.has(s.clients?.name ?? ""));
     check("no ve tiendas de clientes ajenos", ajenas.length === 0, `${ajenas.length} tiendas ajenas`);
-    const activas = (st ?? []).filter((s: { active: boolean }) => s.active);
+    const activas = st.filter((s) => s.active);
     check("ve exactamente 6 tiendas activas", activas.length === 6, `vio ${activas.length}`);
 
-    const { count: cc } = await sb.from("contacts").select("contact_id", { count: "exact", head: true });
+    const cc = await contar(sb, "contacts");
     check("ve exactamente 6 contactos (los suyos)", cc === 6, `vio ${cc}`);
 
-    const { count: vc } = await sb.from("visits").select("visit_id", { count: "exact", head: true });
-    check("ve al menos sus 16 visitas", (vc ?? 0) >= 16, `vio ${vc}`);
+    const vc = await contar(sb, "visits");
+    check("ve al menos sus 16 visitas", vc >= 16, `vio ${vc}`);
     await sb.auth.signOut();
   }
 
@@ -118,35 +146,36 @@ async function main() {
   console.log("\nMERCADERISTA (czurita@ponce-benzo.com)");
   {
     const sb = await sesion("czurita@ponce-benzo.com");
-    const { data: me } = await sb.auth.getUser();
+    const { data: me, error: errUser } = await sb.auth.getUser();
+    if (errUser) throw new Error(`auth.getUser: ${errUser.message}`);
     const yo = me.user!.id;
     const mios = await nombresDeClientes(sb); // sus clientes asignados
     check("ve sus 19 clientes asignados", mios.size === 19, `vio ${mios.size}`);
     check("ve LOCATEL (es su cuenta)", mios.has("LOCATEL"), `${[...mios]}`);
 
     // Toda visita visible debe ser suya, o de una tienda de un cliente suyo.
-    const { data: v } = await sb
-      .from("visits")
-      .select("visit_id, user_id, stores(clients(name))");
+    // Paginado: hoy 248 visitas visibles para Carlos con 654 en el sistema,
+    // pero sin paginar esta comprobacion se volveria ciega en silencio en
+    // cuanto el total supere las mil filas — justo la asercion de fuga.
     type VJ = { visit_id: string; user_id: string; stores: { clients: { name: string } | null } | null };
-    const fugas = ((v ?? []) as unknown as VJ[]).filter(
-      (x) => x.user_id !== yo && !mios.has(x.stores?.clients?.name ?? ""),
-    );
+    const todas = await paginado<VJ>(sb, "visits", "visit_id, user_id, stores(clients(name))");
+
+    const fugas = todas.filter((x) => x.user_id !== yo && !mios.has(x.stores?.clients?.name ?? ""));
     check("no ve visitas ajenas fuera de sus clientes", fugas.length === 0,
       `¡FUGA! ${fugas.length} visitas, p.ej. ${fugas[0]?.visit_id}`);
 
     // Y debe ver al menos una visita propia: si viera cero, la prueba anterior
     // pasaria trivialmente y estariamos midiendo nada.
-    const propias = ((v ?? []) as unknown as VJ[]).filter((x) => x.user_id === yo);
+    const propias = todas.filter((x) => x.user_id === yo);
     check("ve sus propias visitas", propias.length > 0, "vio 0 — la prueba anterior no vale");
-    check("ve al menos sus 248 visitas en total", (v ?? []).length >= 248, `vio ${(v ?? []).length}`);
+    check("ve al menos sus 248 visitas en total", todas.length >= 248, `vio ${todas.length}`);
 
     // Catalogo completo de tiendas: la app movil cacheia todo para trabajar
     // sin senal. Si este numero baja, la APK se rompe en campo.
-    const { count: sc } = await sb.from("stores").select("store_id", { count: "exact", head: true });
-    check("conserva el catalogo completo (197 tiendas, sync offline)", (sc ?? 0) >= 197, `vio ${sc}`);
+    const sc = await contar(sb, "stores");
+    check("conserva el catalogo completo (197 tiendas, sync offline)", sc >= 197, `vio ${sc}`);
 
-    const { count: cc } = await sb.from("contacts").select("contact_id", { count: "exact", head: true });
+    const cc = await contar(sb, "contacts");
     check("ve los 234 contactos de sus cuentas", cc === 234, `vio ${cc}`);
     await sb.auth.signOut();
   }
