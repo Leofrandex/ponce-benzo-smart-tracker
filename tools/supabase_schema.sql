@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS clients (
 );
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS clients_select ON clients;
-CREATE POLICY clients_select ON clients FOR SELECT TO authenticated USING (true);
+-- clients_select se define más abajo, después de fn_my_client_ids()/fn_is_merchandiser()
+-- (alcance por cliente asignado).
 
 -- ============================================================
 -- TABLE: stores (maestro de tiendas + segmentación CRM)
@@ -328,22 +329,18 @@ DROP POLICY IF EXISTS "brands_read_auth"          ON competitor_brands;
 DROP POLICY IF EXISTS "comp_reports_own"          ON competition_reports;
 DROP POLICY IF EXISTS "comp_reports_supervisor_read" ON competition_reports;
 
--- stores: lectura autenticada. INSERT/UPDATE (alta/edición) se definen más abajo,
--- después de fn_can_see_store()/fn_is_admin() (alcance por cliente). Sin DELETE
--- (se desactiva con active=false).
-CREATE POLICY "stores_read_authenticated" ON stores
-  FOR SELECT TO authenticated USING (TRUE);
+-- stores: lectura (stores_read) e INSERT/UPDATE (alta/edición) se definen más
+-- abajo, después de fn_can_see_store()/fn_is_admin()/fn_is_merchandiser()
+-- (alcance por cliente). Sin DELETE (se desactiva con active=false).
 
--- users: perfil propio + el supervisor ve a sus vendedores
+-- users: perfil propio. La lectura del resto del equipo (users_staff_read) se
+-- define más abajo, junto con las demás políticas de alcance por cliente.
 CREATE POLICY "users_own_profile" ON users
   FOR ALL TO authenticated USING (auth.uid() = id);
-CREATE POLICY "users_supervisor_read" ON users
-  FOR SELECT TO authenticated USING (supervisor_id = auth.uid());
 
--- contacts: lectura autenticada. Escritura (contacts_write_staff) se define más
--- abajo, después de fn_can_see_store() (alcance por cliente).
-CREATE POLICY "contacts_read_auth" ON contacts
-  FOR SELECT TO authenticated USING (TRUE);
+-- contacts: lectura (contacts_read) se define más abajo, después de
+-- fn_can_see_store()/fn_is_merchandiser() (alcance por cliente). Escritura
+-- (contacts_write_staff) también se define más abajo.
 
 -- ============================================================
 -- RPC: fijar el encargado (is_primary) de una tienda de forma atómica.
@@ -365,67 +362,46 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.fn_set_primary_contact(uuid, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fn_set_primary_contact(uuid, uuid) TO authenticated;
 
--- engagements: lectura autenticada. Escritura (engagements_write_auth) se define
--- más abajo, después de fn_can_see_store() (alcance por cliente).
-CREATE POLICY "engagements_read_auth" ON contact_engagements
-  FOR SELECT TO authenticated USING (TRUE);
+-- engagements: lectura (engagements_read) se define más abajo, después de
+-- fn_can_see_store() (alcance por cliente). Escritura (engagements_write_auth)
+-- también se define más abajo.
 
--- routes: dueño lee las suyas; supervisor lee las de sus vendedores
+-- routes: dueño lee las suyas. La lectura del resto del equipo interno
+-- (routes_staff_read) se define más abajo, junto con sessions/pings/users.
 CREATE POLICY "routes_own" ON routes
   FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "routes_supervisor_read" ON routes
-  FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM users u WHERE u.id = routes.user_id AND u.supervisor_id = auth.uid()));
 
--- sessions: dueño gestiona las suyas; supervisor lee (v2.0: mapa en vivo)
+-- sessions: dueño gestiona las suyas. La lectura del resto del equipo interno
+-- (sessions_staff_read) se define más abajo — excepción deliberada del Mapa:
+-- el recorrido GPS es continuo y cruza cadenas.
 CREATE POLICY "sessions_own" ON sessions
   FOR ALL TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "sessions_supervisor_read" ON sessions
-  FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM users u WHERE u.id = sessions.user_id AND u.supervisor_id = auth.uid()));
 
--- location_pings (v2.0): dueño escribe/lee lo suyo; supervisor lee
+-- location_pings (v2.0): dueño escribe/lee lo suyo. Lectura del resto del
+-- equipo (pings_staff_read) se define más abajo (misma excepción del Mapa).
 CREATE POLICY "pings_own" ON location_pings
   FOR ALL TO authenticated
   USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
-CREATE POLICY "pings_supervisor_read" ON location_pings
-  FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM users u WHERE u.id = location_pings.user_id AND u.supervisor_id = auth.uid()));
 
--- visits: dueño gestiona; supervisor lee
+-- visits: dueño gestiona. Lectura por alcance de cliente (visits_assigned_read)
+-- se define más abajo, después de fn_can_see_store().
 CREATE POLICY "visits_own" ON visits
   FOR ALL TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "visits_supervisor_read" ON visits
-  FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM users u WHERE u.id = visits.user_id AND u.supervisor_id = auth.uid()));
 
--- tasks (v2.0): el INSERT lo hace SOLO el trigger (SECURITY DEFINER); los clientes leen y actualizan estado
-CREATE POLICY "tasks_select" ON tasks
-  FOR SELECT TO authenticated
-  USING (assignee_user_id = auth.uid()
-         OR created_by_user_id = auth.uid()
-         OR EXISTS (SELECT 1 FROM users u WHERE u.id = created_by_user_id AND u.supervisor_id = auth.uid()));
-CREATE POLICY "tasks_update" ON tasks
-  FOR UPDATE TO authenticated
-  USING (assignee_user_id = auth.uid()
-         OR created_by_user_id = auth.uid()
-         OR EXISTS (SELECT 1 FROM users u WHERE u.id = created_by_user_id AND u.supervisor_id = auth.uid()))
-  WITH CHECK (assignee_user_id = auth.uid()
-              OR created_by_user_id = auth.uid()
-              OR EXISTS (SELECT 1 FROM users u WHERE u.id = created_by_user_id AND u.supervisor_id = auth.uid()));
+-- tasks (v2.0): el INSERT lo hace SOLO el trigger (SECURITY DEFINER); los
+-- clientes leen y actualizan estado. tasks_select/tasks_update se definen más
+-- abajo, después de fn_can_see_store() (alcance por cliente).
 
 -- competitor_brands: lectura global autenticada
 CREATE POLICY "brands_read_auth" ON competitor_brands
   FOR SELECT TO authenticated USING (TRUE);
 
--- competition_reports: el autor gestiona lo suyo; supervisor SOLO lee (DELETE evalúa únicamente USING)
+-- competition_reports: el autor gestiona lo suyo. Lectura por alcance de
+-- cliente (comp_reports_assigned_read) se define más abajo.
 CREATE POLICY "comp_reports_own" ON competition_reports
   FOR ALL TO authenticated
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
-CREATE POLICY "comp_reports_supervisor_read" ON competition_reports
-  FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM users u WHERE u.id = competition_reports.user_id AND u.supervisor_id = auth.uid()));
 
 -- ============================================================
 -- Visibilidad GLOBAL del rol 'admin' (Director de Ventas)
@@ -447,10 +423,10 @@ alter table public.client_assignments enable row level security;
 
 -- Cada quien ve sus propias asignaciones; los admin ven y administran todas.
 create policy client_assignments_own_read on public.client_assignments
-  for select using (user_id = auth.uid());
+  for select to authenticated using (user_id = auth.uid());
 
 create policy client_assignments_admin_all on public.client_assignments
-  for all using (public.fn_is_admin()) with check (public.fn_is_admin());
+  for all to authenticated using (public.fn_is_admin()) with check (public.fn_is_admin());
 
 -- ============================================================
 -- Funciones auxiliares de alcance (Hub: alcance por cliente)
@@ -501,6 +477,90 @@ as $$
 $$;
 REVOKE EXECUTE ON FUNCTION public.fn_can_see_store(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fn_can_see_store(uuid) TO authenticated;
+
+-- ============================================================
+-- Políticas de LECTURA acotadas por cliente asignado (alcance por cliente).
+-- Reemplazan el eje "supervisor_id" (jerarquía de personas) por el eje
+-- "cliente asignado" (client_assignments) vía fn_can_see_store()/fn_my_client_ids().
+-- sessions/location_pings/routes/users son excepción deliberada del Mapa: el
+-- recorrido GPS es continuo y cruza cadenas, así que todo el equipo interno
+-- lo ve completo.
+-- ============================================================
+
+-- stores: el mercaderista conserva el catálogo completo (la app cachea offline).
+DROP POLICY IF EXISTS "stores_read" ON stores;
+CREATE POLICY "stores_read" ON stores
+  FOR SELECT TO authenticated USING (
+    public.fn_is_admin()
+    OR public.fn_is_merchandiser()
+    OR client_id IN (SELECT public.fn_my_client_ids())
+  );
+
+-- clients
+DROP POLICY IF EXISTS "clients_select" ON clients;
+CREATE POLICY "clients_select" ON clients
+  FOR SELECT TO authenticated USING (
+    public.fn_is_admin()
+    OR public.fn_is_merchandiser()
+    OR client_id IN (SELECT public.fn_my_client_ids())
+  );
+
+-- contacts: data comercial sensible (teléfonos, correos, cumpleaños).
+DROP POLICY IF EXISTS "contacts_read" ON contacts;
+CREATE POLICY "contacts_read" ON contacts
+  FOR SELECT TO authenticated
+  USING (public.fn_is_merchandiser() OR public.fn_can_see_store(store_id));
+
+-- contact_engagements
+DROP POLICY IF EXISTS "engagements_read" ON contact_engagements;
+CREATE POLICY "engagements_read" ON contact_engagements
+  FOR SELECT TO authenticated
+  USING (author_user_id = auth.uid() OR public.fn_can_see_store(store_id));
+
+-- visits: el supervisor directo deja de ser el eje; pasa a serlo la tienda.
+DROP POLICY IF EXISTS "visits_assigned_read" ON visits;
+CREATE POLICY "visits_assigned_read" ON visits
+  FOR SELECT TO authenticated USING (public.fn_can_see_store(store_id));
+
+-- tasks
+DROP POLICY IF EXISTS "tasks_select" ON tasks;
+CREATE POLICY "tasks_select" ON tasks
+  FOR SELECT TO authenticated
+  USING (
+    assignee_user_id = auth.uid()
+    OR created_by_user_id = auth.uid()
+    OR (store_id IS NOT NULL AND public.fn_can_see_store(store_id))
+  );
+
+DROP POLICY IF EXISTS "tasks_update" ON tasks;
+CREATE POLICY "tasks_update" ON tasks
+  FOR UPDATE TO authenticated
+  USING (
+    assignee_user_id = auth.uid()
+    OR created_by_user_id = auth.uid()
+    OR (store_id IS NOT NULL AND public.fn_can_see_store(store_id))
+  );
+
+-- competition_reports
+DROP POLICY IF EXISTS "comp_reports_assigned_read" ON competition_reports;
+CREATE POLICY "comp_reports_assigned_read" ON competition_reports
+  FOR SELECT TO authenticated
+  USING (store_id IS NOT NULL AND public.fn_can_see_store(store_id));
+
+-- sessions / location_pings / routes: excepción deliberada del Mapa.
+DROP POLICY IF EXISTS "sessions_staff_read" ON sessions;
+CREATE POLICY "sessions_staff_read" ON sessions FOR SELECT TO authenticated USING (TRUE);
+
+DROP POLICY IF EXISTS "pings_staff_read" ON location_pings;
+CREATE POLICY "pings_staff_read" ON location_pings FOR SELECT TO authenticated USING (TRUE);
+
+DROP POLICY IF EXISTS "routes_staff_read" ON routes;
+CREATE POLICY "routes_staff_read" ON routes FOR SELECT TO authenticated USING (TRUE);
+
+-- users: nombres visibles para todo el equipo interno (se usan en gráficos y
+-- en el autor de cada tarea). La escritura sigue restringida (users_own_profile).
+DROP POLICY IF EXISTS "users_staff_read" ON users;
+CREATE POLICY "users_staff_read" ON users FOR SELECT TO authenticated USING (TRUE);
 
 -- ============================================================
 -- Políticas de ESCRITURA acotadas por cliente asignado (alcance por cliente).
@@ -564,6 +624,7 @@ ON CONFLICT (id) DO NOTHING;
 
 DROP POLICY IF EXISTS "visit_photos_insert_own"  ON storage.objects;
 DROP POLICY IF EXISTS "visit_photos_select_own_or_supervisor" ON storage.objects;
+DROP POLICY IF EXISTS "visit_photos_select_scoped" ON storage.objects;
 
 CREATE POLICY "visit_photos_insert_own" ON storage.objects
   FOR INSERT TO authenticated
@@ -575,17 +636,19 @@ CREATE POLICY "visit_photos_insert_own" ON storage.objects
 -- El admin ve TODAS las fotos, igual que ya ve todas las visitas y tareas
 -- (políticas "_admin_read" más arriba). Sin esta rama, el hub le muestra el
 -- reporte pero no puede firmar las imágenes del bucket privado. [BUG-025]
-CREATE POLICY "visit_photos_select_own_or_supervisor" ON storage.objects
+-- La ruta es {user_id}/{visit_id}/{n}.jpg: el visit_id permite llegar hasta
+-- la tienda y su cliente sin tocar la app móvil (alcance por cliente).
+CREATE POLICY "visit_photos_select_scoped" ON storage.objects
   FOR SELECT TO authenticated
   USING (
     bucket_id = 'visit-photos'
     AND (
-      (storage.foldername(name))[1] = auth.uid()::text
-      OR EXISTS (
-        SELECT 1 FROM public.users u
-        WHERE u.id::text = (storage.foldername(name))[1]
-          AND u.supervisor_id = auth.uid()
-      )
+      (storage.foldername(name))[1] = (auth.uid())::text
       OR public.fn_is_admin()
+      OR EXISTS (
+        SELECT 1 FROM public.visits v
+        WHERE v.visit_id::text = (storage.foldername(name))[2]
+          AND public.fn_can_see_store(v.store_id)
+      )
     )
   );
