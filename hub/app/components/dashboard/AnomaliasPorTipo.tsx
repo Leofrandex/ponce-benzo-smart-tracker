@@ -9,35 +9,22 @@ import {
   Cell,
   Tooltip,
 } from "recharts";
-import type { DashboardVisitRow } from "@/app/lib/queries/derive";
+import type { AnomaliaRow } from "@/app/lib/queries/dashboard";
 
 interface Props {
-  visits: DashboardVisitRow[];
+  rows: AnomaliaRow[];
 }
 
 const DANGER = "#dc2626";
 const MUTED = "#8C9091";
 
-export default function AnomaliesByClientChart({ visits }: Props) {
-  const counts: Record<string, number> = {};
-  for (const v of visits) {
-    if (v.status === "anomaly") {
-      const key = v.client_name ?? "Sin cadena";
-      counts[key] = (counts[key] ?? 0) + 1;
-    }
-  }
-  const total = Object.values(counts).reduce((s, n) => s + n, 0);
-  const data = Object.entries(counts)
-    .map(([client, anomalias]) => ({
-      client,
-      anomalias,
-      pct: total > 0 ? Math.round((anomalias / total) * 100) : 0,
-    }))
-    .sort((a, b) => b.anomalias - a.anomalias);
+export default function AnomaliasPorTipo({ rows }: Props) {
+  const data = rows.map((r) => ({ name: r.tipo, value: r.n, previo: r.n_periodo_anterior }));
+  const total = data.reduce((s, d) => s + d.value, 0);
 
   return (
     <div className="chart-card">
-      <div className="chart-title">Incidencias por cadena</div>
+      <div className="chart-title">Anomalías por tipo</div>
       <div className="chart-subtitle">{total} incidencia{total !== 1 ? "s" : ""} en el período</div>
 
       {data.length === 0 ? (
@@ -48,7 +35,7 @@ export default function AnomaliesByClientChart({ visits }: Props) {
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
             <XAxis
-              dataKey="client"
+              dataKey="name"
               tick={{ fontSize: 11, fill: MUTED }}
               axisLine={false}
               tickLine={false}
@@ -68,11 +55,11 @@ export default function AnomaliesByClientChart({ visits }: Props) {
                 boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
               }}
               formatter={(value, _, props) => [
-                `${value} (${(props?.payload as { pct?: number })?.pct ?? 0}%)`,
-                "Incidencias",
+                `${value} (período anterior: ${(props?.payload as { previo?: number })?.previo ?? 0})`,
+                "Anomalías",
               ]}
             />
-            <Bar dataKey="anomalias" radius={[4, 4, 0, 0]}>
+            <Bar dataKey="value" radius={[4, 4, 0, 0]}>
               {data.map((_, i) => (
                 <Cell key={i} fill={DANGER} />
               ))}

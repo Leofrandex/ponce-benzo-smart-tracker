@@ -1,85 +1,56 @@
 "use client";
 
-import type { DashboardTaskRow } from "@/app/lib/queries/derive";
+import type { BacklogRow, TiempoResolucion } from "@/app/lib/queries/dashboard";
 
 interface Props {
-  tasks: DashboardTaskRow[];
+  rows: BacklogRow[];
+  // Opcional: si no llega (o horas_promedio es null porque aun no hay tareas
+  // resueltas), la tarjeta simplemente omite la linea en vez de mostrar "null".
+  resolucion?: TiempoResolucion | null;
 }
 
-const SUCCESS = "#16a34a";
-const ACCENT = "#00205C";
-const MUTED = "#8C9091";
+// Los 4 tramos vienen siempre de la base, incluso con ceros, para que la tarjeta
+// no cambie de forma segun los datos.
+const ETIQUETA: Record<string, string> = {
+  "0-7": "Menos de 1 semana",
+  "8-15": "1 a 2 semanas",
+  "16-30": "2 a 4 semanas",
+  "+30": "Mas de un mes",
+};
 
-export default function TasksProgress({ tasks }: Props) {
-  const total = tasks.length;
-  const resolved = tasks.filter((t) => t.status === "resolved").length;
-  const pct = total > 0 ? Math.round((resolved / total) * 100) : 0;
-
-  // Per-merchandiser breakdown
-  const byMerc: Record<string, { total: number; resolved: number }> = {};
-  for (const t of tasks) {
-    const name = t.merchandiser_name ?? "—";
-    if (!byMerc[name]) byMerc[name] = { total: 0, resolved: 0 };
-    byMerc[name].total++;
-    if (t.status === "resolved") byMerc[name].resolved++;
-  }
-
-  const rows = Object.entries(byMerc).sort(
-    (a, b) => b[1].resolved / b[1].total - a[1].resolved / a[1].total
-  );
+export default function TasksProgress({ rows, resolucion }: Props) {
+  const total = rows.reduce((s, r) => s + r.n, 0);
 
   return (
-    <div className="chart-card">
-      <div className="chart-title">Tareas asignadas vs resueltas</div>
-      <div className="chart-subtitle">{resolved} de {total} tarea{total !== 1 ? "s" : ""} resueltas</div>
-
-      {/* Main progress bar */}
-      <div style={{ marginBottom: "20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-          <span style={{ fontSize: "12px", color: MUTED }}>Progreso global</span>
-          <span style={{ fontSize: "13px", fontWeight: 700, color: pct === 100 ? SUCCESS : ACCENT }}>
-            {pct}%
-          </span>
-        </div>
-        <div className="progress-track">
-          <div
-            className="progress-fill"
-            style={{ width: `${pct}%`, background: pct === 100 ? SUCCESS : ACCENT }}
-          />
-        </div>
-      </div>
-
-      {/* Per-merchandiser rows */}
-      {rows.length > 0 && (
-        <div>
-          <div style={{ fontSize: "11px", color: MUTED, fontWeight: 600, marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Por mercaderista
-          </div>
-          {rows.map(([name, { total: t, resolved: r }]) => {
-            const rowPct = t > 0 ? Math.round((r / t) * 100) : 0;
+    <div className="card" style={{ padding: 16 }}>
+      <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+        Antiguedad de las tareas abiertas
+      </h2>
+      {total === 0 ? (
+        <p className="text-muted text-sm">No hay tareas abiertas.</p>
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {rows.map((r) => {
+            const viejo = r.tramo === "+30";
             return (
-              <div key={name} className="progress-row">
-                <span className="progress-row-name">{name.split(" ")[0]}</span>
-                <div className="progress-row-track">
-                  <div
-                    className="progress-row-fill"
-                    style={{
-                      width: `${rowPct}%`,
-                      background: rowPct === 100 ? SUCCESS : ACCENT,
-                    }}
-                  />
-                </div>
-                <span className="progress-row-count">{r}/{t}</span>
-              </div>
+              <li key={r.tramo} style={{ display: "flex", justifyContent: "space-between",
+                                         padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
+                <span style={{ fontSize: 13 }}>{ETIQUETA[r.tramo] ?? r.tramo}</span>
+                <strong style={{ fontSize: 13, color: viejo && r.n > 0 ? "var(--danger)" : undefined }}>
+                  {r.n}
+                </strong>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
 
-      {total === 0 && (
-        <div style={{ textAlign: "center", color: MUTED, fontSize: "13px", padding: "16px 0" }}>
-          Sin tareas en este período
-        </div>
+      {/* horas_promedio llega null mientras no haya tareas resueltas en el periodo:
+          nunca se asume numero, se omite la linea en vez de mostrar "null horas". */}
+      {resolucion && resolucion.resueltas > 0 && typeof resolucion.horas_promedio === "number" && (
+        <p className="text-muted" style={{ fontSize: 11, marginTop: 10 }}>
+          Tiempo medio de resolución: {resolucion.horas_promedio.toFixed(1)} h ({resolucion.resueltas} resueltas)
+        </p>
       )}
     </div>
   );
