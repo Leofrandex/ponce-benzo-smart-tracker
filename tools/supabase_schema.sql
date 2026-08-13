@@ -24,28 +24,6 @@ DROP POLICY IF EXISTS clients_select ON clients;
 CREATE POLICY clients_select ON clients FOR SELECT TO authenticated USING (true);
 
 -- ============================================================
--- TABLE: client_assignments (alcance por cliente — qué clientes ve cada usuario)
--- ============================================================
-create table public.client_assignments (
-  user_id    uuid not null references public.users(id) on delete cascade,
-  client_id  uuid not null references public.clients(client_id) on delete cascade,
-  created_at timestamptz not null default now(),
-  primary key (user_id, client_id)
-);
-
-create index client_assignments_user_idx on public.client_assignments(user_id);
-create index if not exists stores_client_idx on public.stores(client_id);
-
-alter table public.client_assignments enable row level security;
-
--- Cada quien ve sus propias asignaciones; los admin ven y administran todas.
-create policy client_assignments_own_read on public.client_assignments
-  for select using (user_id = auth.uid());
-
-create policy client_assignments_admin_all on public.client_assignments
-  for all using (public.fn_is_admin()) with check (public.fn_is_admin());
-
--- ============================================================
 -- TABLE: stores (maestro de tiendas + segmentación CRM)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS stores (
@@ -88,6 +66,27 @@ CREATE TABLE IF NOT EXISTS users (
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_users_supervisor ON users(supervisor_id);
+
+-- ============================================================
+-- TABLE: client_assignments (alcance por cliente — qué clientes ve cada usuario)
+-- ============================================================
+create table public.client_assignments (
+  user_id    uuid not null references public.users(id) on delete cascade,
+  client_id  uuid not null references public.clients(client_id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, client_id)
+);
+
+create index client_assignments_user_idx on public.client_assignments(user_id);
+
+alter table public.client_assignments enable row level security;
+
+-- Cada quien ve sus propias asignaciones; los admin ven y administran todas.
+create policy client_assignments_own_read on public.client_assignments
+  for select using (user_id = auth.uid());
+
+create policy client_assignments_admin_all on public.client_assignments
+  for all using (public.fn_is_admin()) with check (public.fn_is_admin());
 
 -- ============================================================
 -- TABLE: contacts (varios contactos por tienda — CRM)
