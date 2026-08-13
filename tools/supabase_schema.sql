@@ -491,9 +491,31 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.fn_my_client_ids() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fn_my_client_ids() TO authenticated;
 
+-- El equipo trabaja en Venezuela (UTC-4) y la sesion de la base corre en UTC.
+-- Sin estas dos, un check-in de las 21:56 hora local cae en el dia UTC siguiente
+-- y su visita se contaria como incumplida contra la ruta de ese dia.
+create or replace function public.fn_fecha_local(p_ts timestamptz)
+returns date
+language sql
+immutable
+set search_path to ''
+as $$
+  select (p_ts at time zone 'America/Caracas')::date;
+$$;
+
+create or replace function public.fn_hoy()
+returns date
+language sql
+stable
+set search_path to ''
+as $$
+  select (now() at time zone 'America/Caracas')::date;
+$$;
+
 -- Cumplimiento de ruta: de las visitas que la ruta planificaba para los dias ya
 -- transcurridos, cuantas se hicieron. Una visita cuenta como hecha si existe un
--- check-in de ese usuario, en esa tienda, ese mismo dia, y no fue una omision.
+-- check-in de ese usuario, en esa tienda, ese mismo dia (hora local Venezuela),
+-- y no fue una omision.
 -- SECURITY INVOKER (a diferencia de fn_is_admin()/fn_my_client_ids()): el
 -- recorte por cliente se aplica explicitamente dentro de la funcion, no se
 -- delega solo a RLS, porque stores_read expone las 197 tiendas a cualquier
@@ -509,7 +531,7 @@ as $$
     select r.user_id as uid, r.route_date, unnest(r.store_ids) as store_id
     from public.routes r
     -- Solo dias transcurridos: las rutas estan materializadas hasta diciembre.
-    where r.route_date between p_desde and least(p_hasta, current_date)
+    where r.route_date between p_desde and least(p_hasta, public.fn_hoy())
   ),
   en_alcance as (
     select p.uid, p.route_date, p.store_id
@@ -524,7 +546,7 @@ as $$
              select 1 from public.visits v
              where v.user_id = e.uid
                and v.store_id = e.store_id
-               and (v.check_in_time at time zone 'UTC')::date = e.route_date
+               and public.fn_fecha_local(v.check_in_time) = e.route_date
                and v.status <> 'skipped'
            ) as hecha
     from en_alcance e
