@@ -28,7 +28,7 @@ export default function LoginPage() {
       setError("Credenciales incorrectas.");
       return;
     }
-    router.push("/supervisor");
+    router.push("/panel");
   };
 
   return (

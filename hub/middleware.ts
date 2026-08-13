@@ -4,8 +4,8 @@ import { updateSession } from "@/app/lib/supabase/middleware";
 export async function middleware(request: NextRequest) {
   const { response, user } = await updateSession(request);
 
-  // Proteger /supervisor/*: sin sesión -> al login.
-  if (request.nextUrl.pathname.startsWith("/supervisor") && !user) {
+  // Proteger /panel/*: sin sesión -> al login.
+  if (request.nextUrl.pathname.startsWith("/panel") && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);

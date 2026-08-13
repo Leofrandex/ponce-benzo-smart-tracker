@@ -6,15 +6,16 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogOut, LayoutDashboard, ClipboardList, Map, Building2, Store } from "lucide-react";
 import PageTransition from "@/app/components/PageTransition";
 import { useAuth } from "@/app/lib/auth-context";
+import { roleLabel } from "@/app/lib/roles";
 
-export default function SupervisorLayout({
+export default function PanelLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { signOut, profile } = useAuth();
 
   function handleLogout() {
     signOut();
@@ -22,11 +23,11 @@ export default function SupervisorLayout({
   }
 
   const navItems = [
-    { href: "/supervisor",          icon: LayoutDashboard, label: "Panel"    },
-    { href: "/supervisor/clientes", icon: Building2,       label: "Clientes" },
-    { href: "/supervisor/tiendas",  icon: Store,           label: "Tiendas"  },
-    { href: "/supervisor/tareas",   icon: ClipboardList,   label: "Tareas"   },
-    { href: "/supervisor/mapa",     icon: Map,             label: "Mapa"     },
+    { href: "/panel",          icon: LayoutDashboard, label: "Panel"    },
+    { href: "/panel/clientes", icon: Building2,       label: "Clientes" },
+    { href: "/panel/tiendas",  icon: Store,           label: "Tiendas"  },
+    { href: "/panel/tareas",   icon: ClipboardList,   label: "Tareas"   },
+    { href: "/panel/mapa",     icon: Map,             label: "Mapa"     },
   ];
 
   const dateStr = new Date().toLocaleDateString("es-VE", {
@@ -43,14 +44,14 @@ export default function SupervisorLayout({
           <Image src="/pb_logo.png" alt="Ponce & Benzo" width={120} height={60} style={{ objectFit: "contain" }} />
         </div>
 
-        <div className="sidebar-section-label">Supervisor</div>
+        <div className="sidebar-section-label">{roleLabel(profile?.role ?? "")}</div>
 
         <nav className="sidebar-nav">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active =
-              item.href === "/supervisor"
-                ? pathname === "/supervisor"
+              item.href === "/panel"
+                ? pathname === "/panel"
                 : pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
@@ -122,8 +123,8 @@ export default function SupervisorLayout({
           {navItems.map((item) => {
             const Icon = item.icon;
             const active =
-              item.href === "/supervisor"
-                ? pathname === "/supervisor"
+              item.href === "/panel"
+                ? pathname === "/panel"
                 : pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link

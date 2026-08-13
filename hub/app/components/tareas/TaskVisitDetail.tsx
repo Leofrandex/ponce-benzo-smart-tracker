@@ -61,7 +61,7 @@ export function TaskVisitDetail({ visitId }: { visitId: string }) {
         </div>
       )}
 
-      <Link href={`/supervisor/tiendas/${detail.store_id}`} className="text-sm"
+      <Link href={`/panel/tiendas/${detail.store_id}`} className="text-sm"
         style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: 600 }}>
         <MapPin size={12} /> Ver ficha de {detail.store_name ?? "la tienda"}
       </Link>

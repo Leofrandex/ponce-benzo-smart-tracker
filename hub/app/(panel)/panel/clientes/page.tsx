@@ -37,7 +37,7 @@ export default function ClientesPage() {
       </div>
       <div style={{ display: "grid", gap: "10px", marginTop: "16px" }}>
         {rows.map((c) => (
-          <Link key={c.client_id} href={`/supervisor/tiendas?client=${c.client_id}`} className="card"
+          <Link key={c.client_id} href={`/panel/tiendas?client=${c.client_id}`} className="card"
             style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", textDecoration: "none" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <Store size={18} />
