@@ -1,5 +1,7 @@
 // App domain types
 
+import type { Role } from "./roles";
+
 export interface Store {
   store_id: string;
   name: string;
@@ -26,7 +28,7 @@ export interface User {
   id: string;
   full_name: string;
   email: string;
-  role: "merchandiser" | "supervisor" | "admin";
+  role: Role;
   active: boolean;
   created_at: string;
   supervisor_id: string | null;

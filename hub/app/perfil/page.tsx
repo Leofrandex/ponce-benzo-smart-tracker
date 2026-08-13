@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { User, LogOut, Info, Smartphone, Wifi, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/app/lib/auth-context";
+import { roleLabel } from "@/app/lib/roles";
 
 export default function PerfilPage() {
   const router = useRouter();
@@ -84,9 +85,7 @@ export default function PerfilPage() {
           <div className="text-muted text-sm" style={{ marginTop: "4px" }}>{profile?.email ?? "—"}</div>
           <div style={{ marginTop: "10px" }}>
             <span className="badge badge-accent">
-              {profile?.role === "merchandiser" ? "Mercaderista" :
-               profile?.role === "supervisor" ? "Supervisor" :
-               profile?.role === "admin" ? "Admin" : "—"}
+              {profile?.role ? roleLabel(profile.role) : "—"}
             </span>
           </div>
         </div>

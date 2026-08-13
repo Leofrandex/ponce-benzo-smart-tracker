@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS users (
   id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name     TEXT NOT NULL,
   email         TEXT NOT NULL,
-  role          TEXT NOT NULL DEFAULT 'merchandiser' CHECK (role IN ('merchandiser','supervisor','admin')),
+  role          TEXT NOT NULL DEFAULT 'merchandiser' CHECK (role IN ('merchandiser','vendedor','admin')),
   supervisor_id UUID REFERENCES users(id) ON DELETE SET NULL,
   active        BOOLEAN DEFAULT TRUE,
   created_at    TIMESTAMPTZ DEFAULT NOW()
@@ -476,7 +476,7 @@ returns setof uuid
 language sql
 stable
 security definer
-set search_path to ''
+SET search_path = ''
 as $$
   select client_id from public.client_assignments where user_id = auth.uid();
 $$;
@@ -488,7 +488,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path to ''
+SET search_path = ''
 as $$
   select exists (
     select 1 from public.users
@@ -503,7 +503,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path to ''
+SET search_path = ''
 as $$
   select public.fn_is_admin() or exists (
     select 1
