@@ -79,15 +79,6 @@ create table public.client_assignments (
 
 create index client_assignments_user_idx on public.client_assignments(user_id);
 
-alter table public.client_assignments enable row level security;
-
--- Cada quien ve sus propias asignaciones; los admin ven y administran todas.
-create policy client_assignments_own_read on public.client_assignments
-  for select using (user_id = auth.uid());
-
-create policy client_assignments_admin_all on public.client_assignments
-  for all using (public.fn_is_admin()) with check (public.fn_is_admin());
-
 -- ============================================================
 -- TABLE: contacts (varios contactos por tienda — CRM)
 -- ============================================================
@@ -464,6 +455,15 @@ RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE SET search_path = '' AS $$
 $$;
 REVOKE EXECUTE ON FUNCTION public.fn_is_admin() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fn_is_admin() TO authenticated;
+
+alter table public.client_assignments enable row level security;
+
+-- Cada quien ve sus propias asignaciones; los admin ven y administran todas.
+create policy client_assignments_own_read on public.client_assignments
+  for select using (user_id = auth.uid());
+
+create policy client_assignments_admin_all on public.client_assignments
+  for all using (public.fn_is_admin()) with check (public.fn_is_admin());
 
 DROP POLICY IF EXISTS "users_admin_read"        ON users;
 DROP POLICY IF EXISTS "routes_admin_read"       ON routes;
