@@ -25,6 +25,7 @@ export default function CumplimientoChart({ rows }: Props) {
     );
   }
   const data = rows.map((r) => ({
+    userId: r.user_id,
     nombre: r.full_name,
     pct: r.pct,
     detalle: `${r.hechas}/${r.planificadas}`,
@@ -41,7 +42,7 @@ export default function CumplimientoChart({ rows }: Props) {
             formatter={(v, _n, p) => [`${v}% (${(p.payload as { detalle: string }).detalle})`, "Cumplimiento"]}
           />
           <Bar dataKey="pct" radius={[0, 4, 4, 0]}>
-            {data.map((d) => <Cell key={d.nombre} fill={color(d.pct)} />)}
+            {data.map((d) => <Cell key={d.userId} fill={color(d.pct)} />)}
           </Bar>
         </BarChart>
       </ResponsiveContainer>

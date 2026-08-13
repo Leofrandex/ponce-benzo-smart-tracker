@@ -937,6 +937,7 @@ as $$
   join public.stores s on s.store_id = v.store_id
   left join public.clients c on c.client_id = s.client_id
   where public.fn_fecha_local(v.check_in_time) between p_desde and p_hasta
+    and v.status <> 'skipped'
     and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
   group by s.store_id, s.name, c.name
   having count(*) filter (where v.status = 'anomaly') > 0

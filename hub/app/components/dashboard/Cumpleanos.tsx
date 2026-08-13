@@ -5,6 +5,8 @@ import type { CumpleanosRow } from "@/app/lib/queries/dashboard";
 
 interface Props { rows: CumpleanosRow[] }
 
+const LIMITE = 8;
+
 function cuando(dias: number) {
   if (dias === 0) return "hoy";
   if (dias === 1) return "mañana";
@@ -22,7 +24,7 @@ export default function Cumpleanos({ rows }: Props) {
         <p className="text-muted text-sm">Ninguno en los próximos días.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-          {rows.slice(0, 8).map((r) => (
+          {rows.slice(0, LIMITE).map((r) => (
             <li key={r.contact_id} style={{ padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
               <div style={{ fontSize: 13, fontWeight: 600 }}>
                 {r.nombre}
@@ -36,6 +38,11 @@ export default function Cumpleanos({ rows }: Props) {
             </li>
           ))}
         </ul>
+      )}
+      {rows.length > LIMITE && (
+        <p className="text-muted" style={{ fontSize: 11, marginTop: 8 }}>
+          y {rows.length - LIMITE} más
+        </p>
       )}
     </div>
   );
