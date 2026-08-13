@@ -938,7 +938,9 @@ as $$
     and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
   group by s.store_id, s.name, c.name
   having count(*) filter (where v.status = 'anomaly') > 0
-  order by 4 desc, 5 desc
+  -- s.store_id desempata: sin el, las tiendas empatadas entran y salen del top-N
+  -- entre refrescos sin que cambie ningun dato, y el panel deja de ser fiable.
+  order by 4 desc, 5 desc, s.store_id
   limit p_limite;
 $$;
 
