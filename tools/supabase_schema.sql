@@ -799,7 +799,7 @@ as $$
     select vi.visit_id, vi.status
     from public.visits vi
     join public.stores s on s.store_id = vi.store_id
-    where (vi.check_in_time at time zone 'UTC')::date between p_desde and p_hasta
+    where public.fn_fecha_local(vi.check_in_time) between p_desde and p_hasta
       and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
   ),
   c as (
