@@ -941,3 +941,115 @@ as $$
   order by 4 desc, 5 desc
   limit p_limite;
 $$;
+
+-- ============================================================
+-- fn_dash_backlog_tareas() / fn_dash_tiempo_resolucion() / fn_dash_cumpleanos() /
+-- fn_dash_clientes_sin_vendedor(): bloque "que me toca hacer hoy" del panel
+-- gerencial. Van despues de fn_is_admin()/fn_my_client_ids()/fn_hoy(), a las
+-- que invocan. SECURITY INVOKER: el recorte por cliente se aplica
+-- explicitamente en las tres primeras, salvo en fn_dash_clientes_sin_vendedor(),
+-- que es una alerta de admin y no lleva ese filtro.
+-- ============================================================
+
+-- Antiguedad del backlog abierto, en tramos fijos.
+create or replace function public.fn_dash_backlog_tareas()
+returns table (tramo text, n bigint)
+language sql
+stable
+security invoker
+set search_path to ''
+as $$
+  with t as (
+    select (public.fn_hoy() - ta.created_at::date) as dias
+    from public.tasks ta
+    join public.stores s on s.store_id = ta.store_id
+    where ta.status = 'open'
+      and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
+  ),
+  tramos(tramo, orden) as (
+    values ('0-7', 1), ('8-15', 2), ('16-30', 3), ('+30', 4)
+  )
+  select tr.tramo,
+         count(t.dias) filter (
+           where (tr.tramo = '0-7'   and t.dias between 0 and 7)
+              or (tr.tramo = '8-15'  and t.dias between 8 and 15)
+              or (tr.tramo = '16-30' and t.dias between 16 and 30)
+              or (tr.tramo = '+30'   and t.dias > 30)
+         )::bigint
+  from tramos tr left join t on true
+  group by tr.tramo, tr.orden
+  order by tr.orden;
+$$;
+
+-- Tiempo medio de resolucion. resolved_at se llena desde el Plan 1, asi que al
+-- principio devolvera 0 resueltas: es correcto, no un fallo.
+create or replace function public.fn_dash_tiempo_resolucion(p_desde date, p_hasta date)
+returns table (resueltas bigint, horas_promedio numeric)
+language sql
+stable
+security invoker
+set search_path to ''
+as $$
+  select count(*)::bigint,
+         round(avg(extract(epoch from (ta.resolved_at - ta.created_at)) / 3600.0)::numeric, 1)
+  from public.tasks ta
+  join public.stores s on s.store_id = ta.store_id
+  where ta.resolved_at is not null
+    and ta.resolved_at::date between p_desde and p_hasta
+    and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()));
+$$;
+
+-- Cumpleanos de compradores en los proximos p_dias, cruzando el año.
+create or replace function public.fn_dash_cumpleanos(p_dias integer)
+returns table (contact_id uuid, nombre text, cargo text, tienda text, cliente text,
+               cumple date, dias_para integer)
+language sql
+stable
+security invoker
+set search_path to ''
+as $$
+  with c as (
+    select ct.contact_id, ct.full_name, ct.role_title, ct.birthday,
+           s.name as tienda, coalesce(cl.name, 'Sin cadena') as cliente,
+           -- Proxima ocurrencia del cumpleanos a partir de hoy.
+           case
+             when make_date(extract(year from public.fn_hoy())::int,
+                            extract(month from ct.birthday)::int,
+                            extract(day from ct.birthday)::int) >= public.fn_hoy()
+             then make_date(extract(year from public.fn_hoy())::int,
+                            extract(month from ct.birthday)::int,
+                            extract(day from ct.birthday)::int)
+             else make_date(extract(year from public.fn_hoy())::int + 1,
+                            extract(month from ct.birthday)::int,
+                            extract(day from ct.birthday)::int)
+           end as proximo
+    from public.contacts ct
+    join public.stores s on s.store_id = ct.store_id
+    left join public.clients cl on cl.client_id = s.client_id
+    where ct.active and ct.birthday is not null
+      and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
+  )
+  select c.contact_id, c.full_name, c.role_title, c.tienda, c.cliente,
+         c.proximo, (c.proximo - public.fn_hoy())::int
+  from c
+  where c.proximo <= public.fn_hoy() + p_dias
+  order by c.proximo, c.full_name;
+$$;
+
+-- Alerta del panel de admin: clientes activos sin ningun vendedor asignado.
+-- Su data desaparece del panel de todos menos de los admin, y en silencio.
+create or replace function public.fn_dash_clientes_sin_vendedor()
+returns table (client_id uuid, cliente text, tiendas_activas bigint)
+language sql
+stable
+security invoker
+set search_path to ''
+as $$
+  select c.client_id, c.name, count(s.store_id) filter (where s.active)::bigint
+  from public.clients c
+  left join public.stores s on s.client_id = c.client_id
+  where c.active
+    and not exists (select 1 from public.client_assignments ca where ca.client_id = c.client_id)
+  group by c.client_id, c.name
+  order by 3 desc, 2;
+$$;
