@@ -497,7 +497,7 @@ GRANT EXECUTE ON FUNCTION public.fn_my_client_ids() TO authenticated;
 create or replace function public.fn_fecha_local(p_ts timestamptz)
 returns date
 language sql
-immutable
+stable
 set search_path to ''
 as $$
   select (p_ts at time zone 'America/Caracas')::date;
