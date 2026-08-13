@@ -465,6 +465,56 @@ create policy client_assignments_own_read on public.client_assignments
 create policy client_assignments_admin_all on public.client_assignments
   for all using (public.fn_is_admin()) with check (public.fn_is_admin());
 
+-- ============================================================
+-- Funciones auxiliares de alcance (Hub: alcance por cliente)
+-- SECURITY DEFINER es OBLIGATORIO: sin él, leer client_assignments dentro de
+-- una política sobre client_assignments provoca recursión infinita.
+-- fn_can_see_store va después de fn_is_admin() porque la invoca.
+-- ============================================================
+create or replace function public.fn_my_client_ids()
+returns setof uuid
+language sql
+stable
+security definer
+set search_path to ''
+as $$
+  select client_id from public.client_assignments where user_id = auth.uid();
+$$;
+REVOKE EXECUTE ON FUNCTION public.fn_my_client_ids() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fn_my_client_ids() TO authenticated;
+
+create or replace function public.fn_is_merchandiser()
+returns boolean
+language sql
+stable
+security definer
+set search_path to ''
+as $$
+  select exists (
+    select 1 from public.users
+    where id = auth.uid() and role = 'merchandiser' and active
+  );
+$$;
+REVOKE EXECUTE ON FUNCTION public.fn_is_merchandiser() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fn_is_merchandiser() TO authenticated;
+
+create or replace function public.fn_can_see_store(p_store_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path to ''
+as $$
+  select public.fn_is_admin() or exists (
+    select 1
+    from public.stores s
+    join public.client_assignments ca on ca.client_id = s.client_id
+    where s.store_id = p_store_id and ca.user_id = auth.uid()
+  );
+$$;
+REVOKE EXECUTE ON FUNCTION public.fn_can_see_store(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fn_can_see_store(uuid) TO authenticated;
+
 DROP POLICY IF EXISTS "users_admin_read"        ON users;
 DROP POLICY IF EXISTS "routes_admin_read"       ON routes;
 DROP POLICY IF EXISTS "sessions_admin_read"     ON sessions;
