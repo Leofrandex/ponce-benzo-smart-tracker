@@ -233,7 +233,9 @@ CREATE TABLE IF NOT EXISTS tasks (
   title              TEXT,
   description        TEXT,  -- v2.0: detalle/contexto (el trigger copia visits.observations)
   status             TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved')),
-  created_at         TIMESTAMPTZ DEFAULT NOW()
+  created_at         TIMESTAMPTZ DEFAULT NOW(),
+  resolved_at        TIMESTAMPTZ,  -- §1.6 spec: cuándo se resolvió la tarea
+  resolved_by        UUID REFERENCES users(id)  -- §1.6 spec: quién la resolvió
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_store    ON tasks(store_id);
@@ -371,6 +373,15 @@ DROP POLICY IF EXISTS "comp_reports_supervisor_read" ON competition_reports;
 -- define más abajo, junto con las demás políticas de alcance por cliente.
 CREATE POLICY "users_own_profile" ON users
   FOR ALL TO authenticated USING (auth.uid() = id);
+
+-- FOR ALL sin WITH CHECK reutiliza el USING para las escrituras: sin esto,
+-- cualquier usuario autenticado puede hacer UPDATE sobre CUALQUIER columna de
+-- su propia fila, incluida `role` (auto-ascenso a admin). El revoke debe ser
+-- de TABLA completa: un revoke a nivel de columna no basta, porque el grant
+-- por defecto de Supabase (GRANT ALL ON ALL TABLES ... TO authenticated) es a
+-- nivel de tabla y este domina sobre cualquier revoke de columna.
+REVOKE UPDATE ON public.users FROM authenticated, anon;
+GRANT UPDATE (full_name) ON public.users TO authenticated;
 
 -- contacts: lectura (contacts_read) se define más abajo, después de
 -- fn_can_see_store()/fn_is_merchandiser() (alcance por cliente). Escritura

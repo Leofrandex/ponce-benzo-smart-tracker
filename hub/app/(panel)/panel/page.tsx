@@ -29,7 +29,7 @@ export default function SupervisorPage() {
       {/* Header */}
       <div>
         <h1 style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px" }}>
-          Panel Supervisor
+          Panel
         </h1>
         <p className="text-muted text-sm" style={{ marginTop: "4px" }}>
           Estadísticas del equipo de campo

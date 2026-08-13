@@ -149,9 +149,20 @@ async function main() {
     const { data: me, error: errUser } = await sb.auth.getUser();
     if (errUser) throw new Error(`auth.getUser: ${errUser.message}`);
     const yo = me.user!.id;
-    const mios = await nombresDeClientes(sb); // sus clientes asignados
-    check("ve sus 19 clientes asignados", mios.size === 19, `vio ${mios.size}`);
+    // Baseline real de fugas: sus asignaciones en client_assignments, NO
+    // clients (esa tabla la ve completa por la rama fn_is_merchandiser(), asi
+    // que usarla como "mios" hacia que la comprobacion de fugas fuera
+    // tautologica — mios siempre contenia todo, "fugas" nunca podia ser != []).
+    type CA = { client_id: string; clients: { name: string } | null };
+    const asignaciones = await paginado<CA>(sb, "client_assignments", "client_id, clients(name)");
+    const mios = new Set(asignaciones.map((a) => a.clients?.name).filter((n): n is string => !!n));
     check("ve LOCATEL (es su cuenta)", mios.has("LOCATEL"), `${[...mios]}`);
+
+    // Aparte: el catalogo completo de clientes SI debe seguir visible (rama
+    // fn_is_merchandiser() de clients_select) — la app movil lo necesita para
+    // la cache offline, no es una fuga.
+    const cli = await nombresDeClientes(sb);
+    check("conserva el catalogo completo de clientes, necesario para la caché offline", cli.size === 19, `vio ${cli.size}`);
 
     // Toda visita visible debe ser suya, o de una tienda de un cliente suyo.
     // Paginado: hoy 248 visitas visibles para Carlos con 654 en el sistema,
@@ -176,7 +187,7 @@ async function main() {
     check("conserva el catalogo completo (197 tiendas, sync offline)", sc >= 197, `vio ${sc}`);
 
     const cc = await contar(sb, "contacts");
-    check("ve los 234 contactos de sus cuentas", cc === 234, `vio ${cc}`);
+    check("conserva los 234 contactos completos (misma rama fn_is_merchandiser())", cc === 234, `vio ${cc}`);
     await sb.auth.signOut();
   }
 
