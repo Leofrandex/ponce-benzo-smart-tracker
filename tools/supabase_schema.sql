@@ -1001,6 +1001,27 @@ as $$
     and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()));
 $$;
 
+-- Auxiliar: construye la fecha de un cumpleanos en un anio dado, sin reventar
+-- en anios no bisiestos cuando el nacimiento fue un 29 de febrero.
+-- make_date(y,2,29) lanza "date field value out of range" en anios normales;
+-- como fn_dash_cumpleanos es una sola sentencia SQL (no PL/pgSQL), esa
+-- excepcion tumbaria la funcion entera para todos los llamantes. En vez de
+-- eso: make_date(y,3,1) - 1 da 28-feb en normales y 29-feb en bisiestos.
+create or replace function public.fn_cumple_en(p_birthday date, p_anio integer)
+returns date
+language sql
+immutable
+security invoker
+set search_path to ''
+as $$
+  select case
+           when extract(month from p_birthday) = 2 and extract(day from p_birthday) = 29
+           then make_date(p_anio, 3, 1) - 1
+           else make_date(p_anio, extract(month from p_birthday)::int,
+                                   extract(day from p_birthday)::int)
+         end;
+$$;
+
 -- Cumpleanos de compradores en los proximos p_dias, cruzando el año.
 create or replace function public.fn_dash_cumpleanos(p_dias integer)
 returns table (contact_id uuid, nombre text, cargo text, tienda text, cliente text,
@@ -1015,15 +1036,9 @@ as $$
            s.name as tienda, coalesce(cl.name, 'Sin cadena') as cliente,
            -- Proxima ocurrencia del cumpleanos a partir de hoy.
            case
-             when make_date(extract(year from public.fn_hoy())::int,
-                            extract(month from ct.birthday)::int,
-                            extract(day from ct.birthday)::int) >= public.fn_hoy()
-             then make_date(extract(year from public.fn_hoy())::int,
-                            extract(month from ct.birthday)::int,
-                            extract(day from ct.birthday)::int)
-             else make_date(extract(year from public.fn_hoy())::int + 1,
-                            extract(month from ct.birthday)::int,
-                            extract(day from ct.birthday)::int)
+             when public.fn_cumple_en(ct.birthday, extract(year from public.fn_hoy())::int) >= public.fn_hoy()
+             then public.fn_cumple_en(ct.birthday, extract(year from public.fn_hoy())::int)
+             else public.fn_cumple_en(ct.birthday, extract(year from public.fn_hoy())::int + 1)
            end as proximo
     from public.contacts ct
     join public.stores s on s.store_id = ct.store_id
@@ -1039,7 +1054,9 @@ as $$
 $$;
 
 -- Alerta del panel de admin: clientes activos sin ningun vendedor asignado.
--- Su data desaparece del panel de todos menos de los admin, y en silencio.
+-- El filtro admin va DENTRO de la funcion: el hub oculta, no protege. Un
+-- mercaderista con acceso RPC directo veria el resultado integro porque
+-- clients_select le concede catalogo completo para la cache offline movil.
 create or replace function public.fn_dash_clientes_sin_vendedor()
 returns table (client_id uuid, cliente text, tiendas_activas bigint)
 language sql
@@ -1050,7 +1067,8 @@ as $$
   select c.client_id, c.name, count(s.store_id) filter (where s.active)::bigint
   from public.clients c
   left join public.stores s on s.client_id = c.client_id
-  where c.active
+  where public.fn_is_admin()
+    and c.active
     and not exists (select 1 from public.client_assignments ca where ca.client_id = c.client_id)
   group by c.client_id, c.name
   order by 3 desc, 2;
