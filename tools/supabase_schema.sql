@@ -800,6 +800,7 @@ as $$
     from public.visits vi
     join public.stores s on s.store_id = vi.store_id
     where public.fn_fecha_local(vi.check_in_time) between p_desde and p_hasta
+      and vi.status <> 'skipped'
       and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
   ),
   c as (
@@ -851,6 +852,7 @@ as $$
   join public.stores s on s.store_id = v.store_id
   left join public.clients c on c.client_id = s.client_id
   where public.fn_fecha_local(v.check_in_time) between p_desde and p_hasta
+    and v.status <> 'skipped'
     and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
   group by 1
   order by 2 desc;
