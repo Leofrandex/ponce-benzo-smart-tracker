@@ -827,3 +827,59 @@ as $$
     (select count(*) from t where created_at < now() - interval '15 days')::bigint
   from c;
 $$;
+
+-- ============================================================
+-- fn_dash_visitas_por_cliente() / fn_dash_anomalias(): distribucion por
+-- cadena y anomalias por tipo (con comparacion contra el periodo anterior)
+-- para los graficos de distribucion del panel gerencial. Van despues de
+-- fn_is_admin()/fn_my_client_ids()/fn_fecha_local(), a las que invocan.
+-- SECURITY INVOKER: el recorte por cliente se aplica explicitamente,
+-- no se delega solo a RLS (stores_read expone las 197 tiendas a todo
+-- mercaderista para la cache offline movil).
+-- ============================================================
+create or replace function public.fn_dash_visitas_por_cliente(p_desde date, p_hasta date)
+returns table (cliente text, visitas bigint, anomalias bigint)
+language sql
+stable
+security invoker
+set search_path to ''
+as $$
+  select coalesce(c.name, 'Sin cadena') as cliente,
+         count(*)::bigint,
+         count(*) filter (where v.status = 'anomaly')::bigint
+  from public.visits v
+  join public.stores s on s.store_id = v.store_id
+  left join public.clients c on c.client_id = s.client_id
+  where public.fn_fecha_local(v.check_in_time) between p_desde and p_hasta
+    and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
+  group by 1
+  order by 2 desc;
+$$;
+
+-- anomaly_type es TEXT[]: una visita puede reportar varias anomalias a la vez,
+-- por eso se desagrega con unnest. n_periodo_anterior permite mostrar tendencia.
+create or replace function public.fn_dash_anomalias(p_desde date, p_hasta date)
+returns table (tipo text, n bigint, n_periodo_anterior bigint)
+language sql
+stable
+security invoker
+set search_path to ''
+as $$
+  with dias as (select (p_hasta - p_desde) as d),
+  base as (
+    select v.visit_id, unnest(v.anomaly_type) as tipo,
+           public.fn_fecha_local(v.check_in_time) as f
+    from public.visits v
+    join public.stores s on s.store_id = v.store_id
+    where v.status = 'anomaly' and v.anomaly_type is not null
+      and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
+      and public.fn_fecha_local(v.check_in_time)
+          between (p_desde - (select d from dias) - 1) and p_hasta
+  )
+  select b.tipo,
+         count(*) filter (where b.f between p_desde and p_hasta)::bigint,
+         count(*) filter (where b.f < p_desde)::bigint
+  from base b
+  group by 1
+  order by 2 desc;
+$$;
