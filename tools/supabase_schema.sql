@@ -753,3 +753,55 @@ CREATE POLICY "visit_photos_select_scoped" ON storage.objects
       )
     )
   );
+
+-- ============================================================
+-- fn_dash_resumen(): las 4 tarjetas superiores del panel gerencial
+-- (visitas, tasa de anomalias, cumplimiento de ruta, tareas abiertas).
+-- Va despues de fn_is_admin()/fn_my_client_ids()/fn_dash_cumplimiento(),
+-- a las que invoca. SECURITY INVOKER, mismo motivo que fn_dash_cumplimiento():
+-- el recorte por cliente se aplica explicitamente, no se delega solo a RLS.
+-- tareas_viejas = abiertas hace mas de 15 dias.
+-- ============================================================
+create or replace function public.fn_dash_resumen(p_desde date, p_hasta date)
+returns table (
+  visitas bigint, anomalias bigint, tasa_anomalias integer,
+  planificadas bigint, hechas bigint, pct_cumplimiento integer,
+  tareas_abiertas bigint, tareas_viejas bigint
+)
+language sql
+stable
+security invoker
+set search_path to ''
+as $$
+  with v as (
+    select vi.visit_id, vi.status
+    from public.visits vi
+    join public.stores s on s.store_id = vi.store_id
+    where (vi.check_in_time at time zone 'UTC')::date between p_desde and p_hasta
+      and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
+  ),
+  c as (
+    select coalesce(sum(planificadas), 0)::bigint as pl,
+           coalesce(sum(hechas), 0)::bigint as he
+    from public.fn_dash_cumplimiento(p_desde, p_hasta)
+  ),
+  t as (
+    select ta.task_id, ta.created_at
+    from public.tasks ta
+    join public.stores s on s.store_id = ta.store_id
+    where ta.status = 'open'
+      and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
+  )
+  select
+    (select count(*) from v)::bigint,
+    (select count(*) from v where status = 'anomaly')::bigint,
+    case when (select count(*) from v) = 0 then 0
+         else round(100.0 * (select count(*) from v where status = 'anomaly')
+                          / (select count(*) from v))::int end,
+    c.pl,
+    c.he,
+    case when c.pl = 0 then 0 else round(100.0 * c.he / c.pl)::int end,
+    (select count(*) from t)::bigint,
+    (select count(*) from t where created_at < now() - interval '15 days')::bigint
+  from c;
+$$;
