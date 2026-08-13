@@ -328,16 +328,11 @@ DROP POLICY IF EXISTS "brands_read_auth"          ON competitor_brands;
 DROP POLICY IF EXISTS "comp_reports_own"          ON competition_reports;
 DROP POLICY IF EXISTS "comp_reports_supervisor_read" ON competition_reports;
 
--- stores: lectura autenticada; escritura (alta/edición) supervisor/admin. Sin DELETE (se desactiva con active=false).
+-- stores: lectura autenticada. INSERT/UPDATE (alta/edición) se definen más abajo,
+-- después de fn_can_see_store()/fn_is_admin() (alcance por cliente). Sin DELETE
+-- (se desactiva con active=false).
 CREATE POLICY "stores_read_authenticated" ON stores
   FOR SELECT TO authenticated USING (TRUE);
-CREATE POLICY "stores_insert_staff" ON stores
-  FOR INSERT TO authenticated
-  WITH CHECK (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('supervisor','admin')));
-CREATE POLICY "stores_update_staff" ON stores
-  FOR UPDATE TO authenticated
-  USING (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('supervisor','admin')))
-  WITH CHECK (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('supervisor','admin')));
 
 -- users: perfil propio + el supervisor ve a sus vendedores
 CREATE POLICY "users_own_profile" ON users
@@ -345,13 +340,10 @@ CREATE POLICY "users_own_profile" ON users
 CREATE POLICY "users_supervisor_read" ON users
   FOR SELECT TO authenticated USING (supervisor_id = auth.uid());
 
--- contacts: lectura autenticada; escritura supervisor/admin
+-- contacts: lectura autenticada. Escritura (contacts_write_staff) se define más
+-- abajo, después de fn_can_see_store() (alcance por cliente).
 CREATE POLICY "contacts_read_auth" ON contacts
   FOR SELECT TO authenticated USING (TRUE);
-CREATE POLICY "contacts_write_staff" ON contacts
-  FOR ALL TO authenticated
-  USING (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('supervisor','admin')))
-  WITH CHECK (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('supervisor','admin')));
 
 -- ============================================================
 -- RPC: fijar el encargado (is_primary) de una tienda de forma atómica.
@@ -373,15 +365,10 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.fn_set_primary_contact(uuid, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fn_set_primary_contact(uuid, uuid) TO authenticated;
 
--- engagements: lectura autenticada; escribe el autor o staff
+-- engagements: lectura autenticada. Escritura (engagements_write_auth) se define
+-- más abajo, después de fn_can_see_store() (alcance por cliente).
 CREATE POLICY "engagements_read_auth" ON contact_engagements
   FOR SELECT TO authenticated USING (TRUE);
-CREATE POLICY "engagements_write_auth" ON contact_engagements
-  FOR ALL TO authenticated
-  USING (author_user_id = auth.uid()
-         OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('supervisor','admin')))
-  WITH CHECK (author_user_id = auth.uid()
-              OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('supervisor','admin')));
 
 -- routes: dueño lee las suyas; supervisor lee las de sus vendedores
 CREATE POLICY "routes_own" ON routes
@@ -514,6 +501,40 @@ as $$
 $$;
 REVOKE EXECUTE ON FUNCTION public.fn_can_see_store(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fn_can_see_store(uuid) TO authenticated;
+
+-- ============================================================
+-- Políticas de ESCRITURA acotadas por cliente asignado (alcance por cliente).
+-- Reemplazan las viejas basadas en role IN ('supervisor','admin'): un vendedor
+-- ya no puede editar contactos/tiendas de cadenas que ni siquiera puede ver.
+-- fn_can_see_store() ya devuelve TRUE para admin, así que no hace falta
+-- una cláusula extra para ese rol en contacts/engagements/stores UPDATE.
+-- ============================================================
+DROP POLICY IF EXISTS "contacts_write_staff" ON contacts;
+CREATE POLICY "contacts_write_staff" ON contacts
+  FOR ALL TO authenticated
+  USING (public.fn_can_see_store(store_id))
+  WITH CHECK (public.fn_can_see_store(store_id));
+
+DROP POLICY IF EXISTS "engagements_write_auth" ON contact_engagements;
+CREATE POLICY "engagements_write_auth" ON contact_engagements
+  FOR ALL TO authenticated
+  USING (author_user_id = auth.uid() OR public.fn_can_see_store(store_id))
+  WITH CHECK (author_user_id = auth.uid() OR public.fn_can_see_store(store_id));
+
+DROP POLICY IF EXISTS "stores_update_staff" ON stores;
+CREATE POLICY "stores_update_staff" ON stores
+  FOR UPDATE TO authenticated
+  USING (public.fn_can_see_store(store_id))
+  WITH CHECK (public.fn_can_see_store(store_id));
+
+-- stores INSERT: no hay tienda todavía que acotar, así que va por rol.
+DROP POLICY IF EXISTS "stores_insert_staff" ON stores;
+CREATE POLICY "stores_insert_staff" ON stores
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    public.fn_is_admin()
+    OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'vendedor' AND u.active)
+  );
 
 DROP POLICY IF EXISTS "users_admin_read"        ON users;
 DROP POLICY IF EXISTS "routes_admin_read"       ON routes;
