@@ -10,6 +10,7 @@ import {
   Tooltip,
 } from "recharts";
 import type { AnomaliaRow } from "@/app/lib/queries/dashboard";
+import { anomalyLabel } from "@/app/lib/queries/visitDetail";
 
 interface Props {
   rows: AnomaliaRow[];
@@ -19,7 +20,13 @@ const DANGER = "#dc2626";
 const MUTED = "#8C9091";
 
 export default function AnomaliasPorTipo({ rows }: Props) {
-  const data = rows.map((r) => ({ name: r.tipo, value: r.n, previo: r.n_periodo_anterior }));
+  // anomalyLabel es el mismo mapa que usa la ficha de visita: los tipos se
+  // muestran igual en todo el hub y no hay dos listas que puedan divergir.
+  const data = rows.map((r) => ({
+    name: anomalyLabel(r.tipo),
+    value: r.n,
+    previo: r.n_periodo_anterior,
+  }));
   const total = data.reduce((s, d) => s + d.value, 0);
 
   return (

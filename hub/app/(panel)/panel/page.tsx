@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { BarChart3, AlertTriangle, ClipboardList, Target } from "lucide-react";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { useAuth } from "@/app/lib/auth-context";
@@ -9,7 +9,7 @@ import {
   fetchTiendasSinVisita, fetchTiendasCriticas, fetchBacklogTareas,
   fetchCumpleanos, fetchClientesSinVendedor, fetchTiempoResolucion,
 } from "@/app/lib/queries/dashboard";
-import TimePeriodSelector from "@/app/components/dashboard/TimePeriodSelector";
+import TimePeriodSelector, { rangoDeDias } from "@/app/components/dashboard/TimePeriodSelector";
 import KpiCard from "@/app/components/dashboard/KpiCard";
 import CumplimientoChart from "@/app/components/dashboard/CumplimientoChart";
 import AnomaliasPorTipo from "@/app/components/dashboard/AnomaliasPorTipo";
@@ -27,28 +27,15 @@ const DIAS_ABANDONO = 15;
 // convierte a UTC y en zonas horarias negativas (Chile, etc.) puede recortar
 // un dia entero del rango sin que nada falle (nos paso: dio 848 en vez de 872
 // planificadas). Por eso se arma el string a mano con los getters locales.
-function isoLocal(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 export default function PanelPage() {
-  const [days, setDays] = useState(7);
   const { profile } = useAuth();
   const esAdmin = profile?.role === "admin";
 
-  // Rango de `days` dias en total, ambos extremos inclusivos: desde = hoy -
-  // (days - 1), hasta = hoy. Con "- days" a secas el rango tenia days + 1 dias
-  // (p.ej. "7 dias" traia 8). Aritmetica de calendario local (setDate), no
-  // milisegundos.
-  const [desde, hasta] = useMemo(() => {
-    const hoy = new Date();
-    const ini = new Date(hoy);
-    ini.setDate(ini.getDate() - (days - 1));
-    return [isoLocal(ini), isoLocal(hoy)];
-  }, [days]);
+  // El rango es estado propio, no un numero de dias: el selector permite tanto
+  // atajos (7/14/30/90) como fechas libres. rangoDeDias vive en el selector para
+  // que el calculo de "N dias" tenga un solo dueno.
+  const [rango, setRango] = useState<[string, string]>(() => rangoDeDias(7));
+  const [desde, hasta] = rango;
 
   const { data: resumen }    = useSupabaseQuery(() => fetchResumen(desde, hasta), [desde, hasta]);
   const { data: cumpl }      = useSupabaseQuery(() => fetchCumplimiento(desde, hasta), [desde, hasta]);
@@ -72,7 +59,11 @@ export default function PanelPage() {
         </p>
       </div>
 
-      <TimePeriodSelector value={days} onChange={setDays} />
+      <TimePeriodSelector
+        desde={desde}
+        hasta={hasta}
+        onChange={(d, h) => setRango([d, h])}
+      />
 
       {esAdmin && <ClientesSinVendedor rows={huerfanos ?? []} />}
 
@@ -108,7 +99,8 @@ export default function PanelPage() {
 
       <CumplimientoChart rows={cumpl ?? []} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                    gap: 16, alignItems: "start" }}>
         <VisitasPorCliente rows={porCliente ?? []} />
         <AnomaliasPorTipo rows={anomalias ?? []} />
       </div>
@@ -117,7 +109,8 @@ export default function PanelPage() {
 
       <TiendasSinVisita rows={sinVisita ?? []} dias={DIAS_ABANDONO} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                    gap: 16, alignItems: "start" }}>
         <Cumpleanos rows={cumples ?? []} />
         <TasksProgress rows={backlog ?? []} resolucion={resolucion} />
       </div>
