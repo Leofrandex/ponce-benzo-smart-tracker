@@ -530,8 +530,10 @@ as $$
   with planificado as (
     select r.user_id as uid, r.route_date, unnest(r.store_ids) as store_id
     from public.routes r
-    -- Solo dias transcurridos: las rutas estan materializadas hasta diciembre.
-    where r.route_date between p_desde and least(p_hasta, public.fn_hoy())
+    -- Solo dias YA transcurridos, sin contar hoy: el dia en curso no puede
+    -- entrar como "planificado" mientras el equipo todavia esta trabajando
+    -- (revision final de rama, punto 1 — least(..., fn_hoy()) incluia hoy).
+    where r.route_date between p_desde and least(p_hasta, public.fn_hoy() - 1)
   ),
   en_alcance as (
     select p.uid, p.route_date, p.store_id
@@ -825,7 +827,10 @@ as $$
     c.he,
     case when c.pl = 0 then 0 else round(100.0 * c.he / c.pl)::int end,
     (select count(*) from t)::bigint,
-    (select count(*) from t where created_at < now() - interval '15 days')::bigint
+    -- Dias naturales (fn_fecha_local), no aritmetica de instantes: debe
+    -- coincidir con fn_dash_backlog_tareas(), que mide lo mismo (revision
+    -- final de rama, punto 3 — daban 65 vs 63 para la misma cifra).
+    (select count(*) from t where public.fn_fecha_local(created_at) < public.fn_hoy() - 15)::bigint
   from c;
 $$;
 
@@ -912,7 +917,10 @@ as $$
          (public.fn_hoy() - max(public.fn_fecha_local(v.check_in_time)))::int
   from public.stores s
   left join public.clients c on c.client_id = s.client_id
-  left join public.visits v on v.store_id = s.store_id
+  -- v.status <> 'skipped': una visita omitida no debe apagar la alarma de
+  -- abandono (revision final de rama, punto 2). Es la unica funcion de este
+  -- bloque que tocaba visits sin ese filtro.
+  left join public.visits v on v.store_id = s.store_id and v.status <> 'skipped'
   where s.active
     and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
   group by s.store_id, s.name, c.name, s.classification
@@ -965,7 +973,9 @@ security invoker
 set search_path to ''
 as $$
   with t as (
-    select (public.fn_hoy() - ta.created_at::date) as dias
+    -- fn_fecha_local(), no ::date crudo: el cast crudo usa la zona de la
+    -- sesion (UTC) en vez de America/Caracas (revision final de rama, punto 4).
+    select (public.fn_hoy() - public.fn_fecha_local(ta.created_at)) as dias
     from public.tasks ta
     join public.stores s on s.store_id = ta.store_id
     where ta.status = 'open'
@@ -1000,7 +1010,8 @@ as $$
   from public.tasks ta
   join public.stores s on s.store_id = ta.store_id
   where ta.resolved_at is not null
-    and ta.resolved_at::date between p_desde and p_hasta
+    -- fn_fecha_local(), no ::date crudo (revision final de rama, punto 4).
+    and public.fn_fecha_local(ta.resolved_at) between p_desde and p_hasta
     and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()));
 $$;
 

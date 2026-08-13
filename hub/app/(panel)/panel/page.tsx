@@ -39,12 +39,14 @@ export default function PanelPage() {
   const { profile } = useAuth();
   const esAdmin = profile?.role === "admin";
 
-  // Rango inclusivo de `days` dias hacia atras contando hoy: desde = hoy - days,
-  // hasta = hoy. Aritmetica de calendario local (setDate), no milisegundos.
+  // Rango de `days` dias en total, ambos extremos inclusivos: desde = hoy -
+  // (days - 1), hasta = hoy. Con "- days" a secas el rango tenia days + 1 dias
+  // (p.ej. "7 dias" traia 8). Aritmetica de calendario local (setDate), no
+  // milisegundos.
   const [desde, hasta] = useMemo(() => {
     const hoy = new Date();
     const ini = new Date(hoy);
-    ini.setDate(ini.getDate() - days);
+    ini.setDate(ini.getDate() - (days - 1));
     return [isoLocal(ini), isoLocal(hoy)];
   }, [days]);
 
@@ -99,6 +101,8 @@ export default function PanelPage() {
           detalle={r && r.tareas_viejas > 0 ? `${r.tareas_viejas} con +15 días` : undefined}
           tono={(r?.tareas_viejas ?? 0) > 0 ? "peligro" : "normal"}
           icono={<ClipboardList size={16} style={{ color: "var(--accent)", marginBottom: 6 }} />}
+          // Un admin no tiene cartera propia: "Mis tareas abiertas" no aplica.
+          etiqueta={esAdmin ? "Tareas abiertas" : "Mis tareas abiertas"}
         />
       </div>
 
@@ -111,7 +115,7 @@ export default function PanelPage() {
 
       <TiendasCriticas rows={criticas ?? []} />
 
-      <TiendasSinVisita rows={sinVisita ?? []} />
+      <TiendasSinVisita rows={sinVisita ?? []} dias={DIAS_ABANDONO} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
         <Cumpleanos rows={cumples ?? []} />

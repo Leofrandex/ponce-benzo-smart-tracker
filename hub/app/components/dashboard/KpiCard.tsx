@@ -10,12 +10,17 @@ interface Props {
   detalle?: string;
   tono?: "normal" | "peligro" | "exito";
   icono?: React.ReactNode;
+  // Sustituye la etiqueta del registro cuando el rotulo depende del rol (p.ej.
+  // "Mis tareas abiertas" para un vendedor vs "Tareas abiertas" para un admin).
+  // La descripcion del tooltip no cambia: solo el titulo.
+  etiqueta?: string;
 }
 
 const COLOR = { normal: undefined, peligro: "var(--danger)", exito: "var(--success)" };
 
-export default function KpiCard({ kpi, valor, detalle, tono = "normal", icono }: Props) {
+export default function KpiCard({ kpi, valor, detalle, tono = "normal", icono, etiqueta }: Props) {
   const def = kpiDef(kpi);
+  const rotulo = etiqueta ?? def.etiqueta;
   // Un solo estado sirve a los tres gestos: hover en escritorio, tap en tactil
   // y foco por teclado. Sin esto, en un telefono el tooltip seria inalcanzable.
   const [abierto, setAbierto] = useState(false);
@@ -25,7 +30,7 @@ export default function KpiCard({ kpi, valor, detalle, tono = "normal", icono }:
     <div className="stat-card" style={{ position: "relative" }}>
       <button
         type="button"
-        aria-label={`Qué mide ${def.etiqueta}`}
+        aria-label={`Qué mide ${rotulo}`}
         aria-describedby={abierto ? tooltipId : undefined}
         onMouseEnter={() => setAbierto(true)}
         onMouseLeave={() => setAbierto(false)}
@@ -66,7 +71,7 @@ export default function KpiCard({ kpi, valor, detalle, tono = "normal", icono }:
           }}
         >
           <strong style={{ display: "block", marginBottom: 4, color: "var(--text-primary)" }}>
-            {def.etiqueta}
+            {rotulo}
           </strong>
           {def.descripcion}
         </div>
@@ -74,7 +79,7 @@ export default function KpiCard({ kpi, valor, detalle, tono = "normal", icono }:
 
       {icono}
       <div className="stat-value" style={{ color: COLOR[tono] }}>{valor}</div>
-      <div className="stat-label">{def.etiqueta}</div>
+      <div className="stat-label">{rotulo}</div>
       {detalle && (
         <div className="text-muted" style={{ fontSize: 11, marginTop: 2 }}>{detalle}</div>
       )}

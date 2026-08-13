@@ -4,14 +4,14 @@ import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import type { TiendaSinVisitaRow } from "@/app/lib/queries/dashboard";
 
-interface Props { rows: TiendaSinVisitaRow[] }
+interface Props { rows: TiendaSinVisitaRow[]; dias: number }
 
-export default function TiendasSinVisita({ rows }: Props) {
+export default function TiendasSinVisita({ rows, dias }: Props) {
   return (
     <div className="card" style={{ padding: 16 }}>
       <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
         <AlertTriangle size={15} style={{ color: "var(--danger)" }} />
-        Tiendas sin visita
+        Tiendas sin visita hace +{dias} días
       </h2>
       {rows.length === 0 ? (
         <p className="text-muted text-sm">Ninguna tienda lleva demasiado tiempo sin visita. </p>
