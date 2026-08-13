@@ -39,7 +39,7 @@
     {
       "full_name": "Milagros Fernández",
       "email": "mfernandez@ponce-benzo.com",
-      "role": "supervisor",
+      "role": "vendedor",
       "supervisor_email": "raponte@ponce-benzo.com",
       "excel_aliases": ["MILAGROS FERNANDEZ", "MILAGROS FERNÁNDEZ", "MILAGROS FERNANDEZ 10", "MILAGROS FERNANDEZ 30"]
     },
@@ -49,6 +49,48 @@
       "role": "admin",
       "supervisor_email": null,
       "excel_aliases": ["ROSLI APONTE"]
+    },
+    {
+      "full_name": "Diego Mori",
+      "email": "dmori@ponce-benzo.com",
+      "role": "admin",
+      "supervisor_email": null,
+      "excel_aliases": []
+    },
+    {
+      "full_name": "María Rodríguez",
+      "email": "aliadocomercialcaracas@ponce-benzo.com",
+      "role": "vendedor",
+      "supervisor_email": "mfernandez@ponce-benzo.com",
+      "excel_aliases": ["MARIA RODRIGUEZ"]
+    },
+    {
+      "full_name": "Betsy Castro",
+      "email": "bcastro@ponce-benzo.com",
+      "role": "vendedor",
+      "supervisor_email": "mfernandez@ponce-benzo.com",
+      "excel_aliases": ["BETSY CASTRO"]
+    },
+    {
+      "full_name": "Dubraska Pérez",
+      "email": "dperez@ponce-benzo.com",
+      "role": "vendedor",
+      "supervisor_email": "raponte@ponce-benzo.com",
+      "excel_aliases": ["DUBRASKA PEREZ", "DUBRASKA PÉREZ"]
+    },
+    {
+      "full_name": "Juan León",
+      "email": "jleon@ponce-benzo.com",
+      "role": "vendedor",
+      "supervisor_email": "dperez@ponce-benzo.com",
+      "excel_aliases": ["JUAN LEON", "JUAN LEÓN"]
+    },
+    {
+      "full_name": "Andreina Rangel",
+      "email": "arangel@ponce-benzo.com",
+      "role": "vendedor",
+      "supervisor_email": "raponte@ponce-benzo.com",
+      "excel_aliases": ["ANDREINA RANGEL"]
     }
   ]
 }
