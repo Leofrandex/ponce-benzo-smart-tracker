@@ -81,6 +81,40 @@ create table public.client_assignments (
 create index client_assignments_user_idx on public.client_assignments(user_id);
 
 -- ============================================================
+-- RPC: reemplazar TODO el conjunto de client_assignments en una transaccion
+-- atomica (siembra desde el Excel de asesores). borrado+insercion en dos
+-- llamadas separadas puede fallar a medias y dejar la tabla vacia, lo que
+-- con RLS activo significa que todos los vendedores ven cero. Rechaza un
+-- conjunto vacio como ultima defensa contra un Excel mal leido.
+-- SECURITY DEFINER + revoke total: solo la invoca el script con service role.
+-- ============================================================
+create or replace function public.fn_replace_client_assignments(p_filas jsonb)
+returns integer
+language plpgsql
+security definer
+set search_path to ''
+as $$
+declare
+  v_n integer;
+begin
+  if p_filas is null or jsonb_array_length(p_filas) = 0 then
+    raise exception 'fn_replace_client_assignments: se recibio un conjunto vacio; abortado para no dejar a todos sin cartera';
+  end if;
+
+  delete from public.client_assignments where true;
+
+  insert into public.client_assignments (user_id, client_id)
+  select (f->>'user_id')::uuid, (f->>'client_id')::uuid
+  from jsonb_array_elements(p_filas) f;
+
+  get diagnostics v_n = row_count;
+  return v_n;
+end;
+$$;
+
+revoke execute on function public.fn_replace_client_assignments(jsonb) from public, anon, authenticated;
+
+-- ============================================================
 -- TABLE: contacts (varios contactos por tienda — CRM)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS contacts (

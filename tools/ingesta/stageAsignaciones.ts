@@ -1,5 +1,6 @@
 // Siembra public.client_assignments desde el Excel de asesores del cliente.
-// Idempotente: borra las asignaciones previas y reescribe.
+// Idempotente: reemplaza el conjunto completo en una sola transaccion atomica
+// vía fn_replace_client_assignments (borrado+insercion no pueden quedar a medias).
 import * as path from "path";
 import * as XLSX from "xlsx";
 import { createClient } from "@supabase/supabase-js";
@@ -27,9 +28,11 @@ async function main() {
 
   const personas = construirAsignaciones(filas);
 
-  const { data: users } = await sb.from("users").select("id, email");
+  const { data: users, error: usersError } = await sb.from("users").select("id, email");
+  if (usersError) throw new Error(`lectura de users: ${usersError.message}`);
   const idPorEmail = new Map((users ?? []).map((u) => [u.email.toLowerCase(), u.id]));
-  const { data: clients } = await sb.from("clients").select("client_id, name");
+  const { data: clients, error: clientsError } = await sb.from("clients").select("client_id, name");
+  if (clientsError) throw new Error(`lectura de clients: ${clientsError.message}`);
   const idPorCliente = new Map((clients ?? []).map((c) => [c.name, c.client_id]));
 
   const filasDb: { user_id: string; client_id: string }[] = [];
@@ -53,10 +56,9 @@ async function main() {
 
   if (!commit) { console.log("\n(dry-run — usar --commit para escribir)"); return; }
 
-  await sb.from("client_assignments").delete().neq("user_id", "00000000-0000-0000-0000-000000000000");
-  const { error } = await sb.from("client_assignments").insert(filasDb);
-  if (error) throw new Error(`insert: ${error.message}`);
-  console.log(`\n✓ ${filasDb.length} asignaciones escritas.`);
+  const { data: escritas, error } = await sb.rpc("fn_replace_client_assignments", { p_filas: filasDb });
+  if (error) throw new Error(`fn_replace_client_assignments: ${error.message}`);
+  console.log(`\n✓ ${escritas} asignaciones escritas (transaccion atomica).`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
