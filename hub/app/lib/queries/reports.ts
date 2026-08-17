@@ -89,8 +89,11 @@ interface VisitJoinRow {
   observations: string | null;
   status: "completed" | "skipped" | "anomaly";
   last_restock_date: string | null;
-  users: { full_name: string | null } | null;
+  anomaly_type: string[] | null;
+  users: { full_name: string | null; is_supervisor: boolean | null; role: string | null } | null;
+  supervisor: { full_name: string | null } | null;
   stores: { name: string | null; address: string | null; master_lat: number | null; master_lng: number | null } | null;
+  visit_anomaly_products: { anomaly_type: string; products: { name: string | null } | null }[] | null;
 }
 
 // Reportes (check-ins/visitas) de una tienda, ordenados del más reciente al más antiguo.
@@ -99,8 +102,10 @@ export async function fetchStoreReports(storeId: string): Promise<SupervisorRepo
   const { data, error } = await sb
     .from("visits")
     .select(
-      "visit_id, store_id, check_in_time, check_in_location, photo_urls, observations, status, last_restock_date, " +
-        "users(full_name), stores(name, address, master_lat, master_lng)",
+      "visit_id, store_id, check_in_time, check_in_location, photo_urls, observations, status, last_restock_date, anomaly_type, " +
+        "users(full_name, is_supervisor, role), stores(name, address, master_lat, master_lng), " +
+        "supervisor:users!visits_supervisor_present_user_id_fkey(full_name), " +
+        "visit_anomaly_products(anomaly_type, products(name))",
     )
     .eq("store_id", storeId)
     .order("check_in_time", { ascending: false });
@@ -120,6 +125,14 @@ export async function fetchStoreReports(storeId: string): Promise<SupervisorRepo
       loc != null && store?.master_lat != null && store?.master_lng != null
         ? haversineMeters(loc.lat, loc.lng, store.master_lat, store.master_lng) <= MAX_DISTANCE_METERS
         : false;
+
+    const productsByAnomaly: Record<string, string[]> = {};
+    for (const link of v.visit_anomaly_products ?? []) {
+      const nombre = link.products?.name;
+      if (!nombre) continue;
+      (productsByAnomaly[link.anomaly_type] ??= []).push(nombre);
+    }
+
     return {
       visit_id: v.visit_id,
       store_id: v.store_id,
@@ -136,6 +149,10 @@ export async function fetchStoreReports(storeId: string): Promise<SupervisorRepo
       tasks_count: 0,
       photo_urls: photoUrls,
       last_restock_date: v.last_restock_date,
+      anomaly_type: v.anomaly_type,
+      products_by_anomaly: productsByAnomaly,
+      supervisor_name: v.supervisor?.full_name ?? null,
+      author_is_supervisor: Boolean(v.users?.is_supervisor) || v.users?.role === "admin",
     };
   });
 }

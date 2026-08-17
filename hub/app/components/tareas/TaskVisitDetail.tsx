@@ -40,11 +40,28 @@ export function TaskVisitDetail({ visitId }: { visitId: string }) {
       </div>
 
       {(detail.anomaly_type ?? []).length > 0 && (
-        <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginBottom: "8px" }}>
-          {(detail.anomaly_type ?? []).map((a) => (
-            <span key={a} className="badge badge-danger">{anomalyLabel(a)}</span>
-          ))}
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "8px" }}>
+          {(detail.anomaly_type ?? []).map((a) => {
+            const productos = detail.products_by_anomaly[a] ?? [];
+            return (
+              <div key={a} style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                <span className="badge badge-danger">{anomalyLabel(a)}</span>
+                {productos.map((nombre) => (
+                  <span key={nombre} className="badge"
+                    style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)" }}>
+                    {nombre}
+                  </span>
+                ))}
+              </div>
+            );
+          })}
         </div>
+      )}
+
+      {detail.supervisor_name && (
+        <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px" }}>
+          Supervisor presente: <strong>{detail.supervisor_name}</strong>
+        </p>
       )}
 
       <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: detail.photo_urls.length > 0 ? "10px" : "6px" }}>

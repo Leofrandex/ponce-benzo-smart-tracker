@@ -151,6 +151,11 @@ export interface SupervisorReport {
   tasks_count: number;
   photo_urls: string[];            // NEW — real thumbnail URLs for the activity feed
   last_restock_date: string | null; // NEW — restock date captured on this visit
+  anomaly_type: string[] | null;
+  products_by_anomaly: Record<string, string[]>;
+  supervisor_name: string | null;
+  /** El autor del reporte es supervisor (Jonathan) o admin. */
+  author_is_supervisor: boolean;
 }
 
 export interface Contact {

@@ -191,7 +191,7 @@ export const mockTasks: SupervisorTask[] = [
   },
 ];
 
-export const mockReports: SupervisorReport[] = [
+const rawReports: Omit<SupervisorReport, 'anomaly_type' | 'products_by_anomaly' | 'supervisor_name' | 'author_is_supervisor'>[] = [
   // ── Farmatodo (días recientes) ──
   {
     visit_id: "visit-001",
@@ -561,6 +561,14 @@ export const mockReports: SupervisorReport[] = [
     last_restock_date: "2026-05-13",
   },
 ];
+
+export const mockReports: SupervisorReport[] = rawReports.map((r) => ({
+  ...r,
+  anomaly_type: null,
+  products_by_anomaly: {},
+  supervisor_name: null,
+  author_is_supervisor: false,
+}));
 
 export const mockContacts: Contact[] = [
   // store-001

@@ -91,7 +91,22 @@ export function ActivityFeed({ reports, tasks }: { reports: SupervisorReport[]; 
                           <div style={{ width: 32, height: 32, borderRadius: "var(--radius-sm)", background: cfg.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><StatusIcon size={15} color={cfg.iconColor} /></div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{formatDateTime(report.check_in_time)}</div>
-                            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px", display: "flex", alignItems: "center", gap: "3px" }}><User size={10} /> {report.merchandiser_name}</div>
+                            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px", display: "flex", alignItems: "center", gap: "3px", flexWrap: "wrap" }}>
+                              <User size={10} /> {report.merchandiser_name}
+                              {report.author_is_supervisor && (
+                                <span className="badge" style={{ background: "var(--bg-elevated)" }}>Supervisor</span>
+                              )}
+                              {report.supervisor_name && <span>· acompañado por {report.supervisor_name}</span>}
+                            </div>
+                            {(report.anomaly_type ?? []).map((a) => {
+                              const productos = report.products_by_anomaly[a] ?? [];
+                              if (productos.length === 0) return null;
+                              return (
+                                <div key={a} style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                  {a.replace(/_/g, " ")}: {productos.join(", ")}
+                                </div>
+                              );
+                            })}
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
                             <span className={cfg.badgeClass}>{cfg.label}</span>
