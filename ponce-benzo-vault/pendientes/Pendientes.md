@@ -13,6 +13,29 @@ Este documento almacena las preguntas por resolver, datos necesarios por parte d
 
 ---
 
+## 🚧 Bloqueadores del rediseño del hub (2026-08-12)
+
+Dependencias de la spec [[logs/Log-2026-08-12|Log-2026-08-12]]. Ninguna bloquea el diseño; todas bloquean algún paso de la puesta en producción.
+
+1. **Excel de responsables por cliente** — ✅ *Recibido y procesado (2026-08-12)*. Archivado en `inbox/procesados/`. **Cubre 195 de 197 tiendas activas** sin trabajo manual: las asignaciones salen de las columnas *ASESOR* y *GERENTE DE DISTRITO*, deduplicadas por nombre → **11 personas, 33 filas** (sembradas en producción el 13-ago y verificadas). Pero **invalidó tres supuestos del diseño** — ver [[logs/Log-2026-08-12|Log-2026-08-12]] y §8 de la spec.
+2. **Dirección remitente + administrador del DNS de `ponce-benzo.com`** — bloquea solo los correos. Hay que agregar registros SPF/DKIM para no caer en spam. Salida alterna si el cliente no puede tocar su DNS: enviar desde dominio propio con `responder-a` al de ellos.
+3. **¿Milagros Fernández usa la APK?** — el rol `supervisor` desaparece y la app móvil aún lo tiene en sus tipos. Si solo entra por el hub, no hay nada que revisar.
+
+### ❓ Preguntas al cliente derivadas del Excel de asesores (2026-08-12)
+
+Ninguna bloquea el plan de implementación. Bloquean la siembra de asignaciones o los correos.
+
+> [!NOTE] Resuelto por el cliente el mismo día
+> **El gerente ve todo lo de sus clientes**, y la asignación se queda **a nivel de cliente**: que los 5 asesores de Locatel compartan sus 26 tiendas es aceptable porque todos reportan a Milagros. El gerente se modela como asignaciones explícitas, **sin jerarquía en RLS**. Se descarta `store_assignments`.
+
+1. **¿El gerente de Locatel es Milagros o Jonathan?** El Excel se contradice: la columna del nombre dice `MILAGROS FERNÁNDEZ` en las 9 filas de Locatel y en Farmatención, pero la del correo dice `Jfernandez@`. Se asumió Milagros (el nombre es consistente en sus 23 filas).
+2. **`DULCINEA 2019` y `HUMMY`** (1 tienda activa cada uno) no están en el Excel. ¿Quién las atiende?
+3. **`FARMATUYA`, `TODO BARATIIICO`, `VIVA SUPERCENTRO`** están en el Excel pero no en el sistema. ¿Se incorporan al tracker?
+4. **¿Qué son los buzones `Tracker*@ponce-benzo.com`?** (capital ×22, centroccidente ×4, occidente, FTD). Si son listas de distribución, las notificaciones quizá deban ir ahí.
+5. **Iris Mujica, Yelitze Pérez, Nidia Rojas** (administración de ventas): ¿acceso al hub y con qué alcance?
+
+---
+
 ## 🛑 Bloqueadores Críticos (Datos Requeridos)
 
 Para realizar la migración completa a producción y conectar a los vendedores reales, el equipo de negocio de Ponce & Benzo debe definir:
@@ -29,7 +52,7 @@ Para realizar la migración completa a producción y conectar a los vendedores r
    * Asesores sin ruta individual: Betsy Castro, Joseph Padilla, Juan León, Martha Viloria.
    * Gerentes de otras zonas (→ supervisor a futuro): Andreina Rangel, Diana Delgado, Dubraska Pérez.
    * Administración (rol por definir): Nidia Rojas, Yelitze Pérez, Iris Mujica.
-   * **"Aliado Comercial Caracas"** (`aliadocomercialcaracas@ponce-benzo.com`): correo genérico sin persona; posible relación con la **hoja 5 sin nombre** de `RUTAS` (mini-ruta Melani / Albita / Locatel La Castellana). Falta que el negocio aclare qué es y quién la atiende.
+   * ~~**"Aliado Comercial Caracas"**~~ ✅ *Resuelto (2026-08-12)* — el Excel de asesores lo aclara: `aliadocomercialcaracas@ponce-benzo.com` **es el correo de MARÍA RODRÍGUEZ**, asesora comercial y la que más cuentas tiene (8: Gama, Plazas, Plan Suárez, Emporium, Fresco Market, Viva Supercentro, Río Vida, La Muralla). No es un buzón genérico sin dueño. *(Queda aparte la duda de la **hoja 5 sin nombre** de `RUTAS` — mini-ruta Melani / Albita / Locatel La Castellana.)*
 2. **Coordenadas GPS de Tiendas:** 🟢 *Gran avance (2026-07-14)* — el negocio entregó la data ampliada (`datos/fuentes/tiendas.xlsx`, ex `Coordenadas Tiendas 09 07 2026.xlsx`): **red multi-cadena nacional** (~19 cadenas). Ingesta rediseñada cargó **187 sucursales activas** (20 cadenas) con GPS/dirección/encargado + rutas jul→dic 2026. Ver [[logs/Log-2026-07-14|Log 2026-07-14]]. **Pendiente del negocio (Excel de revisión `datos/revision/tiendas-incompletas-2026-07-14.xlsx`, 138 filas):**
    - Completar día de visita / mercaderista / semana de las tiendas incompletas (col "Qué falta").
    - Corregir **4 coordenadas duplicadas** (2 pares: EL AVILA/LA CANDELARIA y INDIGO/RUBI comparten coordenada exacta) → hoy excluidas.
@@ -105,6 +128,9 @@ Para realizar la migración completa a producción y conectar a los vendedores r
 - [x] **Cablear el bloque mobile a Supabase:** ✅ *(2026-06-15)* login + rutas (2026-06-08) y **motor de sync** (2026-06-15): cola SQLite→Supabase de sessions/pings/visits/competencia + subida de fotos a Storage (`photo_uri` JSON local → `photo_urls`), casi en vivo e idempotente. Ver [[logs/Log-2026-06-15-mobile-sync|Log Mobile Sync]]. **Pendiente:** E2E en dispositivo. ✅ *signed URLs en el hub (2026-06-18, BUG-007)*; ✅ *sync de pings en background + pings por tiempo (2026-06-18, BUG-010)* — falta validar en build EAS (el background sólo corre en APK, no en Expo Go). ✅ *estado de sesión por día / no reiniciar ruta finalizada (2026-06-18, BUG-009)*.
 - [ ] **Al cablear visitas a Supabase:** `visits.photo_uri` local guarda JSON de URIs → subir a Storage (`visit-photos`) y mapear a `photo_urls`. Aplica tanto a fotos de la visita como al reporte de competencia adjunto.
 - [x] **Caché offline de ruta:** ✅ *(2026-07-05)* `routeCache.ts` guarda un snapshot (ruta+tiendas) en la tabla `meta` de SQLite; `loadRoute` pasa a network-first con fallback a caché → un cold-start **sin conexión** muestra la ruta guardada y deja empezar la jornada (antes: pantalla de error, trabado). Banner "Modo offline" en `RouteScreen`. 6 tests TDD. Ver [[logs/Log-2026-07-05|Log 2026-07-05]]. **Pendiente:** validar en dev client Android.
+- [x] **Bloque Productos, Supervisión y Reportes Sueltos:** ✅ *(2026-08-17)* tabla `products` (34 SKUs), vínculos `visit_anomaly_products`, banderas de supervisión `users.is_supervisor` / `visits.supervisor_present_user_id`, selector de productos en check-in, servicio offline/sync, pestaña "Reporte" para supervisores/admins y cálculo de cobertura en el hub. 31/31 tests pasando. Ver [[logs/Log-2026-08-17|Log 2026-08-17]] y [[decisiones/ADR-007-Productos-Y-Supervision-Movil|ADR-007]].
+  * **Pendiente:** Distribuir nuevo build móvil (APK / OTA) a mercaderistas y supervisores.
+  * **Pendiente:** Avisar a Jonathan (`jfernandez@ponce-benzo.com`) sobre su nueva pestaña "Reporte" y el registro de acompañamiento.
 - [ ] **Pruebas manuales en Expo** (emulador/dispositivo) del flujo completo mobile.
 
 ## Enlaces Relacionados

@@ -11,10 +11,14 @@
             "id": "1e3217da0adc8184",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "Graph view"
+              "type": "markdown",
+              "state": {
+                "file": "Credenciales Temporales Piloto.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Credenciales Temporales Piloto"
             }
           }
         ]
@@ -178,6 +182,12 @@
   },
   "active": "1e3217da0adc8184",
   "lastOpenFiles": [
+    "logs/Session Logs.md.tmp.50060.bb16ddbff13d",
+    "logs/Log-2026-07-05.md.tmp.50060.af36838d4a15",
+    "logs/Log-2026-07-05.md.tmp.50060.e315cdd20681",
+    "logs/Log-2026-07-05.md.tmp.50060.899ab9607a9f",
+    "logs/Session Logs.md.tmp.50060.1b73462eb7a7",
+    "logs/Log-2026-07-05.md.tmp.50060.6c892728477e",
     "bugs/Registro de Bugs.md.tmp.21328.634af1b002fb",
     "logs/Log-2026-06-19.md.tmp.21328.20e285fc6ed7",
     "logs/Log-2026-06-19.md.tmp.21328.9af84afe96ee",
@@ -185,13 +195,7 @@
     "arquitectura/Plan - Rediseño Motor de Sync Móvil.md.tmp.21328.641aab0057df",
     "arquitectura/Spec - Rediseño Motor de Sync Móvil.md",
     "arquitectura/Spec - Rediseño Motor de Sync Móvil.md.tmp.21328.96c249f29372",
-    "logs/Log-2026-06-19.md.tmp.21328.bf94b6c480ba",
     "logs/Log-2026-06-19.md",
-    "logs/Log-2026-06-19.md.tmp.21328.f9805923af46",
-    "bugs/Registro de Bugs.md.tmp.21328.fc174447e3a2",
-    "logs/Log-2026-06-18.md.tmp.21328.711186c2ab25",
-    "pendientes/Pendientes.md.tmp.12252.57ee0aa2773a",
-    "roadmap/Roadmap.md.tmp.12252.a91eaf46c14d",
     "logs/Log-2026-06-15-mobile-sync.md",
     "pendientes/Piloto Farmatodo - Reconciliacion Tiendas.md",
     "pendientes/Farmatodo - En RUTAS sin Coordenadas (39).md",

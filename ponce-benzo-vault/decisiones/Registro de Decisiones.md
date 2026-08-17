@@ -21,6 +21,10 @@ Este documento actúa como índice histórico de todas las decisiones importante
 | [[decisiones/ADR-004-Nivel-Cliente-Piloto-Farmatodo\|ADR-004]] | Nivel Cliente (cadena) + Piloto Farmatodo como fuente de verdad | `aceptado` | 2026-06-15 | Tabla `clients` (cadena) + FK en stores; Excel de Farmatodo como SSOT del piloto (45 tiendas con datos + rutas); resto desactivado; alta de Jonathan. |
 | [[decisiones/ADR-005-Anomaly-Type-Array\|ADR-005]] | Anomaly Type como Array (TEXT[] en Supabase + JSON en SQLite) | `aceptado` | 2026-06-22 | `visits.anomaly_type` migrado de `TEXT` a `TEXT[]`; móvil usa JSON-en-TEXT en SQLite; trigger `fn_create_task_from_anomaly` con UNNEST crea una task por anomalía con dedup. Alternativa `visit_anomalies` descartada por mayor complejidad de sync. |
 
+| [[decisiones/ADR-006-Alcance-Por-Cliente\|ADR-006]] | Alcance por cliente asignado sustituye a la jerarquia supervisor-mercaderista | `aceptado` | 2026-08-13 | Tabla `client_assignments` (33 filas, 11 personas) + 4 funciones `SECURITY DEFINER`; RLS reescrita en 10 tablas y el bucket de fotos; rol `vendedor` en vez de `supervisor`; **rol y asignacion son ejes independientes** (un mercaderista puede tener cuentas); el gerente de distrito se modela como asignaciones explicitas, sin jerarquia en RLS. Cerrada de paso una escalada de privilegios preexistente en `users_own_profile`. |
+
+| [[decisiones/ADR-007-Productos-Y-Supervision-Movil\|ADR-007]] | Productos en anomalías, supervisión de Jonathan y reportes sueltos | `aceptado` | 2026-08-17 | Catálogo `products` (34 SKUs) + tabla puente `visit_anomaly_products` **por tipo de anomalía**, aditiva: `visits.anomaly_type` sigue siendo `TEXT[]` (coherente con ADR-005). `users.is_supervisor` en vez de un cuarto rol, para no reauditar las políticas del ADR-006. `visits.supervisor_present_user_id` lo marca el mercaderista por visita. El reporte suelto reutiliza ruta especial + jornada corta (GPS solo durante el reporte) y **cubre la ruta del ausente** en `fn_dash_cumplimiento`. Índice único de `routes` partido en dos parciales. |
+
 ---
 
 ## 🛠️ Cómo registrar un nuevo ADR
