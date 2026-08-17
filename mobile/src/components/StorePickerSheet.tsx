@@ -4,24 +4,25 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, fonts } from '../theme';
-import { mockStores } from '../mock-data';
+import type { Store } from '../types';
 
 interface StorePickerSheetProps {
   visible: boolean;
+  stores: Store[];
   excludeStoreIds: string[];
   onPick: (storeId: string) => void;
   onClose: () => void;
 }
 
-export function StorePickerSheet({ visible, excludeStoreIds, onPick, onClose }: StorePickerSheetProps) {
+export function StorePickerSheet({ visible, stores, excludeStoreIds, onPick, onClose }: StorePickerSheetProps) {
   const [query, setQuery] = useState('');
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return mockStores
+    return stores
       .filter((s) => !excludeStoreIds.includes(s.store_id))
       .filter((s) => q === '' || s.name.toLowerCase().includes(q) || (s.address ?? '').toLowerCase().includes(q));
-  }, [query, excludeStoreIds]);
+  }, [query, stores, excludeStoreIds]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>

@@ -3,7 +3,6 @@ import * as Location from 'expo-location';
 import { AppState } from 'react-native';
 import { useAuth } from './AuthContext';
 import { insertVisit, insertCompetitionReport, getTodayVisits, insertAnomalyProducts } from '../services/db';
-import { mockStores } from '../mock-data';
 import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
 import { resolveRouteLoad, saveRouteSnapshot, loadRouteSnapshot, mergeRecordedStatuses, type OnlineResult } from '../services/routeCache';
 import { useSyncCtx } from './SyncContext';
@@ -12,7 +11,9 @@ import { resolveToday, startSession as ssStart, endSession as ssEnd, closeStaleS
 import { logEvent } from '../diagnostics/log';
 import { withTimeout } from '../utils/withTimeout';
 import { startTracking, stopBackground, ensureTracking, requestPermissions, requestBatteryExemption } from '../location/locationTracker';
-import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState, CompetitionReportRecord } from '../types';
+import { ensureSpecialRoute } from '../services/adhocRoute';
+import { supabase } from '../services/supabase';
+import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState, CompetitionReportRecord, Store } from '../types';
 
 interface RouteContextValue {
   routeItems: RouteStoreItem[];
@@ -29,10 +30,11 @@ interface RouteContextValue {
   totalCount: number;
   routeMode: 'normal' | 'special';
   setRouteMode: (mode: 'normal' | 'special') => void;
-  addStoreToRoute: (storeId: string) => void;
+  addStoreToRoute: (store: Store) => void;
   removeStoreFromRoute: (storeId: string) => void;
   startSession: () => Promise<void>;
   endSession: () => Promise<void>;
+  startAdhocReport: (store: Store) => Promise<void>;
   recordVisit: (
     storeId: string,
     record: VisitRecord,
@@ -220,6 +222,42 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     refreshCount();
   }
 
+  /**
+   * Reporte suelto: asegura la ruta especial del dia, abre la jornada si hace
+   * falta y enciende el GPS. NO arranca el tracking de fondo — el reporte suelto
+   * es puntual, no una jornada de campo completa (spec, Decision 4).
+   */
+  async function startAdhocReport(store: Store) {
+    if (!user) throw new Error('sin usuario');
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const routeIdSpecial = await ensureSpecialRoute(supabase, user.id, store.store_id, today);
+
+    const db = await getDb();
+    const existing = await resolveToday(db, user.id);
+    if (existing.state !== 'ACTIVE') {
+      const perms = await requestPermissions();
+      if (!perms.foreground) { setGpsState('error'); throw new Error('sin permiso de ubicacion'); }
+      let lat: number | null = null, lng: number | null = null;
+      const pos = await withTimeout(
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }), 3000, null,
+      );
+      if (pos) { lat = pos.coords.latitude; lng = pos.coords.longitude; }
+      await ssStart(db, { userId: user.id, routeId: routeIdSpecial, startLat: lat, startLng: lng });
+      if (lat != null) setCurrentLocation({ lat, lng: lng! });
+      setSessionActive(true);
+      setSessionEnded(false);
+    }
+
+    setGpsState('searching');
+    stopWatchRef.current?.();
+    stopWatchRef.current = await startTracking(({ lat: a, lng: b }) => {
+      setCurrentLocation({ lat: a, lng: b });
+      setGpsState('found');
+    });
+    flushNow();
+  }
+
   async function recordVisit(
     storeId: string,
     record: VisitRecord,
@@ -310,11 +348,9 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  function addStoreToRoute(storeId: string) {
+  function addStoreToRoute(store: Store) {
     setRouteItems((prev) => {
-      if (prev.some((item) => item.store.store_id === storeId)) return prev;
-      const store = mockStores.find((s) => s.store_id === storeId);
-      if (!store) return prev;
+      if (prev.some((item) => item.store.store_id === store.store_id)) return prev;
       return [...prev, { store, order: prev.length + 1, status: 'pending' as const }];
     });
   }
@@ -351,6 +387,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         removeStoreFromRoute,
         startSession,
         endSession,
+        startAdhocReport,
         recordVisit,
       }}
     >

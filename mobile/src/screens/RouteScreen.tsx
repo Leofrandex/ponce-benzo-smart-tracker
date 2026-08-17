@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
@@ -12,8 +12,9 @@ import { SyncBanner } from '../components/SyncBanner';
 import { RouteModeToggle } from '../components/RouteModeToggle';
 import { StorePickerSheet } from '../components/StorePickerSheet';
 import { colors, radii, fonts } from '../theme';
-import type { RouteStoreItem } from '../types';
+import type { RouteStoreItem, Store } from '../types';
 import { useRouteCtx } from '../context/RouteContext';
+import { fetchAllStores } from '../services/catalogApi';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
@@ -60,6 +61,13 @@ export function RouteScreen() {
   }
 
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [allStores, setAllStores] = useState<Store[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    fetchAllStores().then((s) => { if (alive) setAllStores(s); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const progress = totalCount > 0 ? completedCount / totalCount : 0;
 
@@ -189,8 +197,12 @@ export function RouteScreen() {
       />
       <StorePickerSheet
         visible={pickerOpen}
+        stores={allStores}
         excludeStoreIds={routeItems.map((i) => i.store.store_id)}
-        onPick={addStoreToRoute}
+        onPick={(storeId) => {
+          const store = allStores.find((s) => s.store_id === storeId);
+          if (store) addStoreToRoute(store);
+        }}
         onClose={() => setPickerOpen(false)}
       />
     </SafeAreaView>
