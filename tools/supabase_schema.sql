@@ -294,6 +294,42 @@ REVOKE EXECUTE ON FUNCTION public.fn_create_task_from_anomaly() FROM PUBLIC, ano
 REVOKE EXECUTE ON FUNCTION public.fn_task_type_from_anomaly(TEXT) FROM PUBLIC, anon, authenticated;
 
 -- ============================================================
+-- TABLE: visit_anomaly_products (puente visita/anomalía <-> productos afectados)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.visit_anomaly_products (
+  visit_id     UUID NOT NULL REFERENCES public.visits(visit_id) ON DELETE CASCADE,
+  anomaly_type TEXT NOT NULL CHECK (anomaly_type IN
+    ('sin_stock','cambio_planograma','diferencia_precios','producto_danado','otro')),
+  product_id   UUID NOT NULL REFERENCES public.products(product_id) ON DELETE RESTRICT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (visit_id, anomaly_type, product_id)
+);
+CREATE INDEX IF NOT EXISTS idx_vap_product ON public.visit_anomaly_products(product_id);
+
+CREATE OR REPLACE FUNCTION public.fn_vap_validate()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.visits v
+    WHERE v.visit_id = NEW.visit_id
+      AND v.anomaly_type IS NOT NULL
+      AND NEW.anomaly_type = ANY(v.anomaly_type)
+  ) THEN
+    RAISE EXCEPTION 'anomaly_type % no pertenece a la visita %', NEW.anomaly_type, NEW.visit_id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.fn_vap_validate() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_vap_validate ON public.visit_anomaly_products;
+CREATE TRIGGER trg_vap_validate
+  BEFORE INSERT OR UPDATE ON public.visit_anomaly_products
+  FOR EACH ROW EXECUTE FUNCTION public.fn_vap_validate();
+
+ALTER TABLE public.visit_anomaly_products ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
 -- TABLE: competitor_brands (lookup editable de marcas competidoras)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS competitor_brands (
@@ -674,6 +710,23 @@ CREATE POLICY "engagements_read" ON contact_engagements
 DROP POLICY IF EXISTS "visits_assigned_read" ON visits;
 CREATE POLICY "visits_assigned_read" ON visits
   FOR SELECT TO authenticated USING (public.fn_can_see_store(store_id));
+
+-- visit_anomaly_products: lectura por la tienda de la visita, escritura por el autor.
+DROP POLICY IF EXISTS "vap_read" ON public.visit_anomaly_products;
+CREATE POLICY "vap_read" ON public.visit_anomaly_products
+  FOR SELECT TO authenticated USING (
+    EXISTS (SELECT 1 FROM public.visits v
+            WHERE v.visit_id = visit_anomaly_products.visit_id
+              AND public.fn_can_see_store(v.store_id))
+  );
+
+DROP POLICY IF EXISTS "vap_write_own" ON public.visit_anomaly_products;
+CREATE POLICY "vap_write_own" ON public.visit_anomaly_products
+  FOR ALL TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.visits v
+                 WHERE v.visit_id = visit_anomaly_products.visit_id AND v.user_id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.visits v
+                      WHERE v.visit_id = visit_anomaly_products.visit_id AND v.user_id = auth.uid()));
 
 -- tasks: la tarea sigue a su tienda (spec §4.2, "el acceso lo da la
 -- asignación del cliente, no assignee_user_id"). Se conserva
