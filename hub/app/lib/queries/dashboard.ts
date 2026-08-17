@@ -15,7 +15,10 @@ export interface Resumen {
 }
 export interface CumplimientoRow {
   user_id: string; full_name: string;
-  planificadas: number; hechas: number; pct: number;
+  planificadas: number; hechas: number;
+  /** De las hechas, cuántas las cubrió un supervisor/admin por reporte suelto. */
+  cubiertas: number;
+  pct: number;
 }
 export interface VisitasClienteRow { cliente: string; visitas: number; anomalias: number }
 export interface AnomaliaRow { tipo: string; n: number; n_periodo_anterior: number }

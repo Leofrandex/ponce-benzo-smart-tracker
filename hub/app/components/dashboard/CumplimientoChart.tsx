@@ -28,7 +28,12 @@ export default function CumplimientoChart({ rows }: Props) {
     userId: r.user_id,
     nombre: r.full_name,
     pct: r.pct,
-    detalle: `${r.hechas}/${r.planificadas}`,
+    // Cuando un supervisor/admin cubrio la ruta de un ausente, el numerario
+    // solo no lo cuenta: sin esta aclaracion el 100% se leeria como que el
+    // titular estuvo en campo.
+    detalle: r.cubiertas > 0
+      ? `${r.hechas}/${r.planificadas} · ${r.cubiertas} por supervisión`
+      : `${r.hechas}/${r.planificadas}`,
   }));
 
   return (
