@@ -305,6 +305,39 @@ INSERT INTO competitor_brands (name) VALUES ('Genérico / Sin marca')
 ON CONFLICT (name) DO NOTHING;
 
 -- ============================================================
+-- TABLE: products (catálogo de SKUs de la empresa)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.products (
+  product_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  sku        TEXT NOT NULL UNIQUE,
+  name       TEXT NOT NULL,
+  brand      TEXT,
+  ean13      TEXT,
+  ean14      TEXT,
+  unit       TEXT,
+  unit_case  TEXT,
+  active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_products_active ON public.products(active) WHERE active;
+
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+
+-- Lectura para todo el equipo: la app movil cachea el catalogo offline,
+-- igual que hace con stores.
+DROP POLICY IF EXISTS "products_read_auth" ON public.products;
+CREATE POLICY "products_read_auth" ON public.products
+  FOR SELECT TO authenticated USING (TRUE);
+
+-- Escritura solo admin: el catalogo lo mantiene la ingesta con service role
+-- o la direccion, nunca el personal de campo.
+DROP POLICY IF EXISTS "products_write_admin" ON public.products;
+CREATE POLICY "products_write_admin" ON public.products
+  FOR ALL TO authenticated
+  USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
+
+-- ============================================================
 -- TABLE: competition_reports (v2.0: + visit_id, ligado al check-in)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS competition_reports (
