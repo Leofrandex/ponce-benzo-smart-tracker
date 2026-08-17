@@ -30,6 +30,7 @@ export interface VisitRow {
   synced: number;
   /** 0 = fotos aún no subidas (el registro puede estar arriba sin ellas). */
   photos_synced?: number;
+  supervisor_present_user_id?: string | null;
 }
 
 export interface CompetitionReportRow {
@@ -62,8 +63,8 @@ export interface CompetitionRawRow {
 export async function insertVisit(db: SQLiteDatabase, data: VisitRow): Promise<void> {
   await db.runAsync(
     `INSERT OR REPLACE INTO visits
-      (visit_id, session_id, store_id, user_id, check_in_time, lat, lng, photo_uri, observations, status, anomaly_type, skip_reason, last_restock_date, synced, photos_synced)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      (visit_id, session_id, store_id, user_id, check_in_time, lat, lng, photo_uri, observations, status, anomaly_type, skip_reason, last_restock_date, synced, photos_synced, supervisor_present_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
     data.visit_id,
     data.session_id ?? null,
     data.store_id,
@@ -78,6 +79,7 @@ export async function insertVisit(db: SQLiteDatabase, data: VisitRow): Promise<v
     data.skip_reason ?? null,
     data.last_restock_date ?? null,
     data.synced,
+    data.supervisor_present_user_id ?? null,
   );
 }
 
@@ -127,4 +129,30 @@ export async function insertCompetitionReport(
     data.created_at,
     data.synced,
   );
+}
+
+// ── Vinculos anomalia ↔ producto ─────────────────────────────────────────────
+
+export interface AnomalyProductRow {
+  visit_id: string;
+  anomaly_type: string;
+  product_id: string;
+  synced: number;
+}
+
+/** Aplana { sin_stock: [p1, p2] } a una fila por par y las encola sin sincronizar. */
+export async function insertAnomalyProducts(
+  db: SQLiteDatabase,
+  visitId: string,
+  anomalyProducts: Record<string, string[]>,
+): Promise<void> {
+  for (const [anomalyType, productIds] of Object.entries(anomalyProducts)) {
+    for (const productId of productIds) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO visit_anomaly_products
+           (visit_id, anomaly_type, product_id, synced) VALUES (?, ?, ?, 0)`,
+        visitId, anomalyType, productId,
+      );
+    }
+  }
 }

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { toSessionPayload, toPingPayload, toVisitPayload, toCompetitionPayload } from '../services/sync/payloads';
+import { toSessionPayload, toPingPayload, toVisitPayload, toCompetitionPayload, toAnomalyProductPayload } from '../services/sync/payloads';
 import { uploadPhotos } from '../services/sync/photoUpload';
 import { withDeadline } from '../utils/withTimeout';
 
@@ -46,7 +46,7 @@ export async function flushPings(db: SQLiteDatabase, supabase: SupabaseClient): 
         NET_TIMEOUT_MS, `ping ${p.ping_id}`,
       );
       if (error) throw error;
-      await db.runAsync(`UPDATE location_pings SET synced = 1 WHERE ping_id = ?`, p.ping_id);
+      await db.runAsync(`UPDATE location_pings SET synced=1 WHERE ping_id=?`, p.ping_id);
       pushed++;
     } catch (e) { failed++; console.warn(`[sync] ping ${p.ping_id} FAIL:`, errMsg(e)); }
   }
@@ -93,6 +93,33 @@ export async function flush(db: SQLiteDatabase, supabase: SupabaseClient): Promi
         );
         pushed++;
       } catch (e) { failed++; console.warn(`[sync] visit ${v.visit_id} FAIL:`, errMsg(e)); }
+    }
+
+    // 2b) Vinculos anomalia↔producto. Van DESPUES de las visitas: la FK y el
+    // trigger de validacion exigen que la visita ya exista en Supabase.
+    for (const ap of await db.getAllAsync<any>(
+      `SELECT ap.* FROM visit_anomaly_products ap
+         JOIN visits v ON v.visit_id = ap.visit_id
+        WHERE ap.synced = 0 AND v.synced = 1`,
+    )) {
+      try {
+        const { error } = await withDeadline(
+          supabase.from('visit_anomaly_products').upsert(
+            toAnomalyProductPayload(ap), { onConflict: 'visit_id,anomaly_type,product_id' },
+          ),
+          NET_TIMEOUT_MS, `anomaly_product ${ap.visit_id}/${ap.product_id}`,
+        );
+        if (error) throw error;
+        await db.runAsync(
+          `UPDATE visit_anomaly_products SET synced=1
+            WHERE visit_id=? AND anomaly_type=? AND product_id=?`,
+          ap.visit_id, ap.anomaly_type, ap.product_id,
+        );
+        pushed++;
+      } catch (e) {
+        failed++;
+        console.warn(`[sync] anomaly_product ${ap.visit_id}/${ap.product_id} FAIL:`, errMsg(e));
+      }
     }
 
     // 3) Reportes de competencia, mismo esquema.
@@ -161,6 +188,7 @@ export async function pendingCounts(db: SQLiteDatabase): Promise<PendingCounts> 
     `SELECT
        (SELECT COUNT(*) FROM sessions WHERE synced=0)
      + (SELECT COUNT(*) FROM visits WHERE synced=0)
+     + (SELECT COUNT(*) FROM visit_anomaly_products WHERE synced=0)
      + (SELECT COUNT(*) FROM competition_reports WHERE synced=0) AS records,
        (SELECT COUNT(*) FROM visits WHERE synced=1 AND photos_synced=0)
      + (SELECT COUNT(*) FROM competition_reports WHERE synced=1 AND photos_synced=0) AS photos,
