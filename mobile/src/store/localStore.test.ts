@@ -20,7 +20,7 @@ test('buildMigrations: agrega columnas faltantes y omite las presentes', () => {
 
 test('buildMigrations: sin faltantes devuelve []', () => {
   const full = {
-    visits: new Set(['anomaly_type', 'skip_reason', 'last_restock_date', 'photos_synced']),
+    visits: new Set(['anomaly_type', 'skip_reason', 'last_restock_date', 'photos_synced', 'supervisor_present_user_id']),
     location_pings: new Set(['user_id', 'synced']),
     competition_reports: new Set(['visit_id', 'photos_synced']),
   };

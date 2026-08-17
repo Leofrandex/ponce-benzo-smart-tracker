@@ -11,6 +11,7 @@ const user: User = {
   active: true,
   created_at: '2026-01-01T00:00:00.000Z',
   supervisor_id: 's1',
+  is_supervisor: false,
 };
 
 test('resolveProfileLoad: online ok → usa el perfil de red', () => {

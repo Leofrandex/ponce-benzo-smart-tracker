@@ -126,6 +126,8 @@ export function CheckInScreen() {
       anomaly_type: selectedStatus === 'anomaly' ? anomalyTypes : null,
       skip_reason: selectedStatus === 'skipped' ? skipReason : null,
       last_restock_date: lastRestockDate,
+      supervisor_present_user_id: null,
+      anomaly_products: {},
     };
 
     // recordVisit actualiza la lista (optimista) y persiste en SQLite; la subida a

@@ -4,7 +4,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 const OPTIONAL_COLUMNS: Record<string, Array<[string, string]>> = {
   // photos_synced DEFAULT 1: las filas viejas ya sincronizadas subieron sus fotos con el
   // motor anterior (fotos-antes-que-registro); los inserts nuevos ponen 0 explícitamente.
-  visits: [['anomaly_type', 'TEXT'], ['skip_reason', 'TEXT'], ['last_restock_date', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1']],
+  visits: [['anomaly_type', 'TEXT'], ['skip_reason', 'TEXT'], ['last_restock_date', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1'], ['supervisor_present_user_id', 'TEXT']],
   competition_reports: [['visit_id', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1']],
   location_pings: [['user_id', 'TEXT'], ['synced', 'INTEGER NOT NULL DEFAULT 0']],
 };
@@ -40,6 +40,14 @@ const CREATE_SQL = `
     report_id TEXT PRIMARY KEY, session_id TEXT, store_id TEXT, user_id TEXT NOT NULL,
     brand_id TEXT, activation_type TEXT, photo_uri TEXT, notes TEXT, created_at TEXT NOT NULL,
     synced INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS products (
+    product_id TEXT PRIMARY KEY, sku TEXT NOT NULL, name TEXT NOT NULL, brand TEXT
+  );
+  CREATE TABLE IF NOT EXISTS visit_anomaly_products (
+    visit_id TEXT NOT NULL, anomaly_type TEXT NOT NULL, product_id TEXT NOT NULL,
+    synced INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (visit_id, anomaly_type, product_id)
   );
   CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
   CREATE TABLE IF NOT EXISTS sync_log (

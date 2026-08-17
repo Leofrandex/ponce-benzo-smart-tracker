@@ -10,10 +10,10 @@ export const mockStores: Store[] = [
 ];
 
 export const mockMerchandisers: User[] = [
-  { id: 'merc-001', full_name: 'Carlos Rodríguez', email: 'carlos@poncebenzo.com', role: 'merchandiser', active: true, created_at: '2024-01-01T00:00:00Z', supervisor_id: null },
-  { id: 'merc-002', full_name: 'Luis Pérez',        email: 'luis@poncebenzo.com',   role: 'merchandiser', active: true, created_at: '2024-01-01T00:00:00Z', supervisor_id: null },
-  { id: 'merc-003', full_name: 'María González',    email: 'maria@poncebenzo.com',  role: 'merchandiser', active: true, created_at: '2024-01-01T00:00:00Z', supervisor_id: null },
-  { id: 'merc-004', full_name: 'Andrés Ramírez',    email: 'andres@poncebenzo.com', role: 'merchandiser', active: true, created_at: '2024-01-01T00:00:00Z', supervisor_id: null },
+  { id: 'merc-001', full_name: 'Carlos Rodríguez', email: 'carlos@poncebenzo.com', role: 'merchandiser', active: true, created_at: '2024-01-01T00:00:00Z', supervisor_id: null, is_supervisor: false },
+  { id: 'merc-002', full_name: 'Luis Pérez',        email: 'luis@poncebenzo.com',   role: 'merchandiser', active: true, created_at: '2024-01-01T00:00:00Z', supervisor_id: null, is_supervisor: false },
+  { id: 'merc-003', full_name: 'María González',    email: 'maria@poncebenzo.com',  role: 'merchandiser', active: true, created_at: '2024-01-01T00:00:00Z', supervisor_id: null, is_supervisor: false },
+  { id: 'merc-004', full_name: 'Andrés Ramírez',    email: 'andres@poncebenzo.com', role: 'merchandiser', active: true, created_at: '2024-01-01T00:00:00Z', supervisor_id: null, is_supervisor: false },
 ];
 
 export const mockRoute: Route = {

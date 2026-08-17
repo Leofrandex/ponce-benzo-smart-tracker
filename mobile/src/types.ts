@@ -22,10 +22,13 @@ export interface User {
   id: string;
   full_name: string;
   email: string;
-  role: 'merchandiser' | 'supervisor' | 'admin';
+  // La base solo admite estos tres valores (CHECK en users.role). 'supervisor'
+  // no existe: la capacidad de supervisar la da is_supervisor.
+  role: 'merchandiser' | 'vendedor' | 'admin';
   active: boolean;
   created_at: string;
   supervisor_id: string | null;
+  is_supervisor: boolean;
 }
 
 export interface Route {
@@ -66,6 +69,7 @@ export interface Visit {
   anomaly_type: AnomalyType[] | null;
   skip_reason: 'fuera_de_ruta' | 'sin_acceso' | 'otro' | null;
   last_restock_date: string | null;
+  supervisor_present_user_id: string | null;
 }
 
 export type StoreStatus = 'pending' | 'completed' | 'skipped' | 'anomaly';
@@ -82,6 +86,9 @@ export interface VisitRecord {
   anomaly_type: Visit['anomaly_type'];
   skip_reason: Visit['skip_reason'];
   last_restock_date: string | null;
+  supervisor_present_user_id: string | null;
+  /** product_ids por tipo de anomalia. Clave = AnomalyType. Vacio = sin productos. */
+  anomaly_products: Record<string, string[]>;
 }
 
 export type GPSState = 'idle' | 'searching' | 'found' | 'error';
@@ -163,4 +170,17 @@ export interface CompetitionReportRecord {
   activation_type: CompetitionReport['activation_type'];
   photo_uris: string[];
   notes: string | null;
+}
+
+export interface Product {
+  product_id: string;
+  sku: string;
+  name: string;
+  brand: string | null;
+}
+
+// Quien puede figurar como acompañante en una visita: supervisores y admins.
+export interface SupervisorOption {
+  id: string;
+  full_name: string;
 }
