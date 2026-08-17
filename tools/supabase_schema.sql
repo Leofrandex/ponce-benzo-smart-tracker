@@ -594,21 +594,25 @@ $$;
 -- SECURITY INVOKER (a diferencia de fn_is_admin()/fn_my_client_ids()): el
 -- recorte por cliente se aplica explicitamente dentro de la funcion, no se
 -- delega solo a RLS, porque stores_read expone las 197 tiendas a cualquier
--- mercaderista (cache offline de la app) y varios de ellos tambien entran al panel.
-create or replace function public.fn_dash_cumplimiento(p_desde date, p_hasta date)
-returns table (user_id uuid, full_name text, planificadas bigint, hechas bigint, pct integer)
+drop function if exists public.fn_dash_cumplimiento(date, date);
+
+create function public.fn_dash_cumplimiento(p_desde date, p_hasta date)
+returns table (user_id uuid, full_name text, planificadas bigint, hechas bigint,
+               cubiertas bigint, pct integer)
 language sql
 stable
 security invoker
-set search_path to ''
+set search_path = ''
 as $$
   with planificado as (
     select r.user_id as uid, r.route_date, unnest(r.store_ids) as store_id
     from public.routes r
-    -- Solo dias YA transcurridos, sin contar hoy: el dia en curso no puede
-    -- entrar como "planificado" mientras el equipo todavia esta trabajando
-    -- (revision final de rama, punto 1 — least(..., fn_hoy()) incluia hoy).
+    -- Solo dias YA transcurridos: el dia en curso no puede entrar como
+    -- "planificado" mientras el equipo todavia esta trabajando.
+    -- is_special excluido: una ruta de reportes sueltos no es plan asignado,
+    -- no debe crear denominador para nadie.
     where r.route_date between p_desde and least(p_hasta, public.fn_hoy() - 1)
+      and not r.is_special
   ),
   en_alcance as (
     select p.uid, p.route_date, p.store_id
@@ -619,21 +623,38 @@ as $$
   ),
   evaluado as (
     select e.uid,
+           -- La hizo el titular de la ruta.
            exists (
              select 1 from public.visits v
              where v.user_id = e.uid
                and v.store_id = e.store_id
                and public.fn_fecha_local(v.check_in_time) = e.route_date
                and v.status <> 'skipped'
-           ) as hecha
+           ) as propia,
+           -- La cubrio un supervisor o admin via reporte suelto (visita cuya
+           -- jornada cuelga de una ruta is_special). El titular falto, pero la
+           -- tienda SI fue atendida.
+           exists (
+             select 1
+             from public.visits v
+             join public.sessions se on se.session_id = v.session_id
+             join public.routes   r  on r.route_id    = se.route_id
+             join public.users    u2 on u2.id         = v.user_id
+             where v.store_id = e.store_id
+               and public.fn_fecha_local(v.check_in_time) = e.route_date
+               and v.status <> 'skipped'
+               and r.is_special
+               and (u2.is_supervisor or u2.role = 'admin')
+           ) as cubierta
     from en_alcance e
   )
   select ev.uid,
          u.full_name,
          count(*)::bigint as planificadas,
-         count(*) filter (where ev.hecha)::bigint as hechas,
+         count(*) filter (where ev.propia or ev.cubierta)::bigint as hechas,
+         count(*) filter (where not ev.propia and ev.cubierta)::bigint as cubiertas,
          case when count(*) = 0 then 0
-              else round(100.0 * count(*) filter (where ev.hecha) / count(*))::int
+              else round(100.0 * count(*) filter (where ev.propia or ev.cubierta) / count(*))::int
          end as pct
   from evaluado ev
   join public.users u on u.id = ev.uid
