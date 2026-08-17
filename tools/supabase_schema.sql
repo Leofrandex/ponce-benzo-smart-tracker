@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS users (
   role          TEXT NOT NULL DEFAULT 'merchandiser' CHECK (role IN ('merchandiser','vendedor','admin')),
   supervisor_id UUID REFERENCES users(id) ON DELETE SET NULL,
   active        BOOLEAN DEFAULT TRUE,
+  is_supervisor BOOLEAN NOT NULL DEFAULT FALSE,
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_users_supervisor ON users(supervisor_id);
@@ -160,9 +161,12 @@ CREATE TABLE IF NOT EXISTS routes (
   route_date DATE NOT NULL,
   store_ids  UUID[] NOT NULL,  -- lista ordenada de tiendas del día
   is_special BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE (user_id, route_date)
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
+CREATE UNIQUE INDEX IF NOT EXISTS uq_routes_normal
+  ON routes(user_id, route_date) WHERE NOT is_special;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_routes_special
+  ON routes(user_id, route_date) WHERE is_special;
 
 -- ============================================================
 -- TABLE: sessions (jornadas de ruta)
@@ -200,25 +204,27 @@ CREATE INDEX IF NOT EXISTS idx_pings_location ON location_pings USING GIST (loca
 -- TABLE: visits (check-ins en tienda)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS visits (
-  visit_id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  session_id        UUID NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
-  store_id          UUID NOT NULL REFERENCES stores(store_id) ON DELETE RESTRICT,
-  user_id           UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  check_in_time     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  check_in_location JSONB,         -- { lat, lng }
-  photo_urls        TEXT[] DEFAULT '{}',
-  observations      TEXT,
-  status            TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('completed','skipped','anomaly')),
-  anomaly_type      TEXT[] CHECK (anomaly_type IS NULL OR anomaly_type <@ ARRAY['sin_stock','cambio_planograma','diferencia_precios','producto_danado','otro']::TEXT[]),
-  skip_reason       TEXT CHECK (skip_reason IN ('fuera_de_ruta','sin_acceso','otro')),
-  last_restock_date DATE,
-  synced            BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at        TIMESTAMPTZ DEFAULT NOW()
+  visit_id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  session_id                 UUID NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
+  store_id                   UUID NOT NULL REFERENCES stores(store_id) ON DELETE RESTRICT,
+  user_id                    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  check_in_time              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  check_in_location          JSONB,         -- { lat, lng }
+  photo_urls                 TEXT[] DEFAULT '{}',
+  observations               TEXT,
+  status                     TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('completed','skipped','anomaly')),
+  anomaly_type               TEXT[] CHECK (anomaly_type IS NULL OR anomaly_type <@ ARRAY['sin_stock','cambio_planograma','diferencia_precios','producto_danado','otro']::TEXT[]),
+  skip_reason                TEXT CHECK (skip_reason IN ('fuera_de_ruta','sin_acceso','otro')),
+  last_restock_date          DATE,
+  synced                     BOOLEAN NOT NULL DEFAULT FALSE,
+  supervisor_present_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at                 TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_visits_session      ON visits(session_id);
 CREATE INDEX IF NOT EXISTS idx_visits_store        ON visits(store_id);
 CREATE INDEX IF NOT EXISTS idx_visits_synced       ON visits(synced) WHERE synced = FALSE;
 CREATE INDEX IF NOT EXISTS idx_visits_last_restock ON visits(store_id, last_restock_date);
+CREATE INDEX IF NOT EXISTS idx_visits_supervisor   ON visits(supervisor_present_user_id) WHERE supervisor_present_user_id IS NOT NULL;
 
 -- ============================================================
 -- TABLE: tasks (v2.0: status open/resolved + description)

@@ -34,7 +34,8 @@
       "email": "jfernandez@ponce-benzo.com",
       "role": "merchandiser",
       "supervisor_email": "mfernandez@ponce-benzo.com",
-      "excel_aliases": ["JONATHAN FERNANDEZ", "JONATHAN FERNÁNDEZ"]
+      "excel_aliases": ["JONATHAN FERNANDEZ", "JONATHAN FERNÁNDEZ"],
+      "is_supervisor": true
     },
     {
       "full_name": "Milagros Fernández",

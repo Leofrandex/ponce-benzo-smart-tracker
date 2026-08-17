@@ -9,6 +9,8 @@ interface VendedorDef {
   role: "merchandiser" | "vendedor" | "admin";
   supervisor_email: string | null;
   excel_aliases: string[];
+  /** Capacidad, no rol: habilita el reporte suelto y el selector "supervisor presente". */
+  is_supervisor?: boolean;
 }
 
 // Devuelve mapa email -> auth user id (creando los que falten). Idempotente.
@@ -53,7 +55,15 @@ export async function stageUsers(supabase: SupabaseClient): Promise<Map<string, 
       ? authByEmail.get(v.supervisor_email.toLowerCase()) ?? null
       : null;
     const { error } = await supabase.from("users").upsert(
-      { id, full_name: v.full_name, email: v.email, role: v.role, supervisor_id, active: true },
+      {
+        id,
+        full_name: v.full_name,
+        email: v.email,
+        role: v.role,
+        supervisor_id,
+        active: true,
+        is_supervisor: v.is_supervisor ?? false,
+      },
       { onConflict: "id" },
     );
     if (error) throw new Error(`upsert users ${v.email}: ${error.message}`);
