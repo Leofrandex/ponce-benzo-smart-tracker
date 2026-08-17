@@ -2,7 +2,7 @@
   "expo": {
     "name": "Ponce & Benzo Tracker",
     "slug": "ponce-benzo-tracker",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "com.poncebenzo.tracker",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#00205C"
@@ -50,7 +50,7 @@
       "expo-font"
     ],
     "extra": {
-      "gitCommit": "dev",
+      "gitCommit": "c961de4",
       "eas": {
         "projectId": "d2737f7b-0538-44aa-a579-4ed2e3caa7a6"
       }
