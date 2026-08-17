@@ -32,10 +32,10 @@ def check_env():
             missing.append(var)
     
     if missing:
-        print(f"  ❌ FALTA configurar: {', '.join(missing)}")
+        print(f"  [ERROR] FALTA configurar: {', '.join(missing)}")
         print("  → Edita el archivo .env con las claves de tu proyecto Supabase.")
         sys.exit(1)
-    print("  ✅ Variables de entorno: OK")
+    print("  [OK] Variables de entorno: OK")
 
 def check_database():
     """Test database connectivity by querying the stores table."""
@@ -45,10 +45,10 @@ def check_database():
         client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
         # Try to query stores table (may be empty, that's OK)
         response = client.table("stores").select("store_id").limit(1).execute()
-        print(f"  ✅ Database: OK — tabla 'stores' accesible. ({len(response.data)} registros encontrados)")
+        print(f"  [OK] Database: OK — tabla 'stores' accesible. ({len(response.data)} registros encontrados)")
         return client
     except Exception as e:
-        print(f"  ❌ Database ERROR: {e}")
+        print(f"  [ERROR] Database ERROR: {e}")
         print("  → Asegúrate de haber corrido el SQL de creación de tablas en Supabase.")
         sys.exit(1)
 
@@ -59,13 +59,13 @@ def check_storage(client):
         buckets = client.storage.list_buckets()
         bucket_names = [b.name for b in buckets]
         if "visit-photos" in bucket_names:
-            print("  ✅ Storage: OK — bucket 'visit-photos' existe.")
+            print("  [OK] Storage: OK — bucket 'visit-photos' existe.")
         else:
-            print(f"  ⚠️  Storage: bucket 'visit-photos' NO encontrado.")
+            print(f"  [WARN] Storage: bucket 'visit-photos' NO encontrado.")
             print(f"     Buckets disponibles: {bucket_names}")
             print("  → Crea el bucket 'visit-photos' en Supabase Dashboard → Storage.")
     except Exception as e:
-        print(f"  ❌ Storage ERROR: {e}")
+        print(f"  [ERROR] Storage ERROR: {e}")
 
 def check_auth():
     """Verify Auth is reachable (check settings endpoint)."""
@@ -79,9 +79,9 @@ def check_auth():
         })
         with urllib.request.urlopen(req, timeout=5) as response:
             if response.status == 200:
-                print("  ✅ Auth: OK — endpoint responde correctamente.")
+                print("  [OK] Auth: OK — endpoint responde correctamente.")
     except Exception as e:
-        print(f"  ❌ Auth ERROR: {e}")
+        print(f"  [ERROR] Auth ERROR: {e}")
 
 if __name__ == "__main__":
     print("=" * 55)
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     try:
         import supabase
     except ImportError:
-        print("\n❌ Librería 'supabase' no instalada. Corre:")
+        print("\n[ERROR] Librería 'supabase' no instalada. Corre:")
         print("   pip install supabase python-dotenv")
         sys.exit(1)
     
@@ -102,5 +102,5 @@ if __name__ == "__main__":
     check_auth()
     
     print("\n" + "=" * 55)
-    print("  ✅ Handshake completado. Listo para Phase 3: Architect")
+    print("  [OK] Handshake completado. Listo para Phase 3: Architect")
     print("=" * 55 + "\n")

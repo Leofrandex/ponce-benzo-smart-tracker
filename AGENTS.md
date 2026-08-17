@@ -8,7 +8,7 @@ Este archivo sirve como la guía de comandos y reglas operativas unificadas para
 Antes de proponer o ejecutar cualquier cambio de código, todo agente de IA debe:
 1. Leer [[ponce-benzo-vault/Home|Home.md]] en la carpeta `ponce-benzo-vault/` para tener un mapa general del proyecto.
 2. Leer [[ponce-benzo-vault/resumen/Constitucion|Constitución]] para comprender las reglas inmutables de desarrollo, seguridad y schemas de datos.
-3. Leer [[ponce-benzo-vault/roadmap/Roadmap|Roadmap Extendido]] y [[ponce-benzo-vault/pendientes/Pendientes|Pendientes]] para saber cuál es el estado actual de desarrollo y qué tareas están pendientes.
+3. Leer [[ponce-benzo-vault/roadmap/Roadmap Extendido|Roadmap Extendido]] y [[ponce-benzo-vault/pendientes/Pendientes|Pendientes]] para saber cuál es el estado actual de desarrollo y qué tareas están pendientes.
 
 ---
 

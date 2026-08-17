@@ -17,12 +17,12 @@ async function main() {
   console.log(`=== Ingesta multi-cadena — ${commit ? "COMMIT (escribe en producción)" : "DRY-RUN (sin escrituras)"} ===`);
 
   const rows = parseTiendas(FUENTE);
-  // Guard: sucursales distintas con la misma coordenada rompen la llave
-  // cliente+coord → se degradan a incompletas (coord_duplicada) y van a revisión.
+  // Sucursales distintas con la misma coordenada (mismo centro comercial) son
+  // válidas — la llave incluye el nombre. Solo se reportan para visibilidad.
   const conflicts = markCoordCollisions(rows);
   if (conflicts.length) {
-    console.warn(`⚠ ${conflicts.length} colisión(es) de coordenada (van a revisión, NO se ingieren):`);
-    for (const c of conflicts) console.warn(`   ${c}`);
+    console.log(`ℹ ${conflicts.length} coordenada(s) compartida(s) (mismo centro comercial — se ingieren todas):`);
+    for (const c of conflicts) console.log(`   ${c}`);
   }
   const completas = rows.filter(isComplete);
   const incompletas = rows.filter((r) => !isComplete(r));
