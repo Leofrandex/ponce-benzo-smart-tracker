@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useRef, useEffect, useCallb
 import * as Location from 'expo-location';
 import { AppState } from 'react-native';
 import { useAuth } from './AuthContext';
-import { insertVisit, insertCompetitionReport, getTodayVisits } from '../services/db';
+import { insertVisit, insertCompetitionReport, getTodayVisits, insertAnomalyProducts } from '../services/db';
 import { mockStores } from '../mock-data';
 import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
 import { resolveRouteLoad, saveRouteSnapshot, loadRouteSnapshot, mergeRecordedStatuses, type OnlineResult } from '../services/routeCache';
@@ -248,8 +248,18 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
           : null,
       skip_reason: record.status === 'skipped' ? record.skip_reason : null,
       last_restock_date: record.last_restock_date,
+      supervisor_present_user_id: record.supervisor_present_user_id,
       synced: 0,
     });
+
+    // Los vinculos van despues de la visita, igual que en el sync remoto: sin
+    // visita en disco no hay a que colgarlos. En try/catch porque un fallo aca
+    // no debe perder la visita, que es el dato critico.
+    try {
+      await insertAnomalyProducts(db, record.visit_id, record.anomaly_products ?? {});
+    } catch (e) {
+      console.warn('[visit] anomaly products insert FAIL:', (e as { message?: string })?.message ?? e);
+    }
 
     // Ya está en disco: ahora sí, reflejar en la ruta.
     setRouteItems((prev) =>

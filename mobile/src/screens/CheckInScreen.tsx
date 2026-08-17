@@ -18,9 +18,15 @@ import { CompetitionTab } from '../components/CompetitionTab';
 import { CompetitionPanel } from '../components/CompetitionPanel';
 import { colors, radii, fonts } from '../theme';
 import { useRouteCtx } from '../context/RouteContext';
+import { useAuth } from '../context/AuthContext';
+import { getDb } from '../store/localStore';
+import { fetchProducts, fetchSupervisors } from '../services/catalogApi';
+import {
+  resolveCatalogLoad, saveProducts, loadProducts, saveSupervisors, loadSupervisors,
+} from '../services/catalogCache';
+import { ProductPickerSheet } from '../components/ProductPickerSheet';
 import { newId } from '../services/sync/ids';
-import type { StoreStatus, VisitRecord, Visit, AnomalyType } from '../types';
-import type { CompetitionReportRecord } from '../types';
+import type { StoreStatus, VisitRecord, Visit, AnomalyType, Product, SupervisorOption, CompetitionReportRecord } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type CheckInRouteProp = RouteProp<RootStackParamList, 'CheckIn'>;
@@ -70,6 +76,7 @@ export function CheckInScreen() {
   const { params } = useRoute<CheckInRouteProp>();
   const { store } = params;
   const { recordVisit, gpsState, currentLocation } = useRouteCtx();
+  const { user } = useAuth();
 
   const [selectedStatus, setSelectedStatus] = useState<StoreStatus>('completed');
   const [observations, setObservations] = useState('');
@@ -81,6 +88,13 @@ export function CheckInScreen() {
   const [anomalyTypes, setAnomalyTypes] = useState<AnomalyType[]>([]);
   const [lastRestockDate, setLastRestockDate] = useState<string | null>(null);
 
+  const [products, setProducts] = useState<Product[]>([]);
+  const [supervisors, setSupervisors] = useState<SupervisorOption[]>([]);
+  const [anomalyProducts, setAnomalyProducts] = useState<Record<string, string[]>>({});
+  const [productSheetFor, setProductSheetFor] = useState<AnomalyType | null>(null);
+  const [supervisorId, setSupervisorId] = useState<string | null>(null);
+  const [supervisorSheetOpen, setSupervisorSheetOpen] = useState(false);
+
   const [skipSheetOpen, setSkipSheetOpen] = useState(false);
   const [anomalySheetOpen, setAnomalySheetOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -88,11 +102,47 @@ export function CheckInScreen() {
   const [competitionDraft, setCompetitionDraft] = useState<CompetitionReportRecord | null>(null);
   const [competitionOpen, setCompetitionOpen] = useState(false);
 
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const db = await getDb();
+      const online = await fetchProducts()
+        .then((items) => ({ ok: true as const, items }))
+        .catch(() => ({ ok: false as const }));
+      const cached = online.ok ? [] : await loadProducts(db).catch(() => []);
+      const resolved = resolveCatalogLoad(online, cached);
+      if (alive) setProducts(resolved.items);
+      if (online.ok) saveProducts(db, online.items).catch(() => {});
+
+      if (!user) return;
+      const sups = await fetchSupervisors(user.id).catch(() => null);
+      if (sups) {
+        if (alive) setSupervisors(sups);
+        saveSupervisors(db, sups).catch(() => {});
+      } else {
+        const cachedSups = await loadSupervisors(db).catch(() => []);
+        if (alive) setSupervisors(cachedSups);
+      }
+    })();
+    return () => { alive = false; };
+  }, [user?.id]);
+
   // Al cambiar de estado se descartan los valores del estado anterior.
   useEffect(() => {
     setSkipReason(null);
     setAnomalyTypes([]);
+    setAnomalyProducts({});
   }, [selectedStatus]);
+
+  // Si el usuario destilda una anomalia, sus productos deben irse con ella:
+  // la base rechaza un vinculo cuyo anomaly_type no esta en la visita.
+  useEffect(() => {
+    setAnomalyProducts((prev) => {
+      const next: Record<string, string[]> = {};
+      for (const t of anomalyTypes) if (prev[t]?.length) next[t] = prev[t];
+      return next;
+    });
+  }, [anomalyTypes]);
 
   const locationVerified = useMemo(() => {
     if (!currentLocation) return null;
@@ -126,8 +176,8 @@ export function CheckInScreen() {
       anomaly_type: selectedStatus === 'anomaly' ? anomalyTypes : null,
       skip_reason: selectedStatus === 'skipped' ? skipReason : null,
       last_restock_date: lastRestockDate,
-      supervisor_present_user_id: null,
-      anomaly_products: {},
+      supervisor_present_user_id: supervisorId,
+      anomaly_products: selectedStatus === 'anomaly' ? anomalyProducts : {},
     };
 
     // recordVisit actualiza la lista (optimista) y persiste en SQLite; la subida a
@@ -266,6 +316,31 @@ export function CheckInScreen() {
               </Text>
               <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
             </TouchableOpacity>
+
+            {anomalyTypes.map((t) => {
+              const ids = anomalyProducts[t] ?? [];
+              const label = ANOMALY_TYPE_OPTIONS.find((o) => o.value === t)?.label ?? t;
+              const nombres = ids
+                .map((id) => products.find((p) => p.product_id === id)?.name)
+                .filter(Boolean) as string[];
+              return (
+                <View key={t} style={styles.productBlock}>
+                  <Text style={styles.productBlockLabel}>{label} — productos</Text>
+                  <TouchableOpacity
+                    style={styles.dropdownField}
+                    onPress={() => setProductSheetFor(t)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.dropdownText, ids.length === 0 && styles.dropdownPlaceholder]}>
+                      {ids.length === 0
+                        ? 'Sin productos (opcional)'
+                        : ids.length <= 2 ? nombres.join(', ') : `${ids.length} productos`}
+                    </Text>
+                    <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -303,6 +378,30 @@ export function CheckInScreen() {
             />
           )}
         </View>
+
+        {/* Supervisor presente (opcional) */}
+        {supervisors.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Supervisor presente (opcional)</Text>
+            <View style={styles.dateRow}>
+              <TouchableOpacity
+                style={[styles.dropdownField, styles.dateField]}
+                onPress={() => setSupervisorSheetOpen(true)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="person-outline" size={16} color={colors.textMuted} />
+                <Text style={[styles.dropdownText, !supervisorId && styles.dropdownPlaceholder]}>
+                  {supervisors.find((s) => s.id === supervisorId)?.full_name ?? 'Nadie me acompañó'}
+                </Text>
+              </TouchableOpacity>
+              {supervisorId && (
+                <TouchableOpacity onPress={() => setSupervisorId(null)} style={styles.clearDateBtn}>
+                  <Ionicons name="close" size={16} color={colors.danger} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Observaciones */}
         <View style={styles.section}>
@@ -367,6 +466,32 @@ export function CheckInScreen() {
         selectedValues={anomalyTypes}
         onConfirm={(v) => setAnomalyTypes(v)}
         onClose={() => setAnomalySheetOpen(false)}
+      />
+
+      <ProductPickerSheet
+        visible={productSheetFor !== null}
+        title={
+          productSheetFor
+            ? `Productos — ${ANOMALY_TYPE_OPTIONS.find((o) => o.value === productSheetFor)?.label ?? productSheetFor}`
+            : 'Productos'
+        }
+        options={products}
+        selectedIds={productSheetFor ? (anomalyProducts[productSheetFor] ?? []) : []}
+        onConfirm={(ids) => {
+          const t = productSheetFor;
+          if (!t) return;
+          setAnomalyProducts((prev) => ({ ...prev, [t]: ids }));
+        }}
+        onClose={() => setProductSheetFor(null)}
+      />
+
+      <BottomSheetSelect
+        visible={supervisorSheetOpen}
+        title="Supervisor presente"
+        options={supervisors.map((s) => ({ value: s.id, label: s.full_name }))}
+        selectedValue={supervisorId}
+        onSelect={(v) => setSupervisorId(v)}
+        onClose={() => setSupervisorSheetOpen(false)}
       />
 
       <CompetitionTab hasDraft={competitionDraft !== null} onPress={() => setCompetitionOpen(true)} />
@@ -460,6 +585,8 @@ const styles = StyleSheet.create({
   },
   dropdownText: { flex: 1, fontSize: 14, color: colors.textPrimary, ...fonts.medium },
   dropdownPlaceholder: { color: colors.textMuted, ...fonts.regular },
+  productBlock: { marginTop: 10 },
+  productBlockLabel: { fontSize: 11, color: colors.textMuted, marginBottom: 6, ...fonts.medium },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dateField: { flex: 1 },
   clearDateBtn: {
