@@ -51,7 +51,7 @@ export async function fetchVisitDetail(visitId: string): Promise<VisitDetail | n
     .from("visits")
     .select(
       "visit_id, store_id, check_in_time, status, anomaly_type, observations, photo_urls, " +
-        "users(full_name), stores(name), " +
+        "users:users!visits_user_id_fkey(full_name), stores(name), " +
         "supervisor:users!visits_supervisor_present_user_id_fkey(full_name), " +
         "visit_anomaly_products(anomaly_type, products(name))",
     )

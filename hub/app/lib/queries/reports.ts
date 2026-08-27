@@ -103,7 +103,7 @@ export async function fetchStoreReports(storeId: string): Promise<SupervisorRepo
     .from("visits")
     .select(
       "visit_id, store_id, check_in_time, check_in_location, photo_urls, observations, status, last_restock_date, anomaly_type, " +
-        "users(full_name, is_supervisor, role), stores(name, address, master_lat, master_lng), " +
+        "users:users!visits_user_id_fkey(full_name, is_supervisor, role), stores(name, address, master_lat, master_lng), " +
         "supervisor:users!visits_supervisor_present_user_id_fkey(full_name), " +
         "visit_anomaly_products(anomaly_type, products(name))",
     )
