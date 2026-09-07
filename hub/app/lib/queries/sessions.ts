@@ -1,4 +1,5 @@
 import { getSupabaseBrowser } from "../supabase/client";
+import { isRecentPing } from "./liveness";
 
 export interface LivePosition {
   user_id: string;
@@ -29,7 +30,10 @@ export async function fetchMerchandisers(): Promise<MerchandiserRosterEntry[]> {
   }));
 }
 
-// Última posición por MERCADERISTA con sesión ABIERTA (session_end IS NULL).
+// Última posición por MERCADERISTA con sesión ABIERTA (session_end IS NULL)
+// Y con un ping reciente (ver liveness.ts). Una sesión abierta con el último
+// ping de hace horas o días es una jornada olvidada, no alguien en ruta: se
+// omite del mapa en vivo en lugar de pintar una posición vieja como "activa".
 // Si un usuario tuviera varias sesiones abiertas (p. ej. rutas que no se cerraron),
 // se muestra solo la más reciente — un marcador por persona, nunca duplicados.
 export async function fetchLivePositions(): Promise<LivePosition[]> {
@@ -58,7 +62,7 @@ export async function fetchLivePositions(): Promise<LivePosition[]> {
       .order("timestamp", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (ping) {
+    if (ping && isRecentPing((ping as { timestamp: string }).timestamp)) {
       positions.push({
         user_id: s.user_id,
         full_name: s.users?.full_name ?? "Mercaderista",

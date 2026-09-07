@@ -13,6 +13,19 @@ Este documento almacena las preguntas por resolver, datos necesarios por parte d
 
 ---
 
+## ✅ Aplicado en producción (2026-09-06)
+
+Verificado contra Supabase el mismo día: migración del 31-ago (columnas de nota de cierre, rol `colaborador`, `fn_is_colaborador`), cuenta `colaborador@ponce-benzo.com` dada de alta, y migración del 6-sep (`close_stale_sessions()`, trigger guardia probado, job `pg_cron`). Ver [[logs/Log-2026-09-06|Log 2026-09-06]].
+
+### ⏳ Queda por hacer
+1. **Desplegar el hub** para que la ventana de 20 min del mapa en vivo quede en vivo. La pantalla de Tareas ya puede cargar porque las columnas existen.
+2. **Investigar el tracking en background de Willian Fermín**: dejó de emitir pings a las 13:33 UTC del 4-sep pero siguió registrando visitas hasta las 19:37 UTC.
+3. **APK nueva**: el cambio de pestañas del [[decisiones/ADR-008-Cuenta-Maestra-Colaborador|ADR-008]] es de cliente.
+
+### ❓ Decisión de negocio abierta
+
+**La cuenta `colaborador` es compartida, así que la visita no dice quién la hizo** (`visits.user_id` apunta siempre a la cuenta maestra). Hoy existe una mitigación sin código: el selector **"supervisor presente"** del check-in ([[decisiones/ADR-007-Productos-Y-Supervision-Movil|ADR-007]]) permite que quien la usa se identifique, pero es **opcional**. ¿Se vuelve obligatorio para este rol, o se acepta el anonimato del registro?
+
 ## 🚧 Bloqueadores del rediseño del hub (2026-08-12)
 
 Dependencias de la spec [[logs/Log-2026-08-12|Log-2026-08-12]]. Ninguna bloquea el diseño; todas bloquean algún paso de la puesta en producción.

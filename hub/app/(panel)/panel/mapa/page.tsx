@@ -58,6 +58,7 @@ export default function MapaPage() {
       status: "active" as const,
       lat: p.lat,
       lng: p.lng,
+      lastSeen: p.last_seen,
     })),
     [positions],
   );
@@ -74,12 +75,13 @@ export default function MapaPage() {
         status: (live ? "active" : "offline") as "active" | "offline",
         lat: live?.lat ?? 0,
         lng: live?.lng ?? 0,
+        lastSeen: live?.last_seen,
       };
     });
     // Mercaderistas activos que no estén en el roster (defensa) se agregan igual.
     for (const p of positions) {
       if (!base.some((b) => b.id === p.user_id)) {
-        base.push({ id: p.user_id, name: p.full_name, status: "active", lat: p.lat, lng: p.lng });
+        base.push({ id: p.user_id, name: p.full_name, status: "active", lat: p.lat, lng: p.lng, lastSeen: p.last_seen });
       }
     }
     return base.length > 0 ? base : merchandisers;

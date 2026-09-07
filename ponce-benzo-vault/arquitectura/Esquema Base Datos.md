@@ -22,7 +22,7 @@ Contiene la información de los usuarios y define la jerarquía organizacional.
 *   `id` (`UUID`, PK, referencias a `auth.users(id)`).
 *   `full_name` (`TEXT`): Nombre completo del mercaderista o supervisor.
 *   `email` (`TEXT`): Dirección de correo de acceso.
-*   `role` (`TEXT`): Rol del usuario (`merchandiser`, `supervisor`, `admin`).
+*   `role` (`TEXT`, `CHECK`): Rol del usuario. Valores: `merchandiser`, `vendedor`, `admin`, `colaborador`. `colaborador` (2026-08-31) es la **cuenta maestra compartida** con la que la dirección registra recorridos desde la app móvil; ve el catálogo completo de tiendas (`fn_is_colaborador()` en `stores_read`/`clients_select`) pero **no** hereda la visibilidad global del `admin` sobre la operación.
 *   `supervisor_id` (`UUID`, auto-FK -> `users.id`, `ON DELETE SET NULL`): Supervisor responsable del vendedor. Un vendedor tiene como máximo un supervisor (decisión D2 del [[decisiones/ADR-002-Modelo-CRM|ADR-002]]).
 *   `active` (`BOOLEAN`, por defecto `true`): Permite suspender temporalmente el acceso.
 *   `created_at` (`TIMESTAMPTZ`).
@@ -59,6 +59,9 @@ Control de jornada de trabajo diario.
 *   `session_start` (`TIMESTAMPTZ`): Registra la fecha/hora en que presiona "Empezar Ruta".
 *   `session_end` (`TIMESTAMPTZ`, opcional): Registra cuándo presiona "Finalizar Ruta".
 *   `start_location` (`JSONB`): Coordenadas iniciales del teléfono `{ lat, lng }`.
+
+> [!IMPORTANT] Cierre automático de jornadas (2026-09-06)
+> `session_end` ya no depende sólo de "Finalizar Ruta". La función `close_stale_sessions(max_idle)` (job `pg_cron` cada 30 min, umbral 3 h) cierra cualquier sesión abierta sin pings recientes con `session_end` = último ping (o `session_start` si no hubo). El trigger `trg_sessions_keep_latest_end` impide que un `session_end` ya fijado se **acorte** — la app móvil cierra sesiones viejas con `session_end = session_start` y hace upsert. El hub, por su lado, sólo considera **activo** a quien tiene ping en los últimos 20 min (`hub/app/lib/queries/liveness.ts`). Ver [[bugs/Registro de Bugs|BUG-027]].
 
 ### 5. Tabla: `visits`
 Formulario de check-in y evidencias recopiladas en cada tienda.
@@ -136,6 +139,9 @@ Tareas accionables. Se asignan al **supervisor del vendedor** (decisión D1).
 *   `title` (`TEXT`).
 *   `description` (`TEXT`, v2.0): Detalle/contexto — el trigger copia `visits.observations`; las tareas manuales futuras la usan como texto libre.
 *   `status` (`TEXT`, `CHECK`, v2.0): `open` | `resolved` (alineado con el UI del hub; sin `priority` por decisión de producto).
+*   `resolved_at` (`TIMESTAMPTZ`) / `resolved_by` (`UUID`, FK -> `users.id`): cuándo y quién cerró la tarea.
+*   `resolution_note` (`TEXT`, 2026-08-31): **comentario de cierre opcional** que escribe el vendedor al completar la tarea. Va aparte de `resolved_*` porque es **editable después** del cierre y puede escribirla alguien distinto de quien la resolvió.
+*   `resolution_note_by` (`UUID`, FK -> `users.id`) / `resolution_note_at` (`TIMESTAMPTZ`): firma de la nota. Vaciar el comentario borra los tres campos juntos.
 
 ### 10. Tabla: `competitor_brands`
 Catálogo editable de marcas de la competencia (decisión D6 — lookup, no enum fijo).

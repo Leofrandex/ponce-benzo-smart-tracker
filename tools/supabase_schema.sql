@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS users (
   id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name     TEXT NOT NULL,
   email         TEXT NOT NULL,
-  role          TEXT NOT NULL DEFAULT 'merchandiser' CHECK (role IN ('merchandiser','vendedor','admin')),
+  role          TEXT NOT NULL DEFAULT 'merchandiser' CHECK (role IN ('merchandiser','vendedor','admin','colaborador')),
   supervisor_id UUID REFERENCES users(id) ON DELETE SET NULL,
   active        BOOLEAN DEFAULT TRUE,
   is_supervisor BOOLEAN NOT NULL DEFAULT FALSE,
@@ -241,7 +241,13 @@ CREATE TABLE IF NOT EXISTS tasks (
   status             TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved')),
   created_at         TIMESTAMPTZ DEFAULT NOW(),
   resolved_at        TIMESTAMPTZ,  -- §1.6 spec: cuándo se resolvió la tarea
-  resolved_by        UUID REFERENCES users(id)  -- §1.6 spec: quién la resolvió
+  resolved_by        UUID REFERENCES users(id),  -- §1.6 spec: quién la resolvió
+  -- Nota de cierre (2026-08-31): comentario opcional del vendedor al completar
+  -- la tarea. Va aparte de resolved_at/resolved_by porque es editable después
+  -- del cierre y puede escribirla alguien distinto de quien la resolvió.
+  resolution_note    TEXT,
+  resolution_note_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  resolution_note_at TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_store    ON tasks(store_id);
@@ -677,6 +683,25 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.fn_is_merchandiser() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fn_is_merchandiser() TO authenticated;
 
+-- fn_is_colaborador(): la cuenta maestra compartida con la que la dirección
+-- registra recorridos desde la app móvil (2026-08-31). Es personal de campo
+-- sin ruta: necesita el catálogo completo de sucursales para el reporte
+-- suelto, pero NO hereda la visibilidad global del admin sobre la operación.
+create or replace function public.fn_is_colaborador()
+returns boolean
+language sql
+stable
+security definer
+SET search_path = ''
+as $$
+  select exists (
+    select 1 from public.users
+    where id = auth.uid() and role = 'colaborador' and active
+  );
+$$;
+REVOKE EXECUTE ON FUNCTION public.fn_is_colaborador() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fn_is_colaborador() TO authenticated;
+
 create or replace function public.fn_can_see_store(p_store_id uuid)
 returns boolean
 language sql
@@ -709,6 +734,7 @@ CREATE POLICY "stores_read" ON stores
   FOR SELECT TO authenticated USING (
     public.fn_is_admin()
     OR public.fn_is_merchandiser()
+    OR public.fn_is_colaborador()
     OR client_id IN (SELECT public.fn_my_client_ids())
   );
 
@@ -718,6 +744,7 @@ CREATE POLICY "clients_select" ON clients
   FOR SELECT TO authenticated USING (
     public.fn_is_admin()
     OR public.fn_is_merchandiser()
+    OR public.fn_is_colaborador()
     OR client_id IN (SELECT public.fn_my_client_ids())
   );
 
@@ -1200,3 +1227,62 @@ as $$
   group by c.client_id, c.name
   order by 3 desc, 2;
 $$;
+
+-- ============================================================
+-- CIERRE AUTOMÁTICO DE JORNADAS (2026-09-06)
+-- Migración: tools/migraciones/2026-09-06-cierre-automatico-de-jornadas.sql
+-- ============================================================
+-- Cierra toda sesión abierta cuyo último ping (o su inicio si no hubo pings)
+-- tenga más de `max_idle`. `session_end` = ese último ping. La corre pg_cron
+-- cada 30 min ('close_stale_sessions', '*/30 * * * *', umbral 3 h).
+CREATE OR REPLACE FUNCTION public.close_stale_sessions(max_idle INTERVAL DEFAULT INTERVAL '3 hours')
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  closed_count INTEGER;
+BEGIN
+  WITH last_ping AS (
+    SELECT s.session_id,
+           COALESCE(MAX(p."timestamp"), s.session_start) AS last_seen
+    FROM public.sessions s
+    LEFT JOIN public.location_pings p ON p.session_id = s.session_id
+    WHERE s.session_end IS NULL
+    GROUP BY s.session_id, s.session_start
+  ),
+  closed AS (
+    UPDATE public.sessions s
+    SET session_end = lp.last_seen
+    FROM last_ping lp
+    WHERE s.session_id = lp.session_id
+      AND lp.last_seen < NOW() - max_idle
+    RETURNING s.session_id
+  )
+  SELECT COUNT(*) INTO closed_count FROM closed;
+  RETURN closed_count;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.close_stale_sessions(INTERVAL) FROM PUBLIC, anon, authenticated;
+
+-- Guardia: un `session_end` ya fijado no se acorta. La app móvil cierra sus
+-- sesiones viejas con session_end = session_start y hace upsert; sin esto
+-- pisaría el cierre real que fijó el servidor.
+CREATE OR REPLACE FUNCTION public.sessions_keep_latest_end()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF OLD.session_end IS NOT NULL
+     AND NEW.session_end IS NOT NULL
+     AND NEW.session_end < OLD.session_end THEN
+    NEW.session_end := OLD.session_end;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_sessions_keep_latest_end ON public.sessions;
+CREATE TRIGGER trg_sessions_keep_latest_end
+  BEFORE UPDATE OF session_end ON public.sessions
+  FOR EACH ROW EXECUTE FUNCTION public.sessions_keep_latest_end();

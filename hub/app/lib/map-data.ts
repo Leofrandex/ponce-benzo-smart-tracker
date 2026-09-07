@@ -7,6 +7,8 @@ export interface MapMerchandiser {
   status: "active" | "offline";
   lat: number;
   lng: number;
+  /** ISO del último ping GPS; sólo presente para activos. */
+  lastSeen?: string;
 }
 
 // Active/offline merchandisers with a last-known position (clustered around the stores).
