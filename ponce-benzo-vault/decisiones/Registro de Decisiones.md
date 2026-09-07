@@ -25,6 +25,8 @@ Este documento actúa como índice histórico de todas las decisiones importante
 
 | [[decisiones/ADR-007-Productos-Y-Supervision-Movil\|ADR-007]] | Productos en anomalías, supervisión de Jonathan y reportes sueltos | `aceptado` | 2026-08-17 | Catálogo `products` (34 SKUs) + tabla puente `visit_anomaly_products` **por tipo de anomalía**, aditiva: `visits.anomaly_type` sigue siendo `TEXT[]` (coherente con ADR-005). `users.is_supervisor` en vez de un cuarto rol, para no reauditar las políticas del ADR-006. `visits.supervisor_present_user_id` lo marca el mercaderista por visita. El reporte suelto reutiliza ruta especial + jornada corta (GPS solo durante el reporte) y **cubre la ruta del ausente** en `fn_dash_cumplimiento`. Índice único de `routes` partido en dos parciales. |
 
+| [[decisiones/ADR-008-Cuenta-Maestra-Colaborador\|ADR-008]] | Cuenta maestra `colaborador` para recorridos de la dirección | `aceptado` | 2026-08-31 | Cuarto rol `colaborador` + **una sola cuenta compartida** que sustituye al `admin` entrando a la APK con su cuenta personal. `fn_is_colaborador()` se suma con `OR` **solo** a `stores_read`/`clients_select` (catálogo completo para el reporte suelto); **no** hereda la rama global de `fn_is_admin()` sobre visitas, tareas, pings ni storage. La escritura ya estaba cubierta por las políticas `*_own`. El admin conserva el login móvil, pierde la pestaña de reporte. Precio explícito: la visita no identifica a la persona — mitigable con el selector de acompañante del ADR-007. |
+
 ---
 
 ## 🛠️ Cómo registrar un nuevo ADR

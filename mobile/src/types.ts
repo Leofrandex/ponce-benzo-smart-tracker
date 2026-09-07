@@ -22,9 +22,10 @@ export interface User {
   id: string;
   full_name: string;
   email: string;
-  // La base solo admite estos tres valores (CHECK en users.role). 'supervisor'
-  // no existe: la capacidad de supervisar la da is_supervisor.
-  role: 'merchandiser' | 'vendedor' | 'admin';
+  // La base solo admite estos cuatro valores (CHECK en users.role). 'supervisor'
+  // no existe: la capacidad de supervisar la da is_supervisor. 'colaborador' es
+  // la cuenta maestra compartida con la que la direccion registra recorridos.
+  role: 'merchandiser' | 'vendedor' | 'admin' | 'colaborador';
   active: boolean;
   created_at: string;
   supervisor_id: string | null;

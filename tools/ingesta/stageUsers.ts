@@ -6,7 +6,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 interface VendedorDef {
   full_name: string;
   email: string;
-  role: "merchandiser" | "vendedor" | "admin";
+  role: "merchandiser" | "vendedor" | "admin" | "colaborador";
   supervisor_email: string | null;
   excel_aliases: string[];
   /** Capacidad, no rol: habilita el reporte suelto y el selector "supervisor presente". */
@@ -47,7 +47,7 @@ export async function stageUsers(supabase: SupabaseClient): Promise<Map<string, 
 
   // 3. Upsert en public.users en orden jerárquico (admin -> vendedor -> merchandiser),
   //    resolviendo supervisor_id por email.
-  const order = { admin: 0, vendedor: 1, merchandiser: 2 } as const;
+  const order = { admin: 0, vendedor: 1, merchandiser: 2, colaborador: 3 } as const;
   const sorted = [...vendedores].sort((a, b) => order[a.role] - order[b.role]);
   for (const v of sorted) {
     const id = authByEmail.get(v.email.toLowerCase())!;

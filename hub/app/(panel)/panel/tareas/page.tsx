@@ -6,6 +6,7 @@ import {
   Clock,
   ClipboardList,
   ChevronRight,
+  MessageSquare,
 } from "lucide-react";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchFullTasks, type FullTaskRow } from "@/app/lib/queries/tasks";
@@ -13,6 +14,7 @@ import { resolveTask } from "@/app/lib/mutations/tasks";
 import { GeoFilters } from "@/app/components/geo/GeoFilters";
 import { EMPTY_GEO, type GeoFilterValue } from "@/app/components/geo/geoOptions";
 import { TaskVisitDetail } from "@/app/components/tareas/TaskVisitDetail";
+import { TaskResolutionNote } from "@/app/components/tareas/TaskResolutionNote";
 
 type TaskStatus = "open" | "resolved";
 
@@ -59,8 +61,8 @@ export default function TareasPage() {
     return true;
   });
 
-  const handleResolve = async (taskId: string) => {
-    const { error: e } = await resolveTask(taskId);
+  const handleResolve = async (taskId: string, nota: string) => {
+    const { error: e } = await resolveTask(taskId, nota);
     if (e) { alert("No se pudo completar la tarea: " + e); return; }
     refetch();
   };
@@ -205,6 +207,15 @@ export default function TareasPage() {
                     <Clock size={11} />
                     {relativeTime(task.created_at)}
                   </span>
+                  {task.resolution_note && (
+                    <span
+                      style={{ display: "flex", alignItems: "center", gap: "4px" }}
+                      title="Tiene comentario de cierre"
+                    >
+                      <MessageSquare size={11} />
+                      Con comentario
+                    </span>
+                  )}
                   <span style={{ marginLeft: "auto" }}>
                     <span className={STATUS_BADGE[task.status]}>
                       {STATUS_LABEL[task.status]}
@@ -231,16 +242,11 @@ export default function TareasPage() {
 
                     {task.source_visit_id && <TaskVisitDetail visitId={task.source_visit_id} />}
 
-                    {task.status !== "resolved" && (
-                      <button
-                        className="btn btn-primary"
-                        style={{ fontSize: "13px", padding: "10px" }}
-                        onClick={() => handleResolve(task.task_id)}
-                      >
-                        <CheckCircle2 size={14} />
-                        Marcar como completada
-                      </button>
-                    )}
+                    <TaskResolutionNote
+                      task={task}
+                      onResolve={(nota) => handleResolve(task.task_id, nota)}
+                      onSaved={refetch}
+                    />
                   </div>
                 )}
               </div>

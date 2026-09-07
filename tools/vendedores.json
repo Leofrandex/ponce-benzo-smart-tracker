@@ -6,35 +6,49 @@
       "email": "erondon@ponce-benzo.com",
       "role": "merchandiser",
       "supervisor_email": "mfernandez@ponce-benzo.com",
-      "excel_aliases": ["ELVIS RONDON"]
+      "excel_aliases": [
+        "ELVIS RONDON"
+      ]
     },
     {
       "full_name": "Willian Fermín",
       "email": "wfermin@ponce-benzo.com",
       "role": "merchandiser",
       "supervisor_email": "mfernandez@ponce-benzo.com",
-      "excel_aliases": ["WILLIAN FERMIN", "WILLIAM FERMIN"]
+      "excel_aliases": [
+        "WILLIAN FERMIN",
+        "WILLIAM FERMIN"
+      ]
     },
     {
       "full_name": "Eduward Martínez",
       "email": "emartinez@ponce-benzo.com",
       "role": "merchandiser",
       "supervisor_email": "mfernandez@ponce-benzo.com",
-      "excel_aliases": ["EDUWARD MARTINEZ", "EDUWARD MARTÍNEZ"]
+      "excel_aliases": [
+        "EDUWARD MARTINEZ",
+        "EDUWARD MARTÍNEZ"
+      ]
     },
     {
       "full_name": "Carlos Zurita",
       "email": "czurita@ponce-benzo.com",
       "role": "merchandiser",
       "supervisor_email": "mfernandez@ponce-benzo.com",
-      "excel_aliases": ["CARLOS ZURITA", "CARLOS  ZURITA"]
+      "excel_aliases": [
+        "CARLOS ZURITA",
+        "CARLOS  ZURITA"
+      ]
     },
     {
       "full_name": "Jonathan Fernández",
       "email": "jfernandez@ponce-benzo.com",
       "role": "merchandiser",
       "supervisor_email": "mfernandez@ponce-benzo.com",
-      "excel_aliases": ["JONATHAN FERNANDEZ", "JONATHAN FERNÁNDEZ"],
+      "excel_aliases": [
+        "JONATHAN FERNANDEZ",
+        "JONATHAN FERNÁNDEZ"
+      ],
       "is_supervisor": true
     },
     {
@@ -42,14 +56,21 @@
       "email": "mfernandez@ponce-benzo.com",
       "role": "vendedor",
       "supervisor_email": "raponte@ponce-benzo.com",
-      "excel_aliases": ["MILAGROS FERNANDEZ", "MILAGROS FERNÁNDEZ", "MILAGROS FERNANDEZ 10", "MILAGROS FERNANDEZ 30"]
+      "excel_aliases": [
+        "MILAGROS FERNANDEZ",
+        "MILAGROS FERNÁNDEZ",
+        "MILAGROS FERNANDEZ 10",
+        "MILAGROS FERNANDEZ 30"
+      ]
     },
     {
       "full_name": "Rosli Aponte",
       "email": "raponte@ponce-benzo.com",
       "role": "admin",
       "supervisor_email": null,
-      "excel_aliases": ["ROSLI APONTE"]
+      "excel_aliases": [
+        "ROSLI APONTE"
+      ]
     },
     {
       "full_name": "Diego Mori",
@@ -63,35 +84,55 @@
       "email": "aliadocomercialcaracas@ponce-benzo.com",
       "role": "vendedor",
       "supervisor_email": "mfernandez@ponce-benzo.com",
-      "excel_aliases": ["MARIA RODRIGUEZ"]
+      "excel_aliases": [
+        "MARIA RODRIGUEZ"
+      ]
     },
     {
       "full_name": "Betsy Castro",
       "email": "bcastro@ponce-benzo.com",
       "role": "vendedor",
       "supervisor_email": "mfernandez@ponce-benzo.com",
-      "excel_aliases": ["BETSY CASTRO"]
+      "excel_aliases": [
+        "BETSY CASTRO"
+      ]
     },
     {
       "full_name": "Dubraska Pérez",
       "email": "dperez@ponce-benzo.com",
       "role": "vendedor",
       "supervisor_email": "raponte@ponce-benzo.com",
-      "excel_aliases": ["DUBRASKA PEREZ", "DUBRASKA PÉREZ"]
+      "excel_aliases": [
+        "DUBRASKA PEREZ",
+        "DUBRASKA PÉREZ"
+      ]
     },
     {
       "full_name": "Juan León",
       "email": "jleon@ponce-benzo.com",
       "role": "vendedor",
       "supervisor_email": "dperez@ponce-benzo.com",
-      "excel_aliases": ["JUAN LEON", "JUAN LEÓN"]
+      "excel_aliases": [
+        "JUAN LEON",
+        "JUAN LEÓN"
+      ]
     },
     {
       "full_name": "Andreina Rangel",
       "email": "arangel@ponce-benzo.com",
       "role": "vendedor",
       "supervisor_email": "raponte@ponce-benzo.com",
-      "excel_aliases": ["ANDREINA RANGEL"]
+      "excel_aliases": [
+        "ANDREINA RANGEL"
+      ]
+    },
+    {
+      "full_name": "Colaborador P&B",
+      "email": "colaborador@ponce-benzo.com",
+      "role": "colaborador",
+      "supervisor_email": null,
+      "excel_aliases": [],
+      "_comment": "Cuenta MAESTRA COMPARTIDA (2026-08-31). La usa la direccion para registrar recorridos desde la app movil, en lugar de que cada admin entre con su cuenta personal. No tiene ruta propia: la app la abre directo en 'Reporte suelto'. Sin alias de Excel: nunca se le cruzan tiendas ni rutas."
     }
   ]
 }

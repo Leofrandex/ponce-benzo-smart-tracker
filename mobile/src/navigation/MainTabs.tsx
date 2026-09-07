@@ -22,12 +22,15 @@ const TAB_ICONS: Record<string, { focused: IoniconName; unfocused: IoniconName }
 export function MainTabs() {
   const { user } = useAuth();
   // El reporte suelto es para quien no tiene ruta fija que cubrir: el supervisor
-  // cuando reemplaza a un ausente, y la direccion cuando pasa por una sucursal.
-  const puedeReportarSuelto = Boolean(user?.is_supervisor) || user?.role === 'admin';
+  // cuando reemplaza a un ausente, y la cuenta maestra 'colaborador' con la que
+  // la direccion registra un recorrido sin usar su cuenta personal de admin.
+  const puedeReportarSuelto = Boolean(user?.is_supervisor) || user?.role === 'colaborador';
+  // Sin ruta propia que abrir, el colaborador arranca directo en el reporte.
+  const sinRutaPropia = user?.role === 'colaborador';
 
   return (
     <Tab.Navigator
-      initialRouteName={user?.role === 'admin' ? 'Reporte' : 'Ruta'}
+      initialRouteName={sinRutaPropia ? 'Reporte' : 'Ruta'}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
