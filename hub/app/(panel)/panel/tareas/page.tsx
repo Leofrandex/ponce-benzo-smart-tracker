@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   CheckCircle2,
   Clock,
@@ -12,7 +13,12 @@ import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchFullTasks, type FullTaskRow } from "@/app/lib/queries/tasks";
 import { resolveTask } from "@/app/lib/mutations/tasks";
 import { GeoFilters } from "@/app/components/geo/GeoFilters";
-import { EMPTY_GEO, type GeoFilterValue } from "@/app/components/geo/geoOptions";
+import { fetchTaskAssignees } from "@/app/lib/queries/assignments";
+import {
+  EMPTY_TASK_FILTER, deriveTaskFilterOptions, filterTasks, hasActiveFilters, taskTypeLabel,
+  type TaskFilterValue,
+} from "@/app/lib/queries/taskFilters";
+import { TaskFilters } from "@/app/components/tareas/TaskFilters";
 import { TaskVisitDetail } from "@/app/components/tareas/TaskVisitDetail";
 import { TaskResolutionNote } from "@/app/components/tareas/TaskResolutionNote";
 
@@ -43,23 +49,39 @@ function relativeTime(iso: string): string {
   return `Hace ${Math.floor(hrs / 24)}d`;
 }
 
-export default function TareasPage() {
+function TareasPageInner() {
   const { data: rawTasks, loading, error, refetch } = useSupabaseQuery(fetchFullTasks, []);
-  const tasks = rawTasks ?? [];
-  const [filter, setFilter] = useState<TaskStatus | "all">("all");
-  const [geo, setGeo] = useState<GeoFilterValue>(EMPTY_GEO);
+  const tasks = useMemo(() => rawTasks ?? [], [rawTasks]);
+  const { data: rawAssignees } = useSupabaseQuery(fetchTaskAssignees, []);
+  const assignees = useMemo(() => rawAssignees ?? [], [rawAssignees]);
+  const [filter, setFilter] = useState<TaskFilterValue>(EMPTY_TASK_FILTER);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const open     = tasks.filter((t) => t.status === "open").length;
   const resolved = tasks.filter((t) => t.status === "resolved").length;
 
-  const filtered = tasks.filter((t) => {
-    if (filter !== "all" && t.status !== filter) return false;
-    if (geo.estado && t.estado !== geo.estado) return false;
-    if (geo.municipio && t.municipio !== geo.municipio) return false;
-    if (geo.urbanizacion && t.urbanizacion !== geo.urbanizacion) return false;
-    return true;
-  });
+  const options  = useMemo(() => deriveTaskFilterOptions(tasks, assignees), [tasks, assignees]);
+  const filtered = useMemo(() => filterTasks(tasks, filter, assignees), [tasks, filter, assignees]);
+
+  // Enlace directo: /panel/tareas?task=<id> abre esa tarea y la enfoca.
+  const searchParams = useSearchParams();
+  const linkedId = searchParams.get("task");
+  const linkedRef = useRef<HTMLDivElement | null>(null);
+  const [linkedApplied, setLinkedApplied] = useState(false);
+  const linkedMissing = !!linkedId && !loading && !error && !tasks.some((t) => t.task_id === linkedId);
+  const linkedHidden  = !!linkedId && !linkedMissing && !filtered.some((t) => t.task_id === linkedId);
+
+  useEffect(() => {
+    if (!linkedId || loading || linkedApplied) return;
+    if (tasks.some((t) => t.task_id === linkedId)) setExpandedId(linkedId);
+    setLinkedApplied(true);
+  }, [linkedId, loading, linkedApplied, tasks]);
+
+  useEffect(() => {
+    if (linkedApplied && expandedId === linkedId && linkedRef.current) {
+      linkedRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [linkedApplied, expandedId, linkedId]);
 
   const handleResolve = async (taskId: string, nota: string) => {
     const { error: e } = await resolveTask(taskId, nota);
@@ -75,7 +97,7 @@ export default function TareasPage() {
           Tareas
         </h1>
         <p className="text-muted text-sm" style={{ marginTop: "4px" }}>
-          Anomalías y acciones pendientes — Farmatodo
+          Anomalías y acciones pendientes
         </p>
       </div>
 
@@ -96,23 +118,36 @@ export default function TareasPage() {
         {STATUS_FILTERS.map(({ key, label }) => (
           <button
             key={key}
-            className={`filter-chip ${filter === key ? "active" : ""}`}
-            onClick={() => setFilter(key)}
+            className={`filter-chip ${filter.status === key ? "active" : ""}`}
+            onClick={() => setFilter({ ...filter, status: key })}
           >
             {label}
           </button>
         ))}
       </div>
 
-      {/* Filtros geográficos */}
+      {/* Filtros */}
       <div className="card" style={{ padding: "12px", display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "flex-end" }}>
-        <GeoFilters items={tasks} value={geo} onChange={setGeo} />
-        {(geo.estado || geo.municipio || geo.urbanizacion) && (
-          <button className="filter-chip" onClick={() => setGeo(EMPTY_GEO)} style={{ marginLeft: "auto" }}>
+        <TaskFilters value={filter} onChange={setFilter} options={options} />
+        <GeoFilters items={tasks} value={filter.geo} onChange={(geo) => setFilter({ ...filter, geo })} />
+        {hasActiveFilters(filter) && (
+          <button className="filter-chip" onClick={() => setFilter(EMPTY_TASK_FILTER)} style={{ marginLeft: "auto" }}>
             Limpiar
           </button>
         )}
       </div>
+
+      {linkedMissing && (
+        <div className="card" style={{ padding: "10px 12px", fontSize: "13px", color: "var(--text-muted)" }}>
+          La tarea enlazada no está disponible.
+        </div>
+      )}
+      {linkedHidden && (
+        <div className="card" style={{ padding: "10px 12px", fontSize: "13px", color: "var(--text-muted)" }}>
+          La tarea enlazada está oculta por los filtros activos.{" "}
+          <button className="filter-chip" onClick={() => setFilter(EMPTY_TASK_FILTER)}>Limpiar filtros</button>
+        </div>
+      )}
 
       {/* Loading / error states */}
       {error && (
@@ -148,12 +183,13 @@ export default function TareasPage() {
             return (
               <div
                 key={task.task_id}
+                ref={task.task_id === linkedId ? linkedRef : undefined}
                 className="card"
                 style={{
                   padding: "16px",
                   cursor: "pointer",
                   opacity: task.status === "resolved" ? 0.65 : 1,
-                  borderColor: task.status === "open" ? "var(--danger-bg)" : "var(--border)",
+                  borderColor: task.task_id === linkedId ? "var(--primary, #1e3a8a)" : task.status === "open" ? "var(--danger-bg)" : "var(--border)",
                 }}
                 onClick={() => setExpandedId(isExpanded ? null : task.task_id)}
               >
@@ -178,7 +214,7 @@ export default function TareasPage() {
                       {(task.title ?? task.task_type).replace(/_/g, " ")}
                     </div>
                     <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "1px" }}>
-                      {[task.store_name, task.created_by_name].filter(Boolean).join(" · ") || "—"}
+                      {[task.client_name, task.store_name, task.created_by_name].filter(Boolean).join(" · ") || "—"}
                     </div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
@@ -207,6 +243,7 @@ export default function TareasPage() {
                     <Clock size={11} />
                     {relativeTime(task.created_at)}
                   </span>
+                  <span>{taskTypeLabel(task.task_type)}</span>
                   {task.resolution_note && (
                     <span
                       style={{ display: "flex", alignItems: "center", gap: "4px" }}
@@ -259,5 +296,13 @@ export default function TareasPage() {
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </>
+  );
+}
+
+export default function TareasPage() {
+  return (
+    <Suspense fallback={<div className="empty-state"><div className="empty-title">Cargando tareas…</div></div>}>
+      <TareasPageInner />
+    </Suspense>
   );
 }
