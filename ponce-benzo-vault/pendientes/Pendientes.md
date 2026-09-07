@@ -18,7 +18,7 @@ Este documento almacena las preguntas por resolver, datos necesarios por parte d
 Verificado contra Supabase el mismo día: migración del 31-ago (columnas de nota de cierre, rol `colaborador`, `fn_is_colaborador`), cuenta `colaborador@ponce-benzo.com` dada de alta, y migración del 6-sep (`close_stale_sessions()`, trigger guardia probado, job `pg_cron`). Ver [[logs/Log-2026-09-06|Log 2026-09-06]].
 
 ### ⏳ Queda por hacer
-1. **Desplegar el hub** para que la ventana de 20 min del mapa en vivo quede en vivo. La pantalla de Tareas ya puede cargar porque las columnas existen.
+1. ~~Desplegar el hub~~ ✅ commits `b2579d9` (ronda 31-ago) y `0b27dbb` (BUG-027) en `master`; deploy de producción en Vercel **READY** el 6-sep desde el monorepo (`ponce-benzo-hub.vercel.app`).
 2. **Investigar el tracking en background de Willian Fermín**: dejó de emitir pings a las 13:33 UTC del 4-sep pero siguió registrando visitas hasta las 19:37 UTC.
 3. **APK nueva**: el cambio de pestañas del [[decisiones/ADR-008-Cuenta-Maestra-Colaborador|ADR-008]] es de cliente.
 
