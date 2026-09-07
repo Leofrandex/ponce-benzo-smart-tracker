@@ -13,6 +13,8 @@ export interface FullTaskRow {
   task_id: string;
   store_id: string | null;
   store_name: string | null;
+  client_id: string | null;
+  client_name: string | null;
   estado: string | null;
   municipio: string | null;
   urbanizacion: string | null;
@@ -41,7 +43,14 @@ interface TaskJoinRow {
   source_visit_id: string | null;
   resolution_note: string | null;
   resolution_note_at: string | null;
-  stores: { name: string | null; estado: string | null; municipio: string | null; urbanizacion: string | null } | null;
+  stores: {
+    name: string | null;
+    estado: string | null;
+    municipio: string | null;
+    urbanizacion: string | null;
+    client_id: string | null;
+    clients: { name: string | null } | null;
+  } | null;
   creator: { full_name: string | null } | null;
   note_author: { full_name: string | null } | null;
 }
@@ -53,7 +62,7 @@ export async function fetchFullTasks(): Promise<FullTaskRow[]> {
     .select(
       "task_id, store_id, task_type, title, description, status, created_at, assignee_user_id, source_visit_id, " +
         "resolution_note, resolution_note_at, " +
-        "stores(name, estado, municipio, urbanizacion), creator:users!tasks_created_by_user_id_fkey(full_name), " +
+        "stores(name, estado, municipio, urbanizacion, client_id, clients(name)), creator:users!tasks_created_by_user_id_fkey(full_name), " +
         "note_author:users!tasks_resolution_note_by_fkey(full_name)",
     )
     .order("created_at", { ascending: false });
@@ -62,6 +71,8 @@ export async function fetchFullTasks(): Promise<FullTaskRow[]> {
     task_id: t.task_id,
     store_id: t.store_id,
     store_name: t.stores?.name ?? null,
+    client_id: t.stores?.client_id ?? null,
+    client_name: t.stores?.clients?.name ?? null,
     estado: t.stores?.estado ?? null,
     municipio: t.stores?.municipio ?? null,
     urbanizacion: t.stores?.urbanizacion ?? null,
