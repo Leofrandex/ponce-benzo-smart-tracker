@@ -13,6 +13,16 @@ Este documento almacena las preguntas por resolver, datos necesarios por parte d
 
 ---
 
+## 🧭 En diseño (2026-09-07): filtros en Tareas + correo al crear tarea
+
+Spec `docs/superpowers/specs/2026-09-07-tareas-filtros-y-correo-design.md` aprobada en chat, ver [[logs/Log-2026-09-07|Log 2026-09-07]]. Planes: `docs/superpowers/plans/2026-09-07-tareas-filtros-vendedor.md` y `…/2026-09-07-correo-nueva-tarea.md`.
+
+1. ✅ **Cambio A — filtros en Tareas** implementado en la rama `feat/tareas-filtros-vendedor` (ver [[logs/Log-2026-09-07|Log]]). **Pendiente:** merge a `master`, push, deploy en Vercel, y comprobar con un vendedor real que el selector solo lo muestra a él.
+2. **Cambio B — correo al vendedor al crearse una tarea**: `notification_log` + trigger + `pg_net` → route handler `hub/app/api/notify-task` → Resend, reintento por `pg_cron`. Remitente `dmori@ponce-benzo.com`. **Bloqueo externo:** registros DKIM/SPF en el DNS de `ponce-benzo.com` (el usuario consigue el acceso). Secretos: 5 variables en Vercel + 2 en Supabase Vault.
+3. Riesgo anotado: `fetchFullTasks` no tiene límite y PostgREST corta en 1.000 filas (~150 tareas hoy).
+
+> [!NOTE] El pedido "observaciones al completar una tarea" ya está cubierto por la nota de cierre del 31-ago (en producción desde el 6-sep).
+
 ## ✅ Aplicado en producción (2026-09-06)
 
 Verificado contra Supabase el mismo día: migración del 31-ago (columnas de nota de cierre, rol `colaborador`, `fn_is_colaborador`), cuenta `colaborador@ponce-benzo.com` dada de alta, y migración del 6-sep (`close_stale_sessions()`, trigger guardia probado, job `pg_cron`). Ver [[logs/Log-2026-09-06|Log 2026-09-06]].
