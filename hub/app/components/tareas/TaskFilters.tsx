@@ -7,15 +7,16 @@ import type { TaskFilterOptions, TaskFilterValue } from "@/app/lib/queries/taskF
 // Selects de vendedor / cliente / tipo + buscador de texto. Solo UI: la
 // lógica de filtrado vive en lib/queries/taskFilters.ts.
 export function TaskFilters({
-  value, onChange, options,
+  value, onChange, options, vendedorDisabled,
 }: {
   value: TaskFilterValue;
   onChange: (v: TaskFilterValue) => void;
   options: TaskFilterOptions;
+  vendedorDisabled?: boolean;
 }) {
   return (
     <>
-      <Select label="Vendedor" value={value.vendedor} options={options.vendedores}
+      <Select label="Vendedor" value={value.vendedor} options={options.vendedores} disabled={vendedorDisabled}
         onChange={(v) => onChange({ ...value, vendedor: v })} />
       <Select label="Cliente" value={value.cliente} options={options.clientes}
         onChange={(v) => onChange({ ...value, cliente: v })} />

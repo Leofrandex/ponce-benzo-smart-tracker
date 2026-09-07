@@ -20,7 +20,7 @@ export const EMPTY_TASK_FILTER: TaskFilterValue = {
 export function normalizeText(s: string | null | undefined): string {
   return (s ?? "")
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
 }
@@ -48,7 +48,7 @@ export function deriveTaskFilterOptions(tasks: FullTaskRow[], assignees: TaskAss
   const vend = new Map<string, string>();
   for (const a of assignees) vend.set(a.user_id, a.full_name);
   const cli = new Map<string, string>();
-  for (const t of tasks) if (t.client_id) cli.set(t.client_id, t.client_name ?? t.client_id);
+  for (const t of tasks) if (t.client_id) cli.set(t.client_id, t.client_name ?? "(sin nombre)");
   const tipos = new Set<string>(tasks.map((t) => t.task_type));
   return {
     vendedores: Array.from(vend, ([value, label]) => ({ value, label })).sort(byLabel),

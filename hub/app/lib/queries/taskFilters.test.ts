@@ -56,6 +56,23 @@ test("deriveTaskFilterOptions: vendedores únicos ordenados, clientes y tipos de
   ]);
 });
 
+test("deriveTaskFilterOptions: dos asignados distintos con el mismo nombre no se colapsan", () => {
+  const dupNombre: TaskAssignee[] = [
+    { user_id: "u-1", full_name: "María Pérez", client_id: "c1" },
+    { user_id: "u-2", full_name: "María Pérez", client_id: "c2" },
+  ];
+  const o = deriveTaskFilterOptions(tasks, dupNombre);
+  assert.deepEqual(o.vendedores, [
+    { value: "u-1", label: "María Pérez" },
+    { value: "u-2", label: "María Pérez" },
+  ]);
+});
+
+test("deriveTaskFilterOptions: cliente sin nombre usa el fallback '(sin nombre)'", () => {
+  const o = deriveTaskFilterOptions([task({ task_id: "t4", client_id: "c9", client_name: null })], assignees);
+  assert.deepEqual(o.clientes.find((c) => c.value === "c9"), { value: "c9", label: "(sin nombre)" });
+});
+
 test("filterTasks sin filtros devuelve todo", () => {
   assert.equal(filterTasks(tasks, EMPTY_TASK_FILTER, assignees).length, 3);
 });

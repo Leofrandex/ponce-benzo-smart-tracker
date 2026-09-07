@@ -52,8 +52,9 @@ function relativeTime(iso: string): string {
 function TareasPageInner() {
   const { data: rawTasks, loading, error, refetch } = useSupabaseQuery(fetchFullTasks, []);
   const tasks = useMemo(() => rawTasks ?? [], [rawTasks]);
-  const { data: rawAssignees } = useSupabaseQuery(fetchTaskAssignees, []);
+  const { data: rawAssignees, loading: assigneesLoading, error: assigneesError } = useSupabaseQuery(fetchTaskAssignees, []);
   const assignees = useMemo(() => rawAssignees ?? [], [rawAssignees]);
+  const vendedorDisabled = assigneesLoading || !!assigneesError;
   const [filter, setFilter] = useState<TaskFilterValue>(EMPTY_TASK_FILTER);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -67,6 +68,7 @@ function TareasPageInner() {
   const searchParams = useSearchParams();
   const linkedId = searchParams.get("task");
   const linkedRef = useRef<HTMLDivElement | null>(null);
+  const hasScrolledRef = useRef(false);
   const [linkedApplied, setLinkedApplied] = useState(false);
   const linkedMissing = !!linkedId && !loading && !error && !tasks.some((t) => t.task_id === linkedId);
   const linkedHidden  = !!linkedId && !loading && !error && !linkedMissing && !filtered.some((t) => t.task_id === linkedId);
@@ -78,10 +80,11 @@ function TareasPageInner() {
   }, [linkedId, loading, linkedApplied, tasks]);
 
   useEffect(() => {
-    if (linkedApplied && expandedId === linkedId && linkedRef.current) {
+    if (!hasScrolledRef.current && expandedId === linkedId && linkedRef.current) {
       linkedRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      hasScrolledRef.current = true;
     }
-  }, [linkedApplied, expandedId, linkedId]);
+  }, [expandedId, linkedId, filtered]);
 
   const handleResolve = async (taskId: string, nota: string) => {
     const { error: e } = await resolveTask(taskId, nota);
@@ -128,7 +131,7 @@ function TareasPageInner() {
 
       {/* Filtros */}
       <div className="card" style={{ padding: "12px", display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "flex-end" }}>
-        <TaskFilters value={filter} onChange={setFilter} options={options} />
+        <TaskFilters value={filter} onChange={setFilter} options={options} vendedorDisabled={vendedorDisabled} />
         <GeoFilters items={tasks} value={filter.geo} onChange={(geo) => setFilter({ ...filter, geo })} />
         {hasActiveFilters(filter) && (
           <button className="filter-chip" onClick={() => setFilter(EMPTY_TASK_FILTER)} style={{ marginLeft: "auto" }}>
@@ -136,6 +139,12 @@ function TareasPageInner() {
           </button>
         )}
       </div>
+
+      {assigneesError && (
+        <div className="card" style={{ padding: "10px 12px", fontSize: "13px", color: "var(--text-muted)" }}>
+          No se pudieron cargar los vendedores; el filtro por vendedor está deshabilitado.
+        </div>
+      )}
 
       {linkedMissing && (
         <div className="card" style={{ padding: "10px 12px", fontSize: "13px", color: "var(--text-muted)" }}>
