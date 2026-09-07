@@ -69,7 +69,7 @@ function TareasPageInner() {
   const linkedRef = useRef<HTMLDivElement | null>(null);
   const [linkedApplied, setLinkedApplied] = useState(false);
   const linkedMissing = !!linkedId && !loading && !error && !tasks.some((t) => t.task_id === linkedId);
-  const linkedHidden  = !!linkedId && !linkedMissing && !filtered.some((t) => t.task_id === linkedId);
+  const linkedHidden  = !!linkedId && !loading && !error && !linkedMissing && !filtered.some((t) => t.task_id === linkedId);
 
   useEffect(() => {
     if (!linkedId || loading || linkedApplied) return;
@@ -189,7 +189,7 @@ function TareasPageInner() {
                   padding: "16px",
                   cursor: "pointer",
                   opacity: task.status === "resolved" ? 0.65 : 1,
-                  borderColor: task.task_id === linkedId ? "var(--primary, #1e3a8a)" : task.status === "open" ? "var(--danger-bg)" : "var(--border)",
+                  borderColor: task.task_id === linkedId ? "var(--accent)" : task.status === "open" ? "var(--danger-bg)" : "var(--border)",
                 }}
                 onClick={() => setExpandedId(isExpanded ? null : task.task_id)}
               >
