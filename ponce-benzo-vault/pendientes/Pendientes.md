@@ -18,7 +18,7 @@ Este documento almacena las preguntas por resolver, datos necesarios por parte d
 Fuente: [[largo-plazo/Reunion 2026-09-25 - Ajustes Tracker y Pipeline|Resumen de la reunión]]. Diego pasa a ser el **responsable único del tracker** (el que edita). Ven todo: Rosley, Maximino (nuevo gerente de trade marketing), Diego y su mamá.
 
 ### 🐛 Bugs
-- [ ] **Mapa sin fondo ("API KEY REQUIRED")** — CARTO exige key desde el 23-sep-2026. Código listo (`hub/app/components/mapa/tiles.ts` lee `NEXT_PUBLIC_CARTO_BASEMAPS_KEY`). **Falta:** pedir la key gratis en carto.com/basemaps/apikey (uso comercial gratis hasta 1M tiles/mes), cargarla en Vercel y redesplegar.
+- [x] **Mapa sin fondo ("API KEY REQUIRED")** ✅ *(2026-09-26)*: la clave de CARTO se cargó en Vercel, se desplegó (`5bd57ec`) y se verificó en producción. Ver `BUG-028` en [[bugs/Registro de Bugs|Registro de Bugs]].
 - [ ] **Tarea abierta no aparece en la ficha de la tienda** — confirmado por Sebastián (26-sep): el cliente tiene tareas asignadas, pero la pestaña "Tareas asignadas" de la ficha de la tienda sale vacía. Hay que investigarlo.
 
 ### ⚙️ Tracker — cambios pedidos
