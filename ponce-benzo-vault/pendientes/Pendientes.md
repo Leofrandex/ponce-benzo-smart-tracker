@@ -13,6 +13,31 @@ Este documento almacena las preguntas por resolver, datos necesarios por parte d
 
 ---
 
+## 📋 Pedidos de la reunión con Diego (2026-09-25)
+
+Fuente: [[largo-plazo/Reunion 2026-09-25 - Ajustes Tracker y Pipeline|Resumen de la reunión]]. Diego pasa a ser el **responsable único del tracker** (el que edita). Ven todo: Rosley, Maximino (nuevo gerente de trade marketing), Diego y su mamá.
+
+### 🐛 Bugs
+- [ ] **Mapa sin fondo ("API KEY REQUIRED")** — CARTO exige key desde el 23-sep-2026. Código listo (`hub/app/components/mapa/tiles.ts` lee `NEXT_PUBLIC_CARTO_BASEMAPS_KEY`). **Falta:** pedir la key gratis en carto.com/basemaps/apikey (uso comercial gratis hasta 1M tiles/mes), cargarla en Vercel y redesplegar.
+- [ ] **Tarea abierta no aparece en la ficha de la tienda** — confirmado por Sebastián (26-sep): el cliente tiene tareas asignadas, pero la pestaña "Tareas asignadas" de la ficha de la tienda sale vacía. Hay que investigarlo.
+
+### ⚙️ Tracker — cambios pedidos
+1. [ ] **Usuario admin para Diego**: que él mismo edite la asignación cliente ↔ vendedor sin pedírnoslo.
+2. [ ] **Limpiar tareas viejas**: dejar solo las tareas desde el **15-sep-2026**. ✅ Decidido (26-sep): se **cierran en bloque** con la nota "cierre masivo", no se borran.
+3. [ ] **Dashboard clicable**: tasa de anomalías → sección anomalías; "tareas abiertas" y cada tramo de antigüedad (<1 sem, 1-2 sem…) → Tareas filtradas; visitas por cadena → esa cadena; cada tipo de anomalía (ej. sin stock) → anomalías de ese tipo; fila de mercaderista en "cumplimiento" → **perfil del mercaderista** con el desglose de sus rutas en el periodo.
+   - ❓ **Perfil del mercaderista — por mapear:** sería una página dedicada por mercaderista con su historial (rutas del periodo, cumplimiento, visitas omitidas, anomalías, fotos). Falta definir el alcance y el diseño antes de construirlo.
+4. [ ] **Clientes y tiendas**: filtro por **municipio** (si hay dato) y por **vendedor**. Clasificación ABC sigue esperando la data de P&B.
+5. [ ] **Dashboard dentro de Tareas**: la sección Tareas lleva sus propias tarjetas, iguales a las del dashboard principal: antigüedad de las tareas abiertas y cuántas tiene cada vendedor (abiertas, completadas y antigüedad).
+6. [ ] **Rediseñar los filtros del mapa**: hoy son difíciles de usar. Hay que hacerlos navegables y prácticos, con "ninguna/todas", filtro por cliente/cadena (ej. solo Central Madeirense) y selección múltiple cómoda. Diseño por definir.
+7. [ ] **Móvil — foto obligatoria**: no se puede cerrar una visita sin al menos una foto, tenga o no anomalía.
+8. [ ] **Reposiciones**: el vendedor puede editar "última reposición" (hoy no puede) + **historial de reposiciones** por fecha y producto.
+9. [ ] **Catálogo Corpañal**: segundo catálogo (P&B solo hace el trade marketing, no vende). El mercaderista ve productos de P&B y de Corpañal; hace falta una vista solo Corpañal. Diego envía la lista de productos.
+10. [ ] **Anomalías por producto**: en "reponer stock"/sin stock, desplegable para elegir producto o línea → métrica de productos con más quiebres.
+
+> [!NOTE] Explicado en la reunión (no requiere cambio): "visitas" ≠ "cumplidas". Visitadas = completadas + anomalía + omitidas; cumplidas no cuentan las omitidas.
+
+---
+
 ## 🧭 En diseño (2026-09-07): filtros en Tareas + correo al crear tarea
 
 Spec `docs/superpowers/specs/2026-09-07-tareas-filtros-y-correo-design.md` aprobada en chat, ver [[logs/Log-2026-09-07|Log 2026-09-07]]. Planes: `docs/superpowers/plans/2026-09-07-tareas-filtros-vendedor.md` y `…/2026-09-07-correo-nueva-tarea.md`.

@@ -39,6 +39,8 @@ Bienvenido al **Segundo Cerebro** del proyecto **Ponzivenzo Smart Tracker**. Est
 > ¿En qué estamos trabajando hoy y qué nos falta definir?
 > - [[roadmap/Roadmap|Roadmap del Proyecto]] — Planificación por fases (de la 0 a la 5).
 > - [[pendientes/Pendientes|Lista de Pendientes]] — Bloqueadores del negocio, preguntas abiertas y tareas técnicas.
+> - [[largo-plazo/Mapa de Modulos del Hub|Mapa de Módulos del Hub]] — Visión del hub de módulos (tracker, pipeline de ventas/CRM, maestros, admin).
+> - [[largo-plazo/Reunion 2026-09-25 - Ajustes Tracker y Pipeline|Reunión 2026-09-25]] — Ajustes al tracker y requisitos del pipeline de ventas.
 
 > [!CAUTION]
 > ### 📜 4. Bitácora, Decisiones y Errores
