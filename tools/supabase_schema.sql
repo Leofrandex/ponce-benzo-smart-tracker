@@ -360,6 +360,7 @@ CREATE TABLE IF NOT EXISTS public.products (
   sku        TEXT NOT NULL UNIQUE,
   name       TEXT NOT NULL,
   brand      TEXT,
+  line       TEXT,
   ean13      TEXT,
   ean14      TEXT,
   unit       TEXT,
@@ -367,6 +368,8 @@ CREATE TABLE IF NOT EXISTS public.products (
   active     BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS line TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_products_active ON public.products(active) WHERE active;
 
