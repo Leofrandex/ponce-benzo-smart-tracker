@@ -9,7 +9,8 @@ import { linkCadena } from "@/app/lib/queries/dashboardLinks";
 
 interface Props { rows: VisitasClienteRow[] }
 
-const ACCENT = "#2563eb";
+// Mismo valor que --accent (SVG de Recharts no resuelve var() en `fill`).
+const ACCENT = "#00205C";
 
 export default function VisitasPorCliente({ rows }: Props) {
   const router = useRouter();

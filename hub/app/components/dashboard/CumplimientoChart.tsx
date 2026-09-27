@@ -13,7 +13,8 @@ const OK = "#16a34a";
 const MEDIO = "#d97706";
 const MAL = "#dc2626";
 
-function color(pct: number) {
+// Umbrales compartidos con la tarjeta de Cumplimiento del panel.
+export function colorCumplimiento(pct: number) {
   if (pct >= 90) return OK;
   if (pct >= 70) return MEDIO;
   return MAL;
@@ -69,7 +70,7 @@ export default function CumplimientoChart({ rows, desde, hasta }: Props) {
             style={{ cursor: "pointer" }}
             onClick={(d: BarRectangleItem) => router.push(linkMercaderista((d.payload as { userId: string }).userId, desde, hasta))}
           >
-            {data.map((d) => <Cell key={d.userId} fill={color(d.pct)} />)}
+            {data.map((d) => <Cell key={d.userId} fill={colorCumplimiento(d.pct)} />)}
           </Bar>
         </BarChart>
       </ResponsiveContainer>

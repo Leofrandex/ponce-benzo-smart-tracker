@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import "./dashboard.css";
 import { AlertTriangle } from "lucide-react";
 import type { TiendaSinVisitaRow } from "@/app/lib/queries/dashboard";
 
@@ -20,13 +21,13 @@ export default function TiendasSinVisita({ rows, dias }: Props) {
           {rows.slice(0, 12).map((r) => (
             <li key={r.store_id} style={{ display: "flex", justifyContent: "space-between",
                                           gap: 12, padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
-              <Link href={`/panel/tiendas/${r.store_id}`} style={{ fontSize: 13, textDecoration: "none" }}>
+              <Link href={`/panel/tiendas/${r.store_id}`} className="dash-link" style={{ fontSize: 13 }}>
                 {r.tienda}
                 <span className="text-muted" style={{ fontSize: 11 }}>
                   {" · "}{r.cliente}{r.clasificacion ? ` · ${r.clasificacion}` : ""}
                 </span>
               </Link>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--danger)", whiteSpace: "nowrap" }}>
+              <span className="dash-num" style={{ fontSize: 12, fontWeight: 700, color: "var(--danger)" }}>
                 {r.dias_sin_visita === null ? "nunca" : `${r.dias_sin_visita} d`}
               </span>
             </li>

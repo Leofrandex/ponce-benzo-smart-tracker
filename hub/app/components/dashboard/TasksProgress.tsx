@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import "./dashboard.css";
 import type { BacklogRow, TiempoResolucion } from "@/app/lib/queries/dashboard";
 import { linkTareasTramo } from "@/app/lib/queries/dashboardLinks";
 
@@ -17,8 +18,13 @@ const ETIQUETA: Record<string, string> = {
   "0-7": "Menos de 1 semana",
   "8-15": "1 a 2 semanas",
   "16-30": "2 a 4 semanas",
-  "+30": "Mas de un mes",
+  "+30": "Más de un mes",
 };
+
+// "777.4 h" no se lee: pasadas 48 h la unidad natural son los dias.
+function duracion(horas: number) {
+  return horas < 48 ? `${horas.toFixed(1)} h` : `${(horas / 24).toFixed(1)} días`;
+}
 
 export default function TasksProgress({ rows, resolucion }: Props) {
   const total = rows.reduce((s, r) => s + r.n, 0);
@@ -26,7 +32,7 @@ export default function TasksProgress({ rows, resolucion }: Props) {
   return (
     <div className="card" style={{ padding: 16 }}>
       <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
-        Antiguedad de las tareas abiertas
+        Antigüedad de las tareas abiertas
       </h2>
       {total === 0 ? (
         <p className="text-muted text-sm">No hay tareas abiertas.</p>
@@ -37,7 +43,7 @@ export default function TasksProgress({ rows, resolucion }: Props) {
             const contenido = (
               <>
                 <span style={{ fontSize: 13 }}>{ETIQUETA[r.tramo] ?? r.tramo}</span>
-                <strong style={{ fontSize: 13, color: viejo && r.n > 0 ? "var(--danger)" : undefined }}>
+                <strong className="dash-num" style={{ fontSize: 13, color: viejo && r.n > 0 ? "var(--danger)" : undefined }}>
                   {r.n}
                 </strong>
               </>
@@ -49,7 +55,8 @@ export default function TasksProgress({ rows, resolucion }: Props) {
                 ) : (
                   <Link
                     href={linkTareasTramo(r.tramo)}
-                    style={{ display: "flex", justifyContent: "space-between", width: "100%", color: "inherit", textDecoration: "none" }}
+                    className="dash-link"
+                    style={{ display: "flex", justifyContent: "space-between", width: "100%" }}
                   >
                     {contenido}
                   </Link>
@@ -64,7 +71,7 @@ export default function TasksProgress({ rows, resolucion }: Props) {
           nunca se asume numero, se omite la linea en vez de mostrar "null horas". */}
       {resolucion && resolucion.resueltas > 0 && typeof resolucion.horas_promedio === "number" && (
         <p className="text-muted" style={{ fontSize: 11, marginTop: 10 }}>
-          Tiempo medio de resolución: {resolucion.horas_promedio.toFixed(1)} h ({resolucion.resueltas} resueltas)
+          Tiempo medio de resolución: {duracion(resolucion.horas_promedio)} ({resolucion.resueltas} resueltas)
         </p>
       )}
     </div>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { UserX } from "lucide-react";
+import "./dashboard.css";
 import type { ClienteSinVendedorRow } from "@/app/lib/queries/dashboard";
 import { linkSinVendedor } from "@/app/lib/queries/dashboardLinks";
 
@@ -20,7 +21,7 @@ export default function ClientesSinVendedor({ rows }: Props) {
       <p className="text-muted" style={{ fontSize: 12, margin: "6px 0 0" }}>
         {rows.map((r) => `${r.cliente} (${r.tiendas_activas})`).join(" · ")}
         {" — "}su información solo es visible para administradores.{" "}
-        <Link href={linkSinVendedor()}>Asignar vendedores</Link>
+        <Link href={linkSinVendedor()} className="dash-link" style={{ color: "var(--accent)", fontWeight: 600 }}>Asignar vendedores</Link>
       </p>
     </div>
   );

@@ -4,13 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { Info } from "lucide-react";
 import { kpiDef, type KpiId } from "@/app/lib/dashboard-kpis";
+import "./dashboard.css";
 
 interface Props {
   kpi: KpiId;
   valor: string;
   detalle?: string;
   tono?: "normal" | "peligro" | "exito";
-  icono?: React.ReactNode;
   // Sustituye la etiqueta del registro cuando el rotulo depende del rol (p.ej.
   // "Mis tareas abiertas" para un vendedor vs "Tareas abiertas" para un admin).
   // La descripcion del tooltip no cambia: solo el titulo.
@@ -19,11 +19,15 @@ interface Props {
   href?: string;
   // El texto de detalle es un enlace aparte (p.ej. "+15 dias").
   detalleHref?: string;
+  // La metrica sobre la que se decide: tarjeta grande. Solo una por fila.
+  primaria?: boolean;
+  // Contexto extra que solo la primaria tiene sitio para mostrar.
+  children?: React.ReactNode;
 }
 
 const COLOR = { normal: undefined, peligro: "var(--danger)", exito: "var(--success)" };
 
-export default function KpiCard({ kpi, valor, detalle, tono = "normal", icono, etiqueta, href, detalleHref }: Props) {
+export default function KpiCard({ kpi, valor, detalle, tono = "normal", etiqueta, href, detalleHref, primaria, children }: Props) {
   const def = kpiDef(kpi);
   const rotulo = etiqueta ?? def.etiqueta;
   // Un solo estado sirve a los tres gestos: hover en escritorio, tap en tactil
@@ -31,10 +35,18 @@ export default function KpiCard({ kpi, valor, detalle, tono = "normal", icono, e
   const [abierto, setAbierto] = useState(false);
   const tooltipId = `kpi-tooltip-${kpi}`;
 
+  const cuerpo = (
+    <>
+      <div className="kpi-label">{rotulo}</div>
+      <div className="kpi-valor" style={{ color: COLOR[tono] }}>{valor}</div>
+    </>
+  );
+
   return (
-    <div className="stat-card" style={{ position: "relative" }}>
+    <div className={`kpi-card${primaria ? " kpi-primaria" : ""}`}>
       <button
         type="button"
+        className="dash-focus"
         aria-label={`Qué mide ${rotulo}`}
         aria-describedby={abierto ? tooltipId : undefined}
         onMouseEnter={() => setAbierto(true)}
@@ -82,25 +94,13 @@ export default function KpiCard({ kpi, valor, detalle, tono = "normal", icono, e
         </div>
       )}
 
-      {href ? (
-        <Link href={href} className="kpi-link" style={{ display: "block", color: "inherit", textDecoration: "none" }}>
-          {icono}
-          <div className="stat-value" style={{ color: COLOR[tono] }}>{valor}</div>
-          <div className="stat-label">{rotulo}</div>
-        </Link>
-      ) : (
-        <>
-          {icono}
-          <div className="stat-value" style={{ color: COLOR[tono] }}>{valor}</div>
-          <div className="stat-label">{rotulo}</div>
-        </>
-      )}
+      {href ? <Link href={href} className="dash-link" style={{ display: "block" }}>{cuerpo}</Link> : <div>{cuerpo}</div>}
       {detalle && (detalleHref ? (
-        <Link href={detalleHref} className="kpi-link" style={{ display: "inline-block", fontSize: 11, marginTop: 2, color: tono === "peligro" ? "var(--danger)" : "var(--text-muted)" }}>{detalle}</Link>
+        <Link href={detalleHref} className="dash-link kpi-detalle" style={{ color: tono === "peligro" ? "var(--danger)" : undefined }}>{detalle}</Link>
       ) : (
-        <div className="text-muted" style={{ fontSize: 11, marginTop: 2 }}>{detalle}</div>
+        <div className="kpi-detalle">{detalle}</div>
       ))}
-      <style>{`.kpi-link:hover .stat-value, .kpi-link:focus-visible .stat-value { text-decoration: underline; } a.kpi-link:hover { text-decoration: underline; }`}</style>
+      {children}
     </div>
   );
 }
