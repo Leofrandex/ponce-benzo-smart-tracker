@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { buildVendorRows, fetchVendorAssignmentData, vendorOptions, FILTRO_SIN_VENDEDOR, type VendorAssignRow } from "@/app/lib/queries/config";
@@ -20,6 +20,11 @@ function VendedoresInner() {
   const rows = useMemo(() => (data ? buildVendorRows(data.clients, data.assignments, data.users) : []), [data]);
   const options = useMemo(() => (data ? vendorOptions(data.users, rows) : []), [data, rows]);
   const [state, setState] = useState<Record<string, RowState>>({});
+  // Un temporizador de "Guardado" por fila: cada guardado o edición nueva cancela el anterior,
+  // así un timer viejo no apaga la confirmación de un guardado más reciente.
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const cancelTimer = (id: string) => { clearTimeout(timers.current[id]); delete timers.current[id]; };
+  useEffect(() => { const t = timers.current; return () => Object.values(t).forEach(clearTimeout); }, []);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -41,6 +46,7 @@ function VendedoresInner() {
 
   async function guardar(r: VendorAssignRow) {
     const next = draftOf(r);
+    cancelTimer(r.client_id);
     patch(r.client_id, { saving: true, error: null, saved: false }, r);
     const { error: e } = await saveClientVendors(r.client_id, current(r), next);
     // Error: se conserva el borrador para reintentar. En ambos casos se relee,
@@ -49,7 +55,10 @@ function VendedoresInner() {
     setState((s) => ({ ...s, [r.client_id]: { draft: next, saving: false, error: e, saved: !e } }));
     refetch();
     // "Guardado" es una confirmación, no un estado: se apaga a los pocos segundos.
-    if (!e) setTimeout(() => setState((s) => (s[r.client_id]?.saved ? { ...s, [r.client_id]: { ...s[r.client_id], saved: false } } : s)), SAVED_MS);
+    if (!e) timers.current[r.client_id] = setTimeout(() => {
+      delete timers.current[r.client_id];
+      setState((s) => (s[r.client_id]?.saved ? { ...s, [r.client_id]: { ...s[r.client_id], saved: false } } : s));
+    }, SAVED_MS);
   }
 
   if (error) return <div className="empty-state"><div className="empty-title">Error al cargar</div><div className="empty-desc">{error}</div></div>;
@@ -91,7 +100,7 @@ function VendedoresInner() {
                   <td>
                     <MultiSelect value={draft} options={options} disabled={st?.saving}
                       ariaLabel={`Editar vendedores de ${r.name}`}
-                      onChange={(v) => patch(r.client_id, { draft: v, saved: false, error: null }, r)} />
+                      onChange={(v) => { cancelTimer(r.client_id); patch(r.client_id, { draft: v, saved: false, error: null }, r); }} />
                     {st?.error && <div role="alert" style={{ marginTop: "6px", fontSize: "12px", color: "var(--danger)" }}>No se pudo guardar: {st.error}</div>}
                   </td>
                   <td style={{ whiteSpace: "nowrap", textAlign: "right", width: "1%" }}>

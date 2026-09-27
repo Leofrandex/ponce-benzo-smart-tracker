@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchCatalog, filterCatalog, lineSuggestions, normalizeLine, type CatalogProduct } from "@/app/lib/queries/products";
@@ -19,6 +19,11 @@ export default function ProductosPage() {
   const [soloSinLinea, setSoloSinLinea] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [fb, setFb] = useState<Record<string, Feedback>>({});
+  // Un temporizador de "Guardado" por fila: cada guardado o edición nueva cancela el anterior,
+  // así un timer viejo no apaga la confirmación de un guardado más reciente.
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const cancelTimer = (id: string) => { clearTimeout(timers.current[id]); delete timers.current[id]; };
+  useEffect(() => { const t = timers.current; return () => Object.values(t).forEach(clearTimeout); }, []);
   const visible = useMemo(() => filterCatalog(products, q, soloSinLinea), [products, q, soloSinLinea]);
   const sinLinea = products.filter((p) => !p.line).length;
 
@@ -26,13 +31,14 @@ export default function ProductosPage() {
     setFb((s) => { if (!s[id] || (only && s[id].kind !== only)) return s; const n = { ...s }; delete n[id]; return n; });
 
   async function save(p: CatalogProduct, field: Feedback["field"], patch: { line?: string | null; active?: boolean }) {
+    cancelTimer(p.product_id);
     setFb((s) => ({ ...s, [p.product_id]: { field, kind: "saving" } }));
     const { error: e } = await updateProduct(p.product_id, patch);
     setFb((s) => ({ ...s, [p.product_id]: e ? { field, kind: "error", msg: e } : { field, kind: "saved" } }));
     if (!e) {
       setDrafts((d) => { const n = { ...d }; delete n[p.product_id]; return n; });
       // "Guardado" es una confirmación, no un estado: se apaga sola.
-      setTimeout(() => clearFb(p.product_id, "saved"), SAVED_MS);
+      timers.current[p.product_id] = setTimeout(() => { delete timers.current[p.product_id]; clearFb(p.product_id, "saved"); }, SAVED_MS);
     }
     refetch();
   }
@@ -104,7 +110,7 @@ export default function ProductosPage() {
                     <div style={{ display: "flex", alignItems: "center" }}>
                       <input list="lineas-producto" value={drafts[p.product_id] ?? p.line ?? ""} placeholder="Sin línea"
                         aria-label={`Línea de ${p.name}`} className="cfg-inline-input" disabled={saving}
-                        onChange={(e) => { clearFb(p.product_id, "saved"); setDrafts((d) => ({ ...d, [p.product_id]: e.target.value })); }}
+                        onChange={(e) => { cancelTimer(p.product_id); clearFb(p.product_id, "saved"); setDrafts((d) => ({ ...d, [p.product_id]: e.target.value })); }}
                         onBlur={() => commitLine(p)}
                         onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
                       {f?.kind === "saved" && note("line")}
