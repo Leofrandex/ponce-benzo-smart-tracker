@@ -3,10 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, LayoutDashboard, ClipboardList, Map, Building2, Store } from "lucide-react";
+import { LogOut, LayoutDashboard, ClipboardList, Map, Building2, Store, Settings } from "lucide-react";
 import PageTransition from "@/app/components/PageTransition";
 import { useAuth } from "@/app/lib/auth-context";
-import { roleLabel } from "@/app/lib/roles";
+import { canConfigure, roleLabel } from "@/app/lib/roles";
 
 export default function PanelLayout({
   children,
@@ -28,6 +28,9 @@ export default function PanelLayout({
     { href: "/panel/tiendas",  icon: Store,           label: "Tiendas"  },
     { href: "/panel/tareas",   icon: ClipboardList,   label: "Tareas"   },
     { href: "/panel/mapa",     icon: Map,             label: "Mapa"     },
+    ...(canConfigure(profile?.role)
+      ? [{ href: "/panel/configuracion", icon: Settings, label: "Configuración" }]
+      : []),
   ];
 
   const dateStr = new Date().toLocaleDateString("es-VE", {
