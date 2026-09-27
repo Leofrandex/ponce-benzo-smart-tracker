@@ -36,7 +36,7 @@ function formatDateTime(iso: string): string {
 const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
 const isThisWeek = (iso: string) => Date.now() - new Date(iso).getTime() <= 7 * 86400000;
 
-export function ActivityFeed({ reports, tasks }: { reports: SupervisorReport[]; tasks: FullTaskRow[] }) {
+export function ActivityFeed({ reports, tasks, showTasks = true }: { reports: SupervisorReport[]; tasks: FullTaskRow[]; showTasks?: boolean }) {
   const [activeTab, setActiveTab] = useState<ActivityTab>("reportes");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [expandedVisit, setExpandedVisit] = useState<string | null>(null);
@@ -52,23 +52,25 @@ export function ActivityFeed({ reports, tasks }: { reports: SupervisorReport[]; 
       <div className="section-title" style={{ marginBottom: "6px" }}>Actividad reciente</div>
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "16px", display: "flex", flexDirection: "column", gap: "12px", height: "380px" }}>
 
-        <div style={{ display: "flex", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "3px" }}>
-          {(["reportes", "tareas"] as ActivityTab[]).map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)} style={{
-              flex: 1, border: "none", borderRadius: "calc(var(--radius-md) - 2px)", padding: "7px 12px",
-              fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-              background: activeTab === tab ? "var(--bg-surface)" : "transparent",
-              color: activeTab === tab ? "var(--text-primary)" : "var(--text-muted)",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
-            }}>
-              {tab === "reportes" ? <Camera size={13} /> : <ClipboardList size={13} />}
-              {tab === "reportes" ? "Reportes" : "Tareas"}
-              {tab === "tareas" && pendingTasks.length > 0 && (
-                <span style={{ fontSize: "10px", fontWeight: 700, background: "var(--danger-bg)", color: "var(--danger)", borderRadius: "999px", padding: "1px 6px" }}>{pendingTasks.length}</span>
-              )}
-            </button>
-          ))}
-        </div>
+        {showTasks && (
+          <div style={{ display: "flex", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "3px" }}>
+            {(["reportes", "tareas"] as ActivityTab[]).map((tab) => (
+              <button key={tab} onClick={() => setActiveTab(tab)} style={{
+                flex: 1, border: "none", borderRadius: "calc(var(--radius-md) - 2px)", padding: "7px 12px",
+                fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                background: activeTab === tab ? "var(--bg-surface)" : "transparent",
+                color: activeTab === tab ? "var(--text-primary)" : "var(--text-muted)",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+              }}>
+                {tab === "reportes" ? <Camera size={13} /> : <ClipboardList size={13} />}
+                {tab === "reportes" ? "Reportes" : "Tareas"}
+                {tab === "tareas" && pendingTasks.length > 0 && (
+                  <span style={{ fontSize: "10px", fontWeight: 700, background: "var(--danger-bg)", color: "var(--danger)", borderRadius: "999px", padding: "1px 6px" }}>{pendingTasks.length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
 
         {activeTab === "reportes" && (
           <div style={{ display: "flex", gap: "8px" }}>
