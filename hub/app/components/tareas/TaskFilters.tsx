@@ -9,6 +9,8 @@ const INPUT_STYLE = {
   width: "100%", padding: "8px 12px", fontFamily: "inherit", fontSize: "13px", fontWeight: 500,
   color: "var(--text-primary)", background: "var(--bg-elevated)", border: "1px solid var(--border)",
   borderRadius: "var(--radius-sm)", transition: "border-color var(--duration) var(--ease)",
+  // Misma altura que los Select: el input date es 2px más alto y desalinea las etiquetas.
+  height: "37px", boxSizing: "border-box",
 } as const;
 
 // Selects de vendedor / cliente / tipo / anomalía / producto / línea, periodo

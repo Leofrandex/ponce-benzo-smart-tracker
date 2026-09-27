@@ -188,8 +188,6 @@ function TareasPageInner() {
           )}
 
           {filtered.map((task: FullTaskRow) => {
-            const iconBg    = task.status === "open" ? "var(--danger-bg)" : "var(--success-bg)";
-            const iconColor = task.status === "open" ? "var(--danger)"     : "var(--success)";
             const isExpanded  = expandedId === task.task_id;
 
             return (
@@ -205,22 +203,8 @@ function TareasPageInner() {
                 }}
                 onClick={() => setExpandedId(isExpanded ? null : task.task_id)}
               >
-                {/* Row 1: icon + title/store */}
+                {/* Row 1: title/store (el estado ya lo dicen el badge y el borde) */}
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-                  <div
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: "var(--radius-sm)",
-                      background: iconBg,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <ClipboardList size={16} color={iconColor} />
-                  </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
                       {task.title ? taskTitleLabel(task.title) : taskTypeLabel(task.task_type)}
