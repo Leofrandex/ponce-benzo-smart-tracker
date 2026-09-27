@@ -96,23 +96,40 @@ interface VisitJoinRow {
   visit_anomaly_products: { anomaly_type: string; products: { name: string | null } | null }[] | null;
 }
 
+const VISIT_SELECT =
+  "visit_id, store_id, check_in_time, check_in_location, photo_urls, observations, status, last_restock_date, anomaly_type, " +
+  "users:users!visits_user_id_fkey(full_name, is_supervisor, role), stores(name, address, master_lat, master_lng), " +
+  "supervisor:users!visits_supervisor_present_user_id_fkey(full_name), " +
+  "visit_anomaly_products(anomaly_type, products(name))";
+
 // Reportes (check-ins/visitas) de una tienda, ordenados del más reciente al más antiguo.
 export async function fetchStoreReports(storeId: string): Promise<SupervisorReport[]> {
   const sb = getSupabaseBrowser();
   const { data, error } = await sb
     .from("visits")
-    .select(
-      "visit_id, store_id, check_in_time, check_in_location, photo_urls, observations, status, last_restock_date, anomaly_type, " +
-        "users:users!visits_user_id_fkey(full_name, is_supervisor, role), stores(name, address, master_lat, master_lng), " +
-        "supervisor:users!visits_supervisor_present_user_id_fkey(full_name), " +
-        "visit_anomaly_products(anomaly_type, products(name))",
-    )
+    .select(VISIT_SELECT)
     .eq("store_id", storeId)
     .order("check_in_time", { ascending: false });
   if (error) throw error;
 
-  const rows = (data ?? []) as unknown as VisitJoinRow[];
+  return mapVisitRows((data ?? []) as unknown as VisitJoinRow[]);
+}
 
+// Reportes de un usuario en un periodo (fechas de Caracas), del más reciente al más antiguo.
+export async function fetchUserReports(userId: string, desde: string, hasta: string): Promise<SupervisorReport[]> {
+  const sb = getSupabaseBrowser();
+  const { data, error } = await sb
+    .from("visits")
+    .select(VISIT_SELECT)
+    .eq("user_id", userId)
+    .gte("check_in_time", `${desde}T04:00:00Z`)
+    .lt("check_in_time", new Date(Date.parse(`${hasta}T04:00:00Z`) + 86400000).toISOString())
+    .order("check_in_time", { ascending: false });
+  if (error) throw error;
+  return mapVisitRows((data ?? []) as unknown as VisitJoinRow[]);
+}
+
+async function mapVisitRows(rows: VisitJoinRow[]): Promise<SupervisorReport[]> {
   const signed = await signVisitPhotos(Array.from(new Set(rows.flatMap((r) => r.photo_urls ?? []))));
 
   return rows.map((v) => {
