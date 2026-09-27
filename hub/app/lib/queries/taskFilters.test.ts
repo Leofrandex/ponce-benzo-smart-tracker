@@ -13,7 +13,7 @@ const task = (over: Partial<FullTaskRow>): FullTaskRow => ({
   created_by_name: "Elvis", task_type: "reponer_stock", title: "Anomalía: sin_stock",
   description: null, status: "open", created_at: "2026-09-01T10:00:00Z",
   assignee_user_id: null, source_visit_id: null,
-  resolution_note: null, resolution_note_at: null, resolution_note_by_name: null,
+  resolution_note: null, resolution_note_at: null, resolution_note_by_name: null, anomaly_products: [],
   ...over,
 });
 
