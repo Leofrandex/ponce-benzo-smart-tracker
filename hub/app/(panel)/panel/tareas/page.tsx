@@ -15,11 +15,12 @@ import { resolveTask } from "@/app/lib/mutations/tasks";
 import { GeoFilters } from "@/app/components/geo/GeoFilters";
 import { fetchTaskAssignees } from "@/app/lib/queries/assignments";
 import {
-  DEFAULT_TASK_FILTER, deriveTaskFilterOptions, filterTasks, hasActiveFilters, hoyCaracas, taskTitleLabel, taskTypeLabel,
+  DEFAULT_TASK_FILTER, deriveTaskFilterOptions, filterTasks, filterTasksForSummary, hasActiveFilters, hoyCaracas, taskTitleLabel, taskTypeLabel,
 } from "@/app/lib/queries/taskFilters";
-import { describeTaskFilter } from "@/app/lib/queries/taskSummary";
+import { describeTaskFilter, summarizeTasks } from "@/app/lib/queries/taskSummary";
 import { useTaskFilterUrl } from "@/app/lib/hooks/useTaskFilterUrl";
 import { TaskFilters } from "@/app/components/tareas/TaskFilters";
+import { TaskSummaryPanel } from "@/app/components/tareas/TaskSummary";
 import { TaskVisitDetail } from "@/app/components/tareas/TaskVisitDetail";
 import { TaskResolutionNote } from "@/app/components/tareas/TaskResolutionNote";
 
@@ -60,11 +61,12 @@ function TareasPageInner() {
   const today = useMemo(() => hoyCaracas(), []);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const open     = tasks.filter((t) => t.status === "open").length;
-  const resolved = tasks.filter((t) => t.status === "resolved").length;
-
   const options  = useMemo(() => deriveTaskFilterOptions(tasks, assignees), [tasks, assignees]);
   const filtered = useMemo(() => filterTasks(tasks, filter, assignees, today), [tasks, filter, assignees, today]);
+  const summary = useMemo(
+    () => summarizeTasks(filterTasksForSummary(tasks, filter, assignees, today), assignees, { today, vendedor: filter.vendedor }),
+    [tasks, filter, assignees, today],
+  );
 
   // Enlace directo: /panel/tareas?task=<id> abre esa tarea y la enfoca.
   const searchParams = useSearchParams();
@@ -106,17 +108,9 @@ function TareasPageInner() {
         </p>
       </div>
 
-      {/* Stats */}
-      <div className="stats-row" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: "var(--danger)" }}>{open}</div>
-          <div className="stat-label">Abiertas</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: "var(--success)" }}>{resolved}</div>
-          <div className="stat-label">Completadas</div>
-        </div>
-      </div>
+      {!loading && !error && (
+        <TaskSummaryPanel summary={summary} onPick={(patch) => setFilter({ ...filter, ...patch })} />
+      )}
 
       {/* Filter chips */}
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
