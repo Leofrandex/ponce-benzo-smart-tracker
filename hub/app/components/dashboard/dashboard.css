@@ -15,8 +15,8 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-text.dash-link:hover,
-text.dash-link:focus-visible {
+a.dash-link:hover text,
+a.dash-link:focus-visible text {
   fill: var(--accent);
 }
 .dash-link:focus-visible,
@@ -24,6 +24,14 @@ text.dash-link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 4px;
+}
+/* KPI: label y valor tambien viran a acento. El valor con color semantico
+   (peligro/exito) inline se queda como esta: solo cambia la etiqueta. */
+.dash-link:hover .kpi-label,
+.dash-link:focus-visible .kpi-label,
+.dash-link:hover .kpi-valor,
+.dash-link:focus-visible .kpi-valor {
+  color: var(--accent);
 }
 
 /* ── KPIs: Cumplimiento domina, las otras tres se apilan a su derecha ── */

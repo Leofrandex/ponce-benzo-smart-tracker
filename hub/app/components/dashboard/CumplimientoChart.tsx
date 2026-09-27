@@ -68,6 +68,7 @@ export default function CumplimientoChart({ rows, desde, hasta }: Props) {
             dataKey="pct"
             radius={[0, 4, 4, 0]}
             style={{ cursor: "pointer" }}
+            activeBar={{ opacity: 0.8 }}
             onClick={(d: BarRectangleItem) => router.push(linkMercaderista((d.payload as { userId: string }).userId, desde, hasta))}
           >
             {data.map((d) => <Cell key={d.userId} fill={colorCumplimiento(d.pct)} />)}

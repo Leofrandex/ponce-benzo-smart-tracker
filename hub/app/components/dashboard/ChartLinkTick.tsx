@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import "./dashboard.css";
 
-// Etiqueta de eje de Recharts que navega. Recharts dibuja SVG, donde no cabe un
-// <Link>: se usa role="link" + tabIndex + Enter para que funcione con teclado.
+// Etiqueta de eje de Recharts que navega. Recharts dibuja SVG, donde un <a>
+// nativo sí es focalizable y responde a Enter sin JS propio: por eso el
+// enlace real es <a>, no el <text>.
 export function ChartLinkTick({
   x, y, payload, hrefFor, anchor = "end",
 }: { x?: number; y?: number; payload?: { value: string }; hrefFor: (label: string) => string | null; anchor?: "end" | "middle" }) {
@@ -17,15 +18,23 @@ export function ChartLinkTick({
     return <text x={x} y={y} dx={dx} dy={dy} textAnchor={anchor} fontSize={11} fill="var(--text-muted)">{label}</text>;
   }
   return (
-    <text
-      x={x} y={y} dx={dx} dy={dy} textAnchor={anchor} fontSize={11} fill="var(--text-primary)"
-      // Subrayado en reposo: dentro de un grafico es la unica pista de que la
-      // etiqueta navega. Hover/foco los da .dash-link, igual que el resto.
-      className="dash-link" role="link" tabIndex={0} style={{ textDecoration: "underline" }}
-      onClick={() => router.push(href)}
-      onKeyDown={(e) => { if (e.key === "Enter") router.push(href); }}
+    <a
+      href={href}
+      className="dash-link"
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        e.preventDefault();
+        router.push(href);
+      }}
     >
-      {label}
-    </text>
+      <text
+        x={x} y={y} dx={dx} dy={dy} textAnchor={anchor} fontSize={11} fill="var(--text-primary)"
+        // Subrayado en reposo: dentro de un grafico es la unica pista de que la
+        // etiqueta navega. Hover/foco los da .dash-link, igual que el resto.
+        style={{ textDecoration: "underline" }}
+      >
+        {label}
+      </text>
+    </a>
   );
 }

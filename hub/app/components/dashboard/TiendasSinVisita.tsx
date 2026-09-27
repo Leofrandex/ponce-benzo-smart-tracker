@@ -4,6 +4,7 @@ import Link from "next/link";
 import "./dashboard.css";
 import { AlertTriangle } from "lucide-react";
 import type { TiendaSinVisitaRow } from "@/app/lib/queries/dashboard";
+import { linkTienda } from "@/app/lib/queries/dashboardLinks";
 
 interface Props { rows: TiendaSinVisitaRow[]; dias: number }
 
@@ -21,7 +22,7 @@ export default function TiendasSinVisita({ rows, dias }: Props) {
           {rows.slice(0, 12).map((r) => (
             <li key={r.store_id} style={{ display: "flex", justifyContent: "space-between",
                                           gap: 12, padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
-              <Link href={`/panel/tiendas/${r.store_id}`} className="dash-link" style={{ fontSize: 13 }}>
+              <Link href={linkTienda(r.store_id)} className="dash-link" style={{ fontSize: 13 }}>
                 {r.tienda}
                 <span className="text-muted" style={{ fontSize: 11 }}>
                   {" · "}{r.cliente}{r.clasificacion ? ` · ${r.clasificacion}` : ""}

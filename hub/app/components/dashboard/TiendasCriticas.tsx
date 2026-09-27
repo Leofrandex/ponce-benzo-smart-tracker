@@ -3,6 +3,7 @@
 import Link from "next/link";
 import "./dashboard.css";
 import type { TiendaCriticaRow } from "@/app/lib/queries/dashboard";
+import { linkTienda } from "@/app/lib/queries/dashboardLinks";
 
 interface Props { rows: TiendaCriticaRow[] }
 
@@ -17,7 +18,7 @@ export default function TiendasCriticas({ rows }: Props) {
           {rows.map((r) => (
             <li key={r.store_id} style={{ display: "flex", justifyContent: "space-between",
                                           gap: 12, padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
-              <Link href={`/panel/tiendas/${r.store_id}`} className="dash-link" style={{ fontSize: 13 }}>
+              <Link href={linkTienda(r.store_id)} className="dash-link" style={{ fontSize: 13 }}>
                 {r.tienda}
                 <span className="text-muted" style={{ fontSize: 11 }}>{" · "}{r.cliente}</span>
               </Link>

@@ -45,6 +45,7 @@ export default function VisitasPorCliente({ rows }: Props) {
             fill={ACCENT}
             radius={[0, 4, 4, 0]}
             style={{ cursor: "pointer" }}
+            activeBar={{ opacity: 0.8 }}
             onClick={(d: BarRectangleItem) => {
               const href = linkCadena((d.payload as { clientId: string | null }).clientId);
               if (href) router.push(href);

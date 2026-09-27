@@ -47,25 +47,22 @@ export default function AnomaliasPorTipo({ rows, desde, hasta }: Props) {
           Sin incidencias en este período
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-            <XAxis
+        <ResponsiveContainer width="100%" height={Math.max(120, data.length * 34)}>
+          <BarChart data={data} layout="vertical" margin={{ left: 8, right: 24 }}>
+            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} />
+            <YAxis
+              type="category"
               dataKey="name"
+              width={140}
+              interval={0}
               tick={
                 <ChartLinkTick
-                  anchor="middle"
                   hrefFor={(name) => {
                     const d = data.find((x) => x.name === name);
                     return d ? linkTareasAnomalias(d.codigo, desde, hasta) : null;
                   }}
                 />
               }
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              allowDecimals={false}
-              tick={{ fontSize: 11, fill: MUTED }}
               axisLine={false}
               tickLine={false}
             />
@@ -84,8 +81,9 @@ export default function AnomaliasPorTipo({ rows, desde, hasta }: Props) {
             />
             <Bar
               dataKey="value"
-              radius={[4, 4, 0, 0]}
+              radius={[0, 4, 4, 0]}
               style={{ cursor: "pointer" }}
+              activeBar={{ opacity: 0.8 }}
               onClick={(d: BarRectangleItem) =>
                 router.push(linkTareasAnomalias((d.payload as { codigo: string }).codigo, desde, hasta))
               }
