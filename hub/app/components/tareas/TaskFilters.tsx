@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { Select } from "@/app/components/ui/Select";
 import { VENDEDOR_NINGUNO, type TaskFilterOptions, type TaskFilterValue } from "@/app/lib/queries/taskFilters";
@@ -24,6 +25,34 @@ export function TaskFilters({
   vendedorDisabled?: boolean;
 }) {
   const vendedores = [...options.vendedores, { value: VENDEDOR_NINGUNO, label: "Sin vendedor" }];
+
+  // Búsqueda con debounce: el texto local se muestra al instante; el filtro
+  // (y su round-trip a la URL) se dispara 300ms después de dejar de tipear.
+  // `valueRef` evita pisar cambios de otros selects hechos durante la espera.
+  const [texto, setTexto] = useState(value.texto);
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const lastPushed = useRef(value.texto);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (value.texto !== lastPushed.current) {
+      lastPushed.current = value.texto;
+      setTexto(value.texto);
+    }
+  }, [value.texto]);
+
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
+  function handleTextoChange(next: string) {
+    setTexto(next);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      lastPushed.current = next;
+      onChange({ ...valueRef.current, texto: next });
+    }, 300);
+  }
+
   return (
     <>
       <Select label="Vendedor" value={value.vendedor} options={vendedores} disabled={vendedorDisabled}
@@ -54,8 +83,8 @@ export function TaskFilters({
           <Search size={14} color="var(--text-muted)" style={{ position: "absolute", left: "12px", pointerEvents: "none" }} />
           <input
             type="search"
-            value={value.texto}
-            onChange={(e) => onChange({ ...value, texto: e.target.value })}
+            value={texto}
+            onChange={(e) => handleTextoChange(e.target.value)}
             placeholder="Tienda, título o descripción"
             aria-label="Buscar tareas"
             style={{ ...INPUT_STYLE, padding: "8px 12px 8px 32px" }}

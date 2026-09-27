@@ -103,7 +103,9 @@ export function TaskSummaryPanel({ summary, onPick }: { summary: TaskSummary; on
                 <li key={r.key} style={{ borderTop: "1px solid var(--border)" }}>
                   <button type="button" className="summary-cell"
                     style={{ all: "unset", cursor: "pointer", display: "flex", justifyContent: "space-between", width: "100%", padding: "6px 8px", fontSize: "13px", boxSizing: "border-box" }}
-                    onClick={() => onPick(modo === "productos" ? { producto: r.key, anomalia: "sin_stock" } : { linea: r.key, anomalia: "sin_stock" })}>
+                    onClick={() => onPick(modo === "productos"
+                      ? { producto: r.key, anomalia: "sin_stock", status: "all", antiguedad: [] }
+                      : { linea: r.key, anomalia: "sin_stock", status: "all", antiguedad: [] })}>
                     <span title={r.label} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.label}</span>
                     <span style={NUM}>{r.n}</span>
                   </button>
