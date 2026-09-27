@@ -6,10 +6,11 @@ import { useParams, usePathname, useRouter, useSearchParams } from "next/navigat
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import {
-  fetchDetalle, fetchJornadas, groupByDay, summarizeDetalle, RESULTADO_LABEL, SKIP_REASON_LABEL, type Resultado,
+  fetchDetalle, fetchJornadas, fetchUserName, groupByDay, summarizeDetalle, RESULTADO_LABEL, SKIP_REASON_LABEL, type Resultado,
 } from "@/app/lib/queries/merchandisers";
 import { fetchUserReports } from "@/app/lib/queries/reports";
 import { anomalyLabel } from "@/app/lib/queries/visitDetail";
+import { hoyCaracas } from "@/app/lib/queries/taskFilters";
 import { parsePeriodo, serializePeriodo } from "@/app/lib/queries/period";
 import { ActivityFeed } from "@/app/components/clientes/ActivityFeed";
 import TimePeriodSelector, { rangoDeDias } from "@/app/components/dashboard/TimePeriodSelector";
@@ -34,11 +35,13 @@ function PerfilInner() {
   const { data: detalle, loading, error } = useSupabaseQuery(() => fetchDetalle(id, desde, hasta), [id, desde, hasta]);
   const { data: jornadas } = useSupabaseQuery(() => fetchJornadas(id, desde, hasta), [id, desde, hasta]);
   const { data: reports } = useSupabaseQuery(() => fetchUserReports(id, desde, hasta), [id, desde, hasta]);
+  const { data: userName } = useSupabaseQuery(() => fetchUserName(id), [id]);
   const [abierto, setAbierto] = useState<string | null>(null);
 
   const resumen = useMemo(() => summarizeDetalle(detalle ?? []), [detalle]);
   const dias = useMemo(() => groupByDay(detalle ?? []), [detalle]);
-  const nombre = reports?.[0]?.merchandiser_name ?? "Mercaderista";
+  const nombre = userName ?? "Mercaderista";
+  const incluyeHoy = hasta >= hoyCaracas();
 
   return (
     <>
@@ -70,7 +73,7 @@ function PerfilInner() {
                 </div>
               </>
             )}
-            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "8px" }}>Hoy no cuenta hasta que termina el día.</div>
+            {incluyeHoy && <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "8px" }}>Hoy no cuenta hasta que termina el día.</div>}
           </div>
 
           <div className="card" style={{ padding: 0 }}>

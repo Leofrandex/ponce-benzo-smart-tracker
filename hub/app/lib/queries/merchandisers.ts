@@ -77,6 +77,18 @@ export async function fetchJornadas(userId: string, desde: string, hasta: string
   return toJornadas((data ?? []) as { session_id: string; session_start: string; session_end: string | null }[]);
 }
 
+// Nombre del mercaderista para el encabezado del perfil: no depende de que
+// haya reportes en el periodo (a diferencia de fetchUserReports).
+export async function fetchUserName(userId: string): Promise<string | null> {
+  const { data, error } = await getSupabaseBrowser()
+    .from("users")
+    .select("full_name")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.full_name ?? null;
+}
+
 // Visitas con anomalía por usuario en el periodo (RLS acota a las cadenas visibles).
 export async function fetchAnomaliasPorUsuario(desde: string, hasta: string): Promise<Map<string, number>> {
   const { data, error } = await getSupabaseBrowser()
