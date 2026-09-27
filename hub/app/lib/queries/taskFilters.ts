@@ -1,5 +1,6 @@
 import type { FullTaskRow } from "./tasks";
 import type { TaskAssignee } from "./assignments";
+import { anomalyLabel } from "./visitDetail";
 import { EMPTY_GEO, type GeoFilterValue } from "@/app/components/geo/geoOptions";
 
 // Filtro único de la pantalla de Tareas. Toda la lógica es pura para poder
@@ -34,6 +35,20 @@ export const TASK_TYPE_LABEL: Record<string, string> = {
 
 export function taskTypeLabel(taskType: string): string {
   return TASK_TYPE_LABEL[taskType] ?? taskType.replace(/_/g, " ");
+}
+
+// El trigger que crea tareas desde anomalías titula "Anomalía: <código>" (ej. sin_stock).
+export function taskTitleLabel(title: string): string {
+  return title.replace(/^(Anomalía:\s*)(\S+)$/, (_, prefix: string, code: string) => prefix + anomalyLabel(code));
+}
+
+// Tareas de una tienda para su ficha: abiertas primero, más recientes arriba.
+export function tasksForStore(tasks: FullTaskRow[], storeId: string): FullTaskRow[] {
+  return tasks
+    .filter((t) => t.store_id === storeId)
+    .sort((a, b) =>
+      a.status !== b.status ? (a.status === "open" ? -1 : 1) : b.created_at.localeCompare(a.created_at),
+    );
 }
 
 export type TaskFilterOptions = {

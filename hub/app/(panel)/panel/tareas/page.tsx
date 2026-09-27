@@ -15,7 +15,7 @@ import { resolveTask } from "@/app/lib/mutations/tasks";
 import { GeoFilters } from "@/app/components/geo/GeoFilters";
 import { fetchTaskAssignees } from "@/app/lib/queries/assignments";
 import {
-  EMPTY_TASK_FILTER, deriveTaskFilterOptions, filterTasks, hasActiveFilters, taskTypeLabel,
+  EMPTY_TASK_FILTER, deriveTaskFilterOptions, filterTasks, hasActiveFilters, taskTitleLabel, taskTypeLabel,
   type TaskFilterValue,
 } from "@/app/lib/queries/taskFilters";
 import { TaskFilters } from "@/app/components/tareas/TaskFilters";
@@ -220,7 +220,7 @@ function TareasPageInner() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
-                      {(task.title ?? task.task_type).replace(/_/g, " ")}
+                      {task.title ? taskTitleLabel(task.title) : taskTypeLabel(task.task_type)}
                     </div>
                     <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "1px" }}>
                       {[task.client_name, task.store_name, task.created_by_name].filter(Boolean).join(" · ") || "—"}

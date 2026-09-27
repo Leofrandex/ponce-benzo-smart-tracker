@@ -4,7 +4,7 @@ import type { FullTaskRow } from "./tasks";
 import type { TaskAssignee } from "./assignments";
 import {
   EMPTY_TASK_FILTER, normalizeText, taskTypeLabel,
-  deriveTaskFilterOptions, filterTasks, hasActiveFilters,
+  deriveTaskFilterOptions, filterTasks, hasActiveFilters, tasksForStore, taskTitleLabel,
 } from "./taskFilters";
 
 const task = (over: Partial<FullTaskRow>): FullTaskRow => ({
@@ -107,4 +107,22 @@ test("hasActiveFilters ignora el estado 'all' y detecta cualquier otro filtro", 
   assert.equal(hasActiveFilters({ ...EMPTY_TASK_FILTER, status: "open" }), true);
   assert.equal(hasActiveFilters({ ...EMPTY_TASK_FILTER, texto: " " }), false);
   assert.equal(hasActiveFilters({ ...EMPTY_TASK_FILTER, geo: { estado: "Lara", municipio: "", urbanizacion: "" } }), true);
+});
+
+test("tasksForStore filtra por tienda y pone las abiertas primero, más recientes arriba", () => {
+  const all = [
+    task({ task_id: "a", store_id: "s1", status: "resolved", created_at: "2026-09-25T10:00:00Z" }),
+    task({ task_id: "b", store_id: "s1", status: "open",     created_at: "2026-09-20T10:00:00Z" }),
+    task({ task_id: "c", store_id: "s2", status: "open",     created_at: "2026-09-25T12:00:00Z" }),
+    task({ task_id: "d", store_id: "s1", status: "open",     created_at: "2026-09-24T10:00:00Z" }),
+  ];
+  assert.deepEqual(tasksForStore(all, "s1").map((t) => t.task_id), ["d", "b", "a"]);
+  assert.deepEqual(tasksForStore(all, "zz"), []);
+});
+
+test("taskTitleLabel traduce los códigos de anomalía del título", () => {
+  assert.equal(taskTitleLabel("Anomalía: sin_stock"), "Anomalía: Sin stock");
+  assert.equal(taskTitleLabel("Anomalía: producto_danado"), "Anomalía: Producto dañado");
+  assert.equal(taskTitleLabel("Anomalía: codigo_nuevo"), "Anomalía: codigo nuevo");
+  assert.equal(taskTitleLabel("Llamar al comprador"), "Llamar al comprador");
 });

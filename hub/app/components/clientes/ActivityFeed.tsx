@@ -1,11 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Camera, ClipboardList, CheckCircle2, AlertTriangle, MinusCircle,
-  User, Clock, MapPin, ChevronRight, Package, Phone, Tag, Wrench, HelpCircle,
+  User, Clock, MapPin, ChevronRight, Package, Phone, HelpCircle,
 } from "lucide-react";
-import type { SupervisorReport, SupervisorTask } from "@/app/lib/types";
+import type { SupervisorReport } from "@/app/lib/types";
+import type { FullTaskRow } from "@/app/lib/queries/tasks";
+import { taskTitleLabel, taskTypeLabel } from "@/app/lib/queries/taskFilters";
 import { PhotoLightbox } from "./PhotoLightbox";
 
 type DateFilter = "all" | "today" | "week";
@@ -16,10 +19,8 @@ const STATUS_CONFIG = {
   anomaly:   { label: "Anomalía",   Icon: AlertTriangle, badgeClass: "badge badge-danger",  iconBg: "var(--danger-bg)",  iconColor: "var(--danger)"  },
   skipped:   { label: "Omitido",    Icon: MinusCircle,   badgeClass: "badge badge-warning", iconBg: "var(--warning-bg)", iconColor: "var(--warning)" },
 };
-const TASK_TYPE_CONFIG: Record<SupervisorTask["type"], { label: string; Icon: React.ElementType }> = {
-  restock: { label: "Reponer stock", Icon: Package }, contact_manager: { label: "Contactar gerente", Icon: Phone },
-  pricing_issue: { label: "Problema de precio", Icon: Tag }, display_damage: { label: "Daño en exhibidor", Icon: Wrench },
-  other: { label: "Otro", Icon: HelpCircle },
+const TASK_TYPE_ICON: Record<string, React.ElementType> = {
+  reponer_stock: Package, contactar_comprador: Phone, contactar_gerente: Phone, revisar_anomalia: AlertTriangle,
 };
 const DATE_FILTERS: { key: DateFilter; label: string }[] = [
   { key: "all", label: "Todos" }, { key: "today", label: "Hoy" }, { key: "week", label: "Esta semana" },
@@ -35,7 +36,7 @@ function formatDateTime(iso: string): string {
 const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
 const isThisWeek = (iso: string) => Date.now() - new Date(iso).getTime() <= 7 * 86400000;
 
-export function ActivityFeed({ reports, tasks }: { reports: SupervisorReport[]; tasks: SupervisorTask[] }) {
+export function ActivityFeed({ reports, tasks }: { reports: SupervisorReport[]; tasks: FullTaskRow[] }) {
   const [activeTab, setActiveTab] = useState<ActivityTab>("reportes");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [expandedVisit, setExpandedVisit] = useState<string | null>(null);
@@ -62,6 +63,9 @@ export function ActivityFeed({ reports, tasks }: { reports: SupervisorReport[]; 
             }}>
               {tab === "reportes" ? <Camera size={13} /> : <ClipboardList size={13} />}
               {tab === "reportes" ? "Reportes" : "Tareas"}
+              {tab === "tareas" && pendingTasks.length > 0 && (
+                <span style={{ fontSize: "10px", fontWeight: 700, background: "var(--danger-bg)", color: "var(--danger)", borderRadius: "999px", padding: "1px 6px" }}>{pendingTasks.length}</span>
+              )}
             </button>
           ))}
         </div>
@@ -143,28 +147,29 @@ export function ActivityFeed({ reports, tasks }: { reports: SupervisorReport[]; 
           )}
 
           {activeTab === "tareas" && (
-            pendingTasks.length === 0 && tasks.length === 0 ? (
+            tasks.length === 0 ? (
               <div className="card" style={{ padding: "28px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}><CheckCircle2 size={16} color="var(--success)" />Sin tareas registradas.</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {tasks.map((task) => {
-                  const typeCfg = TASK_TYPE_CONFIG[task.type]; const TypeIcon = typeCfg.Icon;
+                  const TypeIcon = TASK_TYPE_ICON[task.task_type] ?? HelpCircle;
+                  const body = task.description || (task.title && taskTitleLabel(task.title));
                   const iconBg = task.status === "open" ? "var(--danger-bg)" : "var(--success-bg)";
                   const iconColor = task.status === "open" ? "var(--danger)" : "var(--success)";
                   return (
-                    <div key={task.task_id} className="card" style={{ padding: "14px 16px", opacity: task.status === "resolved" ? 0.65 : 1 }}>
+                    <Link key={task.task_id} href={`/panel/tareas?task=${task.task_id}`} className="card" style={{ display: "block", textDecoration: "none", padding: "14px 16px", opacity: task.status === "resolved" ? 0.65 : 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                         <div style={{ width: 32, height: 32, borderRadius: "var(--radius-sm)", background: iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><TypeIcon size={15} color={iconColor} /></div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{typeCfg.label}</div>
-                          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "1px", display: "flex", alignItems: "center", gap: "3px" }}><User size={10} /> {task.merchandiser_name}</div>
+                          <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{taskTypeLabel(task.task_type)}</div>
+                          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "1px", display: "flex", alignItems: "center", gap: "3px" }}><User size={10} /> {task.created_by_name ?? "—"} · <Clock size={10} /> {formatDateTime(task.created_at)}</div>
                         </div>
                         <div style={{ display: "flex", gap: "4px" }}>
                           {task.status === "resolved" && <span className="badge badge-success">Completada</span>}
                         </div>
                       </div>
-                      <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.6, marginTop: "10px" }}>{task.description}</p>
-                    </div>
+                      {body && <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.6, marginTop: "10px" }}>{body}</p>}
+                    </Link>
                   );
                 })}
               </div>

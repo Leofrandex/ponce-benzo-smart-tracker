@@ -7,6 +7,7 @@ import { ArrowLeft, Building2, Pencil, Camera, Megaphone } from "lucide-react";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchStoreById, fetchContacts, fetchEngagements } from "@/app/lib/queries/contacts";
 import { fetchFullTasks } from "@/app/lib/queries/tasks";
+import { tasksForStore } from "@/app/lib/queries/taskFilters";
 import { fetchStoreReports, fetchStoreCompetition } from "@/app/lib/queries/reports";
 import { updateStore } from "@/app/lib/mutations/stores";
 import { createContact, updateContact, deleteContact } from "@/app/lib/mutations/contacts";
@@ -28,7 +29,7 @@ export default function ClienteDetailPage() {
   const { data: contacts, refetch: refetchContacts } = useSupabaseQuery(() => fetchContacts(storeId), [storeId]);
   const { data: engagements, refetch: refetchEngagements } = useSupabaseQuery(() => fetchEngagements(storeId), [storeId]);
   const { data: allTasks } = useSupabaseQuery(fetchFullTasks, []);
-  const tasks = useMemo(() => (allTasks ?? []).filter((t) => t.store_id === storeId), [allTasks, storeId]);
+  const tasks = useMemo(() => tasksForStore(allTasks ?? [], storeId), [allTasks, storeId]);
   const { data: reports } = useSupabaseQuery(() => fetchStoreReports(storeId), [storeId]);
   const { data: competition } = useSupabaseQuery(() => fetchStoreCompetition(storeId), [storeId]);
   const lastRestock = null;
@@ -144,7 +145,7 @@ export default function ClienteDetailPage() {
               ))}
             </div>
             {activityTab === "visitas"
-              ? <ActivityFeed reports={reports ?? []} tasks={[]} />
+              ? <ActivityFeed reports={reports ?? []} tasks={tasks} />
               : <CompetitionReportsPanel reports={competition ?? []} />}
           </div>
           <EngagementsPanel
