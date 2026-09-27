@@ -19,20 +19,22 @@ Fuente: [[largo-plazo/Reunion 2026-09-25 - Ajustes Tracker y Pipeline|Resumen de
 
 ### 🐛 Bugs
 - [x] **Mapa sin fondo ("API KEY REQUIRED")** ✅ *(2026-09-26)*: la clave de CARTO se cargó en Vercel, se desplegó (`5bd57ec`) y se verificó en producción. Ver `BUG-028` en [[bugs/Registro de Bugs|Registro de Bugs]].
-- [ ] **Tarea abierta no aparece en la ficha de la tienda** — 🔧 *(2026-09-26)* corregido en local, pendiente de commit y deploy. Causa: `tiendas/[storeId]/page.tsx` pasaba `tasks={[]}` a `ActivityFeed`, que seguía tipado con datos de prueba (`SupervisorTask`). Ahora recibe `FullTaskRow` vía `tasksForStore()`. Además, los títulos "Anomalía: sin_stock" se muestran legibles con `taskTitleLabel()`, en la ficha y en Tareas. 13/13 tests; verificado en el navegador con la sesión del usuario.
+- [x] **Tarea abierta no aparece en la ficha de la tienda** ✅ *(commit `57767fc`, rama `feat/bloque1-tareas`, se publica con el Bloque 1)*: `ActivityFeed` recibía `tasks={[]}`; ahora usa `tasksForStore()` y `taskTitleLabel()`.
 
 ### ⚙️ Tracker — cambios pedidos
+
+> [!IMPORTANT] **Spec escrito (2026-09-26)**: `docs/superpowers/specs/2026-09-26-ajustes-tracker-reunion-diego-design.md` (no versionado: `.gitignore` excluye `superpowers/`). Divide todo en 7 bloques: 1 Tareas → 3 Configuración → 4 Perfil del mercaderista → 2 Dashboard clicable → 5 Filtros → 6 Reposiciones → 7 App móvil 1.3.0. Corpañal quedó fuera. Pendiente: revisión del usuario y después los planes.
 1. [ ] **Usuario admin para Diego**: que él mismo edite la asignación cliente ↔ vendedor sin pedírnoslo.
 2. [x] **Limpiar tareas viejas** ✅ *(2026-09-26)*: se cerraron en bloque 358 tareas abiertas creadas antes del 15-sep (9-jul → 14-sep), con la nota "Cierre masivo 26-sep-2026…" y `resolved_by` nulo. Respaldo de IDs en `tools/cierre-masivo-tareas-2026-09-26.json`. Quedan 137 abiertas desde el 15-sep.
 3. [ ] **Dashboard clicable**: tasa de anomalías → sección anomalías; "tareas abiertas" y cada tramo de antigüedad (<1 sem, 1-2 sem…) → Tareas filtradas; visitas por cadena → esa cadena; cada tipo de anomalía (ej. sin stock) → anomalías de ese tipo; fila de mercaderista en "cumplimiento" → **perfil del mercaderista** con el desglose de sus rutas en el periodo.
    - ❓ **Perfil del mercaderista — por mapear:** sería una página dedicada por mercaderista con su historial (rutas del periodo, cumplimiento, visitas omitidas, anomalías, fotos). Falta definir el alcance y el diseño antes de construirlo.
 4. [ ] **Clientes y tiendas**: filtro por **municipio** (si hay dato) y por **vendedor**. Clasificación ABC sigue esperando la data de P&B.
-5. [ ] **Dashboard dentro de Tareas**: la sección Tareas lleva sus propias tarjetas, iguales a las del dashboard principal: antigüedad de las tareas abiertas y cuántas tiene cada vendedor (abiertas, completadas y antigüedad).
+5. [x] **Dashboard dentro de Tareas** ✅ *(Bloque 1, 2026-09-27, sin publicar)*: resumen reactivo con abiertas por antigüedad, tabla por vendedor y ranking de quiebres. Los filtros viven en la URL. Ver [[logs/Log-2026-09-27|Log 2026-09-27]].
 6. [ ] **Rediseñar los filtros del mapa**: hoy son difíciles de usar. Hay que hacerlos navegables y prácticos, con "ninguna/todas", filtro por cliente/cadena (ej. solo Central Madeirense) y selección múltiple cómoda. Diseño por definir.
 7. [ ] **Móvil — foto obligatoria**: 🔎 *(2026-09-26)* la app ya la exige desde `3d5cc69`. El problema real era `BUG-029`: las fotos se subían pero no quedaban enlazadas; ya se corrigió en el servidor y se recuperaron 632 visitas. Queda para la versión móvil: comprimir fotos, dar más plazo con mala señal, reportar la versión de la app y actualizar a Willian (tiene una versión anterior al 15-jul). La nota "falta distribuir la app" estaba desactualizada: 4 de 5 teléfonos ya tienen la versión del 17-ago.
 8. [ ] **Reposiciones**: el vendedor puede editar "última reposición" (hoy no puede) + **historial de reposiciones** por fecha y producto.
 9. [ ] **Catálogo Corpañal**: segundo catálogo (P&B solo hace el trade marketing, no vende). El mercaderista ve productos de P&B y de Corpañal; hace falta una vista solo Corpañal. Diego envía la lista de productos.
-10. [ ] **Anomalías por producto**: en "reponer stock"/sin stock, desplegable para elegir producto o línea → métrica de productos con más quiebres.
+10. [x] **Anomalías por producto** ✅ *(Bloque 1)*: filtros por anomalía, producto y línea (`products.line`, que se edita en el Bloque 3) y ranking "Más quiebres de stock".
 
 > [!NOTE] Explicado en la reunión (no requiere cambio): "visitas" ≠ "cumplidas". Visitadas = completadas + anomalía + omitidas; cumplidas no cuentan las omitidas.
 
