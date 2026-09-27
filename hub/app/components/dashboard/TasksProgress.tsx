@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import type { BacklogRow, TiempoResolucion } from "@/app/lib/queries/dashboard";
+import { linkTareasTramo } from "@/app/lib/queries/dashboardLinks";
 
 interface Props {
   rows: BacklogRow[];
@@ -32,13 +34,26 @@ export default function TasksProgress({ rows, resolucion }: Props) {
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {rows.map((r) => {
             const viejo = r.tramo === "+30";
-            return (
-              <li key={r.tramo} style={{ display: "flex", justifyContent: "space-between",
-                                         padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
+            const contenido = (
+              <>
                 <span style={{ fontSize: 13 }}>{ETIQUETA[r.tramo] ?? r.tramo}</span>
                 <strong style={{ fontSize: 13, color: viejo && r.n > 0 ? "var(--danger)" : undefined }}>
                   {r.n}
                 </strong>
+              </>
+            );
+            return (
+              <li key={r.tramo} style={{ padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
+                {r.n === 0 ? (
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>{contenido}</div>
+                ) : (
+                  <Link
+                    href={linkTareasTramo(r.tramo)}
+                    style={{ display: "flex", justifyContent: "space-between", width: "100%", color: "inherit", textDecoration: "none" }}
+                  >
+                    {contenido}
+                  </Link>
+                )}
               </li>
             );
           })}

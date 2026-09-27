@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   BarChart,
   Bar,
@@ -9,23 +10,30 @@ import {
   Cell,
   Tooltip,
 } from "recharts";
+import type { BarRectangleItem } from "recharts";
 import type { AnomaliaRow } from "@/app/lib/queries/dashboard";
 import { anomalyLabel } from "@/app/lib/queries/visitDetail";
+import { ChartLinkTick } from "./ChartLinkTick";
+import { linkTareasAnomalias } from "@/app/lib/queries/dashboardLinks";
 
 interface Props {
   rows: AnomaliaRow[];
+  desde: string;
+  hasta: string;
 }
 
 const DANGER = "#dc2626";
 const MUTED = "#8C9091";
 
-export default function AnomaliasPorTipo({ rows }: Props) {
+export default function AnomaliasPorTipo({ rows, desde, hasta }: Props) {
+  const router = useRouter();
   // anomalyLabel es el mismo mapa que usa la ficha de visita: los tipos se
   // muestran igual en todo el hub y no hay dos listas que puedan divergir.
   const data = rows.map((r) => ({
     name: anomalyLabel(r.tipo),
     value: r.n,
     previo: r.n_periodo_anterior,
+    codigo: r.tipo,
   }));
   const total = data.reduce((s, d) => s + d.value, 0);
 
@@ -43,7 +51,15 @@ export default function AnomaliasPorTipo({ rows }: Props) {
           <BarChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 11, fill: MUTED }}
+              tick={
+                <ChartLinkTick
+                  anchor="middle"
+                  hrefFor={(name) => {
+                    const d = data.find((x) => x.name === name);
+                    return d ? linkTareasAnomalias(d.codigo, desde, hasta) : null;
+                  }}
+                />
+              }
               axisLine={false}
               tickLine={false}
             />
@@ -66,7 +82,14 @@ export default function AnomaliasPorTipo({ rows }: Props) {
                 "Anomalías",
               ]}
             />
-            <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+            <Bar
+              dataKey="value"
+              radius={[4, 4, 0, 0]}
+              style={{ cursor: "pointer" }}
+              onClick={(d: BarRectangleItem) =>
+                router.push(linkTareasAnomalias((d.payload as { codigo: string }).codigo, desde, hasta))
+              }
+            >
               {data.map((_, i) => (
                 <Cell key={i} fill={DANGER} />
               ))}

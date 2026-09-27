@@ -107,12 +107,12 @@ function PanelInner() {
         />
       </div>
 
-      <CumplimientoChart rows={cumpl ?? []} />
+      <CumplimientoChart rows={cumpl ?? []} desde={desde} hasta={hasta} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
                     gap: 16, alignItems: "start" }}>
         <VisitasPorCliente rows={porCliente ?? []} />
-        <AnomaliasPorTipo rows={anomalias ?? []} />
+        <AnomaliasPorTipo rows={anomalias ?? []} desde={desde} hasta={hasta} />
       </div>
 
       <TiendasCriticas rows={criticas ?? []} />

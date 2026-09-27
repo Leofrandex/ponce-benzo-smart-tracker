@@ -1,9 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip } from "recharts";
+import type { BarRectangleItem } from "recharts";
 import type { CumplimientoRow } from "@/app/lib/queries/dashboard";
+import { ChartLinkTick } from "./ChartLinkTick";
+import { linkMercaderista } from "@/app/lib/queries/dashboardLinks";
 
-interface Props { rows: CumplimientoRow[] }
+interface Props { rows: CumplimientoRow[]; desde: string; hasta: string }
 
 const OK = "#16a34a";
 const MEDIO = "#d97706";
@@ -15,7 +19,8 @@ function color(pct: number) {
   return MAL;
 }
 
-export default function CumplimientoChart({ rows }: Props) {
+export default function CumplimientoChart({ rows, desde, hasta }: Props) {
+  const router = useRouter();
   if (rows.length === 0) {
     return (
       <div className="card" style={{ padding: 16 }}>
@@ -42,11 +47,28 @@ export default function CumplimientoChart({ rows }: Props) {
       <ResponsiveContainer width="100%" height={Math.max(120, data.length * 42)}>
         <BarChart data={data} layout="vertical" margin={{ left: 8, right: 24 }}>
           <XAxis type="number" domain={[0, 100]} unit="%" tick={{ fontSize: 11 }} />
-          <YAxis type="category" dataKey="nombre" width={130} tick={{ fontSize: 11 }} />
+          <YAxis
+            type="category"
+            dataKey="nombre"
+            width={130}
+            tick={
+              <ChartLinkTick
+                hrefFor={(nombre) => {
+                  const u = data.find((x) => x.nombre === nombre);
+                  return u ? linkMercaderista(u.userId, desde, hasta) : null;
+                }}
+              />
+            }
+          />
           <Tooltip
             formatter={(v, _n, p) => [`${v}% (${(p.payload as { detalle: string }).detalle})`, "Cumplimiento"]}
           />
-          <Bar dataKey="pct" radius={[0, 4, 4, 0]}>
+          <Bar
+            dataKey="pct"
+            radius={[0, 4, 4, 0]}
+            style={{ cursor: "pointer" }}
+            onClick={(d: BarRectangleItem) => router.push(linkMercaderista((d.payload as { userId: string }).userId, desde, hasta))}
+          >
             {data.map((d) => <Cell key={d.userId} fill={color(d.pct)} />)}
           </Bar>
         </BarChart>

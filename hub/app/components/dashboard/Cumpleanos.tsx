@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { Cake } from "lucide-react";
 import type { CumpleanosRow } from "@/app/lib/queries/dashboard";
+import { linkTienda } from "@/app/lib/queries/dashboardLinks";
 
 interface Props { rows: CumpleanosRow[] }
 
@@ -27,7 +29,9 @@ export default function Cumpleanos({ rows }: Props) {
           {rows.slice(0, LIMITE).map((r) => (
             <li key={r.contact_id} style={{ padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
               <div style={{ fontSize: 13, fontWeight: 600 }}>
-                {r.nombre}
+                <Link href={linkTienda(r.store_id)} style={{ color: "inherit", textDecoration: "none" }}>
+                  {r.nombre}
+                </Link>
                 <span className="text-muted" style={{ fontWeight: 400, fontSize: 11 }}>
                   {r.cargo ? ` · ${r.cargo}` : ""}
                 </span>
