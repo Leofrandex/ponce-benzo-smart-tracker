@@ -19,7 +19,7 @@ Fuente: [[largo-plazo/Reunion 2026-09-25 - Ajustes Tracker y Pipeline|Resumen de
 
 ### 🐛 Bugs
 - [x] **Mapa sin fondo ("API KEY REQUIRED")** ✅ *(2026-09-26)*: la clave de CARTO se cargó en Vercel, se desplegó (`5bd57ec`) y se verificó en producción. Ver `BUG-028` en [[bugs/Registro de Bugs|Registro de Bugs]].
-- [x] **Tarea abierta no aparece en la ficha de la tienda** ✅ *(commit `57767fc`, rama `feat/bloque1-tareas`, se publica con el Bloque 1)*: `ActivityFeed` recibía `tasks={[]}`; ahora usa `tasksForStore()` y `taskTitleLabel()`.
+- [x] **Tarea abierta no aparece en la ficha de la tienda** ✅ *(commit `57767fc`, rama `feat/bloque1-tareas`, publicado el 2026-09-27)*: `ActivityFeed` recibía `tasks={[]}`; ahora usa `tasksForStore()` y `taskTitleLabel()`.
 
 ### ⚙️ Tracker — cambios pedidos
 
@@ -29,7 +29,7 @@ Fuente: [[largo-plazo/Reunion 2026-09-25 - Ajustes Tracker y Pipeline|Resumen de
 3. [ ] **Dashboard clicable**: tasa de anomalías → sección anomalías; "tareas abiertas" y cada tramo de antigüedad (<1 sem, 1-2 sem…) → Tareas filtradas; visitas por cadena → esa cadena; cada tipo de anomalía (ej. sin stock) → anomalías de ese tipo; fila de mercaderista en "cumplimiento" → **perfil del mercaderista** con el desglose de sus rutas en el periodo.
    - ❓ **Perfil del mercaderista — por mapear:** sería una página dedicada por mercaderista con su historial (rutas del periodo, cumplimiento, visitas omitidas, anomalías, fotos). Falta definir el alcance y el diseño antes de construirlo.
 4. [ ] **Clientes y tiendas**: filtro por **municipio** (si hay dato) y por **vendedor**. Clasificación ABC sigue esperando la data de P&B.
-5. [x] **Dashboard dentro de Tareas** ✅ *(Bloque 1, 2026-09-27, sin publicar)*: resumen reactivo con abiertas por antigüedad, tabla por vendedor y ranking de quiebres. Los filtros viven en la URL. Ver [[logs/Log-2026-09-27|Log 2026-09-27]].
+5. [x] **Dashboard dentro de Tareas** ✅ *(Bloque 1, publicado en producción el 2026-09-27)*: resumen reactivo con abiertas por antigüedad, tabla por vendedor y ranking de quiebres. Los filtros viven en la URL. Ver [[logs/Log-2026-09-27|Log 2026-09-27]].
 6. [ ] **Rediseñar los filtros del mapa**: hoy son difíciles de usar. Hay que hacerlos navegables y prácticos, con "ninguna/todas", filtro por cliente/cadena (ej. solo Central Madeirense) y selección múltiple cómoda. Diseño por definir.
 7. [ ] **Móvil — foto obligatoria**: 🔎 *(2026-09-26)* la app ya la exige desde `3d5cc69`. El problema real era `BUG-029`: las fotos se subían pero no quedaban enlazadas; ya se corrigió en el servidor y se recuperaron 632 visitas. Queda para la versión móvil: comprimir fotos, dar más plazo con mala señal, reportar la versión de la app y actualizar a Willian (tiene una versión anterior al 15-jul). La nota "falta distribuir la app" estaba desactualizada: 4 de 5 teléfonos ya tienen la versión del 17-ago.
 8. [ ] **Reposiciones**: el vendedor puede editar "última reposición" (hoy no puede) + **historial de reposiciones** por fecha y producto.
