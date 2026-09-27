@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, LayoutDashboard, ClipboardList, Map, Building2, Store, Settings } from "lucide-react";
+import { LogOut, LayoutDashboard, ClipboardList, Map, Building2, Store, Settings, Users } from "lucide-react";
 import PageTransition from "@/app/components/PageTransition";
 import { useAuth } from "@/app/lib/auth-context";
 import { canConfigure, roleLabel } from "@/app/lib/roles";
@@ -27,6 +27,7 @@ export default function PanelLayout({
     { href: "/panel/clientes", icon: Building2,       label: "Clientes" },
     { href: "/panel/tiendas",  icon: Store,           label: "Tiendas"  },
     { href: "/panel/tareas",   icon: ClipboardList,   label: "Tareas"   },
+    { href: "/panel/mercaderistas", icon: Users,      label: "Mercaderistas" },
     { href: "/panel/mapa",     icon: Map,             label: "Mapa"     },
     ...(canConfigure(profile?.role)
       ? [{ href: "/panel/configuracion", icon: Settings, label: "Configuración" }]
