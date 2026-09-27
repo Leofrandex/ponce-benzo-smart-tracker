@@ -6,7 +6,10 @@ import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchCatalog, filterCatalog, lineSuggestions, normalizeLine, type CatalogProduct } from "@/app/lib/queries/products";
 import { updateProduct } from "@/app/lib/mutations/products";
 
-type Feedback = { kind: "saving" | "saved" | "error"; msg?: string };
+// `field` dice qué disparó el guardado, para mostrar el aviso junto a ese control.
+type Feedback = { field: "line" | "active"; kind: "saving" | "saved" | "error"; msg?: string };
+
+const SAVED_MS = 2500;
 
 export default function ProductosPage() {
   const { data, loading, error, refetch } = useSupabaseQuery(fetchCatalog, []);
@@ -19,11 +22,18 @@ export default function ProductosPage() {
   const visible = useMemo(() => filterCatalog(products, q, soloSinLinea), [products, q, soloSinLinea]);
   const sinLinea = products.filter((p) => !p.line).length;
 
-  async function save(p: CatalogProduct, patch: { line?: string | null; active?: boolean }) {
-    setFb((s) => ({ ...s, [p.product_id]: { kind: "saving" } }));
+  const clearFb = (id: string, only?: Feedback["kind"]) =>
+    setFb((s) => { if (!s[id] || (only && s[id].kind !== only)) return s; const n = { ...s }; delete n[id]; return n; });
+
+  async function save(p: CatalogProduct, field: Feedback["field"], patch: { line?: string | null; active?: boolean }) {
+    setFb((s) => ({ ...s, [p.product_id]: { field, kind: "saving" } }));
     const { error: e } = await updateProduct(p.product_id, patch);
-    setFb((s) => ({ ...s, [p.product_id]: e ? { kind: "error", msg: e } : { kind: "saved" } }));
-    if (!e) setDrafts((d) => { const n = { ...d }; delete n[p.product_id]; return n; });
+    setFb((s) => ({ ...s, [p.product_id]: e ? { field, kind: "error", msg: e } : { field, kind: "saved" } }));
+    if (!e) {
+      setDrafts((d) => { const n = { ...d }; delete n[p.product_id]; return n; });
+      // "Guardado" es una confirmación, no un estado: se apaga sola.
+      setTimeout(() => clearFb(p.product_id, "saved"), SAVED_MS);
+    }
     refetch();
   }
 
@@ -32,12 +42,12 @@ export default function ProductosPage() {
     if (raw === undefined) return;
     const next = normalizeLine(raw, lines);
     if (next === p.line) { setDrafts((d) => { const n = { ...d }; delete n[p.product_id]; return n; }); return; }
-    save(p, { line: next });
+    save(p, "line", { line: next });
   }
 
   function toggleActive(p: CatalogProduct) {
     if (p.active && !window.confirm(`¿Desactivar "${p.name}"? Dejará de aparecer en la app de los mercaderistas.`)) return;
-    save(p, { active: !p.active });
+    save(p, "active", { active: !p.active });
   }
 
   if (error) return <div className="empty-state"><div className="empty-title">Error al cargar</div><div className="empty-desc">{error}</div></div>;
@@ -60,15 +70,15 @@ export default function ProductosPage() {
         {lines.map((l) => <option key={l} value={l} />)}
       </datalist>
 
-      <div className="card" style={{ padding: 0, overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+      <div className="card" style={{ padding: 0, overflow: "auto" }}>
+        <table className="cfg-table">
           <thead>
-            <tr style={{ color: "var(--text-muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
-              <th style={{ textAlign: "left", padding: "10px 14px", fontWeight: 600 }}>SKU</th>
-              <th style={{ textAlign: "left", padding: "10px 14px", fontWeight: 600 }}>Producto</th>
-              <th style={{ textAlign: "left", padding: "10px 14px", fontWeight: 600 }}>Marca</th>
-              <th style={{ textAlign: "left", padding: "10px 14px", fontWeight: 600 }}>Línea</th>
-              <th style={{ textAlign: "left", padding: "10px 14px", fontWeight: 600 }}>Activo</th>
+            <tr>
+              <th>SKU</th>
+              <th>Producto</th>
+              <th>Marca</th>
+              <th>Línea</th>
+              <th>Activo</th>
             </tr>
           </thead>
           <tbody>
@@ -77,26 +87,36 @@ export default function ProductosPage() {
             )}
             {visible.map((p) => {
               const f = fb[p.product_id];
+              const saving = f?.kind === "saving";
+              const note = (field: Feedback["field"]) =>
+                f?.field !== field ? null
+                  : f.kind === "error" ? <div role="alert" style={{ marginTop: "4px", fontSize: "12px", color: "var(--danger)" }}>No se pudo guardar: {f.msg}</div>
+                  : f.kind === "saved" ? <span role="status" style={{ marginLeft: "8px", whiteSpace: "nowrap", fontSize: "12px", color: "var(--success)" }}>Guardado</span>
+                  : null;
               return (
-                <tr key={p.product_id} style={{ borderTop: "1px solid var(--border)", opacity: p.active ? 1 : 0.6 }}>
-                  <td style={{ padding: "10px 14px", fontVariantNumeric: "tabular-nums", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{p.sku}</td>
-                  <td style={{ padding: "10px 14px", fontWeight: 600, color: "var(--text-primary)" }}>{p.name}</td>
-                  <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>{p.brand ?? "—"}</td>
-                  <td style={{ padding: "8px 14px" }}>
-                    <input list="lineas-producto" value={drafts[p.product_id] ?? p.line ?? ""} placeholder="Sin línea"
-                      aria-label={`Línea de ${p.name}`}
-                      onChange={(e) => setDrafts((d) => ({ ...d, [p.product_id]: e.target.value }))}
-                      onBlur={() => commitLine(p)}
-                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                      style={{ width: "100%", minWidth: "160px", padding: "6px 10px", fontFamily: "inherit", fontSize: "13px", color: "var(--text-primary)", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }} />
-                    {f?.kind === "error" && <div role="alert" style={{ marginTop: "4px", fontSize: "12px", color: "var(--danger)" }}>No se pudo guardar: {f.msg}</div>}
-                    {f?.kind === "saved" && <div style={{ marginTop: "4px", fontSize: "12px", color: "var(--success)" }}>Guardado</div>}
+                <tr key={p.product_id} style={{ opacity: p.active ? 1 : 0.6 }}>
+                  <td style={{ fontVariantNumeric: "tabular-nums", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{p.sku}</td>
+                  <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                    <div title={p.name} style={{ maxWidth: "420px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
                   </td>
-                  <td style={{ padding: "10px 14px" }}>
+                  <td style={{ color: p.brand ? "var(--text-secondary)" : "var(--text-muted)", whiteSpace: "nowrap" }}>{p.brand ?? "–"}</td>
+                  <td style={{ padding: "6px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <input list="lineas-producto" value={drafts[p.product_id] ?? p.line ?? ""} placeholder="Sin línea"
+                        aria-label={`Línea de ${p.name}`} className="cfg-inline-input" disabled={saving}
+                        onChange={(e) => { clearFb(p.product_id, "saved"); setDrafts((d) => ({ ...d, [p.product_id]: e.target.value })); }}
+                        onBlur={() => commitLine(p)}
+                        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+                      {f?.kind === "saved" && note("line")}
+                    </div>
+                    {f?.kind === "error" && note("line")}
+                  </td>
+                  <td style={{ whiteSpace: "nowrap" }}>
                     <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
-                      <input type="checkbox" checked={p.active} disabled={f?.kind === "saving"} onChange={() => toggleActive(p)} aria-label={`${p.name} activo`} />
+                      <input type="checkbox" checked={p.active} disabled={saving} onChange={() => toggleActive(p)} aria-label={`${p.name} activo`} />
                       {p.active ? "Sí" : "No"}
                     </label>
+                    {note("active")}
                   </td>
                 </tr>
               );

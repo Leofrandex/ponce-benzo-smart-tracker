@@ -9,6 +9,8 @@ import { MultiSelect } from "@/app/components/ui/MultiSelect";
 
 type RowState = { draft: string[]; saving: boolean; error: string | null; saved: boolean };
 
+const SAVED_MS = 2500;
+
 function sameSet(a: string[], b: string[]) {
   return a.length === b.length && a.every((x) => b.includes(x));
 }
@@ -46,6 +48,8 @@ function VendedoresInner() {
     // current(r) pasa a ser igual a `next` y la fila muestra "Guardado".
     setState((s) => ({ ...s, [r.client_id]: { draft: next, saving: false, error: e, saved: !e } }));
     refetch();
+    // "Guardado" es una confirmación, no un estado: se apaga a los pocos segundos.
+    if (!e) setTimeout(() => setState((s) => (s[r.client_id]?.saved ? { ...s, [r.client_id]: { ...s[r.client_id], saved: false } } : s)), SAVED_MS);
   }
 
   if (error) return <div className="empty-state"><div className="empty-title">Error al cargar</div><div className="empty-desc">{error}</div></div>;
@@ -62,14 +66,14 @@ function VendedoresInner() {
         </button>
       </div>
 
-      <div className="card" style={{ padding: 0, overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+      <div className="card" style={{ padding: 0, overflow: "auto" }}>
+        <table className="cfg-table">
           <thead>
-            <tr style={{ color: "var(--text-muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
-              <th style={{ textAlign: "left", padding: "10px 14px", fontWeight: 600 }}>Cadena</th>
-              <th style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Tiendas</th>
-              <th style={{ textAlign: "left", padding: "10px 14px", fontWeight: 600 }}>Vendedores</th>
-              <th style={{ padding: "10px 14px" }} aria-label="Acciones" />
+            <tr>
+              <th>Cadena</th>
+              <th className="cfg-num">Tiendas</th>
+              <th>Vendedores</th>
+              <th aria-label="Acciones" />
             </tr>
           </thead>
           <tbody>
@@ -81,22 +85,22 @@ function VendedoresInner() {
               const draft = draftOf(r);
               const dirty = !sameSet(draft, current(r));
               return (
-                <tr key={r.client_id} style={{ borderTop: "1px solid var(--border)", verticalAlign: "top" }}>
-                  <td style={{ padding: "12px 14px", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>{r.name}</td>
-                  <td style={{ padding: "12px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{r.store_count}</td>
-                  <td style={{ padding: "10px 14px" }}>
+                <tr key={r.client_id}>
+                  <td style={{ fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>{r.name}</td>
+                  <td className="cfg-num">{r.store_count}</td>
+                  <td>
                     <MultiSelect value={draft} options={options} disabled={st?.saving}
                       ariaLabel={`Editar vendedores de ${r.name}`}
                       onChange={(v) => patch(r.client_id, { draft: v, saved: false, error: null }, r)} />
                     {st?.error && <div role="alert" style={{ marginTop: "6px", fontSize: "12px", color: "var(--danger)" }}>No se pudo guardar: {st.error}</div>}
                   </td>
-                  <td style={{ padding: "10px 14px", whiteSpace: "nowrap", textAlign: "right" }}>
+                  <td style={{ whiteSpace: "nowrap", textAlign: "right", width: "1%" }}>
                     {dirty ? (
-                      <button type="button" className="filter-chip active" disabled={st?.saving} onClick={() => guardar(r)}>
+                      <button type="button" className="btn btn-primary btn-sm" style={{ boxShadow: "none" }} disabled={st?.saving} onClick={() => guardar(r)}>
                         {st?.saving ? "Guardando…" : "Guardar"}
                       </button>
                     ) : st?.saved ? (
-                      <span style={{ fontSize: "12px", color: "var(--success)" }}>Guardado</span>
+                      <span role="status" style={{ fontSize: "12px", color: "var(--success)" }}>Guardado</span>
                     ) : null}
                   </td>
                 </tr>

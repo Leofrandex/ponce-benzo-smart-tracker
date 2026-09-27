@@ -36,7 +36,7 @@ export function MultiSelect({
       <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
         {value.length === 0 && <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>{placeholder}</span>}
         {value.map((v) => (
-          <span key={v} style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", fontWeight: 600, padding: "3px 8px", borderRadius: "999px", background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>
+          <span key={v} style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", fontWeight: 600, padding: "3px 8px", borderRadius: "6px", background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>
             {labelOf(v)}
             {!disabled && (
               <button type="button" onClick={() => toggle(v)} aria-label={`Quitar ${labelOf(v)}`}
@@ -47,9 +47,16 @@ export function MultiSelect({
           </span>
         ))}
         <button type="button" disabled={disabled} onClick={() => setOpen((o) => !o)} aria-label={ariaLabel} aria-expanded={open}
-          className="filter-chip" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+          className="ms-trigger">
           Editar <ChevronDown size={12} />
         </button>
+        {/* Disparador fantasma: se repite en cada fila, así que no compite con los datos hasta que se apunta. */}
+        <style>{`
+          .ms-trigger { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border: 1px solid transparent; border-radius: var(--radius-sm);
+            background: transparent; color: var(--text-muted); font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+          .ms-trigger:hover:not(:disabled), .ms-trigger:focus-visible, .ms-trigger[aria-expanded="true"] { color: var(--text-primary); border-color: var(--border); background: var(--bg-surface); }
+          .ms-trigger:disabled { opacity: 0.4; cursor: not-allowed; }
+        `}</style>
       </div>
       {open && (
         <div role="listbox" aria-multiselectable="true" style={{
