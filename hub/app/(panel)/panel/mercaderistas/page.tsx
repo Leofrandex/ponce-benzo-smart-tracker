@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchCumplimiento } from "@/app/lib/queries/dashboard";
 import { fetchMerchandisers } from "@/app/lib/queries/sessions";
-import { fetchAnomaliasPorUsuario } from "@/app/lib/queries/merchandisers";
+import { fetchResumenesDetalle } from "@/app/lib/queries/merchandisers";
 import { parsePeriodo, serializePeriodo } from "@/app/lib/queries/period";
 import TimePeriodSelector, { rangoDeDias } from "@/app/components/dashboard/TimePeriodSelector";
 
@@ -22,19 +22,26 @@ function MercaderistasInner() {
 
   const { data: cumpl, loading, error } = useSupabaseQuery(() => fetchCumplimiento(desde, hasta), [desde, hasta]);
   const { data: roster } = useSupabaseQuery(fetchMerchandisers, []);
-  const { data: anom } = useSupabaseQuery(() => fetchAnomaliasPorUsuario(desde, hasta), [desde, hasta]);
+
+  // ids de todo el roster + quien aparezca en el cumplimiento (p. ej. supervisores).
+  const ids = useMemo(() => {
+    const set = new Set([...(roster ?? []).map((r) => r.user_id), ...(cumpl ?? []).map((c) => c.user_id)]);
+    return Array.from(set).sort();
+  }, [roster, cumpl]);
+  const idsKey = ids.join(",");
+
+  const { data: anom } = useSupabaseQuery(() => fetchResumenesDetalle(ids, desde, hasta), [idsKey, desde, hasta]);
 
   // Todos los del roster, aunque no tengan rutas en el periodo; luego quien
   // aparezca en el cumplimiento sin estar en el roster (p. ej. supervisores).
   const filas = useMemo(() => {
     const byId = new Map((cumpl ?? []).map((c) => [c.user_id, c]));
-    const ids = new Set([...(roster ?? []).map((r) => r.user_id), ...Array.from(byId.keys())]);
-    return Array.from(ids).map((id) => {
+    return ids.map((id) => {
       const c = byId.get(id);
       const nombre = c?.full_name ?? roster?.find((r) => r.user_id === id)?.full_name ?? "—";
-      return { id, nombre, c, anomalias: anom?.get(id) ?? 0 };
+      return { id, nombre, c, anomalias: anom?.get(id)?.anomalias ?? 0 };
     }).sort((a, b) => (a.c?.pct ?? 101) - (b.c?.pct ?? 101) || a.nombre.localeCompare(b.nombre, "es"));
-  }, [cumpl, roster, anom]);
+  }, [cumpl, roster, ids, anom]);
 
   const qs = serializePeriodo(desde, hasta);
 

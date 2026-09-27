@@ -89,16 +89,10 @@ export async function fetchUserName(userId: string): Promise<string | null> {
   return data?.full_name ?? null;
 }
 
-// Visitas con anomalía por usuario en el periodo (RLS acota a las cadenas visibles).
-export async function fetchAnomaliasPorUsuario(desde: string, hasta: string): Promise<Map<string, number>> {
-  const { data, error } = await getSupabaseBrowser()
-    .from("visits")
-    .select("user_id")
-    .eq("status", "anomaly")
-    .gte("check_in_time", `${desde}T04:00:00Z`)
-    .lt("check_in_time", new Date(Date.parse(`${hasta}T04:00:00Z`) + 86400000).toISOString());
-  if (error) throw error;
-  const out = new Map<string, number>();
-  for (const v of (data ?? []) as { user_id: string }[]) out.set(v.user_id, (out.get(v.user_id) ?? 0) + 1);
-  return out;
+// Resumen (igual regla que el perfil, fn_mercaderista_detalle) por usuario en el periodo.
+export async function fetchResumenesDetalle(userIds: string[], desde: string, hasta: string): Promise<Map<string, ResumenDetalle>> {
+  const entries = await Promise.all(
+    userIds.map(async (id) => [id, summarizeDetalle(await fetchDetalle(id, desde, hasta))] as const)
+  );
+  return new Map(entries);
 }
