@@ -15,9 +15,10 @@ import { resolveTask } from "@/app/lib/mutations/tasks";
 import { GeoFilters } from "@/app/components/geo/GeoFilters";
 import { fetchTaskAssignees } from "@/app/lib/queries/assignments";
 import {
-  EMPTY_TASK_FILTER, deriveTaskFilterOptions, filterTasks, hasActiveFilters, taskTitleLabel, taskTypeLabel,
-  type TaskFilterValue,
+  DEFAULT_TASK_FILTER, deriveTaskFilterOptions, filterTasks, hasActiveFilters, hoyCaracas, taskTitleLabel, taskTypeLabel,
 } from "@/app/lib/queries/taskFilters";
+import { describeTaskFilter } from "@/app/lib/queries/taskSummary";
+import { useTaskFilterUrl } from "@/app/lib/hooks/useTaskFilterUrl";
 import { TaskFilters } from "@/app/components/tareas/TaskFilters";
 import { TaskVisitDetail } from "@/app/components/tareas/TaskVisitDetail";
 import { TaskResolutionNote } from "@/app/components/tareas/TaskResolutionNote";
@@ -55,14 +56,15 @@ function TareasPageInner() {
   const { data: rawAssignees, loading: assigneesLoading, error: assigneesError } = useSupabaseQuery(fetchTaskAssignees, []);
   const assignees = useMemo(() => rawAssignees ?? [], [rawAssignees]);
   const vendedorDisabled = assigneesLoading || !!assigneesError;
-  const [filter, setFilter] = useState<TaskFilterValue>(EMPTY_TASK_FILTER);
+  const [filter, setFilter] = useTaskFilterUrl();
+  const today = useMemo(() => hoyCaracas(), []);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const open     = tasks.filter((t) => t.status === "open").length;
   const resolved = tasks.filter((t) => t.status === "resolved").length;
 
   const options  = useMemo(() => deriveTaskFilterOptions(tasks, assignees), [tasks, assignees]);
-  const filtered = useMemo(() => filterTasks(tasks, filter, assignees), [tasks, filter, assignees]);
+  const filtered = useMemo(() => filterTasks(tasks, filter, assignees, today), [tasks, filter, assignees, today]);
 
   // Enlace directo: /panel/tareas?task=<id> abre esa tarea y la enfoca.
   const searchParams = useSearchParams();
@@ -134,11 +136,18 @@ function TareasPageInner() {
         <TaskFilters value={filter} onChange={setFilter} options={options} vendedorDisabled={vendedorDisabled} />
         <GeoFilters items={tasks} value={filter.geo} onChange={(geo) => setFilter({ ...filter, geo })} />
         {hasActiveFilters(filter) && (
-          <button className="filter-chip" onClick={() => setFilter(EMPTY_TASK_FILTER)} style={{ marginLeft: "auto" }}>
+          <button className="filter-chip" onClick={() => setFilter({ ...DEFAULT_TASK_FILTER, status: filter.status })} style={{ marginLeft: "auto" }}>
             Limpiar
           </button>
         )}
       </div>
+
+      {!loading && !error && (hasActiveFilters(filter) || filter.status !== DEFAULT_TASK_FILTER.status) && (
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", color: "var(--text-secondary)" }}>
+          <span>{describeTaskFilter(filter, options, filtered.length)}</span>
+          <button className="filter-chip" onClick={() => setFilter(DEFAULT_TASK_FILTER)}>Quitar filtros</button>
+        </div>
+      )}
 
       {assigneesError && (
         <div className="card" style={{ padding: "10px 12px", fontSize: "13px", color: "var(--text-muted)" }}>
@@ -154,7 +163,7 @@ function TareasPageInner() {
       {linkedHidden && (
         <div className="card" style={{ padding: "10px 12px", fontSize: "13px", color: "var(--text-muted)" }}>
           La tarea enlazada está oculta por los filtros activos.{" "}
-          <button className="filter-chip" onClick={() => setFilter(EMPTY_TASK_FILTER)}>Limpiar filtros</button>
+          <button className="filter-chip" onClick={() => setFilter({ ...DEFAULT_TASK_FILTER, status: "all" })}>Limpiar filtros</button>
         </div>
       )}
 
