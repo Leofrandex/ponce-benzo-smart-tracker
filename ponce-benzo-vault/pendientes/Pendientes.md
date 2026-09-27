@@ -19,17 +19,17 @@ Fuente: [[largo-plazo/Reunion 2026-09-25 - Ajustes Tracker y Pipeline|Resumen de
 
 ### 🐛 Bugs
 - [x] **Mapa sin fondo ("API KEY REQUIRED")** ✅ *(2026-09-26)*: la clave de CARTO se cargó en Vercel, se desplegó (`5bd57ec`) y se verificó en producción. Ver `BUG-028` en [[bugs/Registro de Bugs|Registro de Bugs]].
-- [ ] **Tarea abierta no aparece en la ficha de la tienda** — confirmado por Sebastián (26-sep): el cliente tiene tareas asignadas, pero la pestaña "Tareas asignadas" de la ficha de la tienda sale vacía. Hay que investigarlo.
+- [ ] **Tarea abierta no aparece en la ficha de la tienda** — 🔧 *(2026-09-26)* corregido en local, pendiente de commit y deploy. Causa: `tiendas/[storeId]/page.tsx` pasaba `tasks={[]}` a `ActivityFeed`, que seguía tipado con datos de prueba (`SupervisorTask`). Ahora recibe `FullTaskRow` vía `tasksForStore()`. Además, los títulos "Anomalía: sin_stock" se muestran legibles con `taskTitleLabel()`, en la ficha y en Tareas. 13/13 tests; verificado en el navegador con la sesión del usuario.
 
 ### ⚙️ Tracker — cambios pedidos
 1. [ ] **Usuario admin para Diego**: que él mismo edite la asignación cliente ↔ vendedor sin pedírnoslo.
-2. [ ] **Limpiar tareas viejas**: dejar solo las tareas desde el **15-sep-2026**. ✅ Decidido (26-sep): se **cierran en bloque** con la nota "cierre masivo", no se borran.
+2. [x] **Limpiar tareas viejas** ✅ *(2026-09-26)*: se cerraron en bloque 358 tareas abiertas creadas antes del 15-sep (9-jul → 14-sep), con la nota "Cierre masivo 26-sep-2026…" y `resolved_by` nulo. Respaldo de IDs en `tools/cierre-masivo-tareas-2026-09-26.json`. Quedan 137 abiertas desde el 15-sep.
 3. [ ] **Dashboard clicable**: tasa de anomalías → sección anomalías; "tareas abiertas" y cada tramo de antigüedad (<1 sem, 1-2 sem…) → Tareas filtradas; visitas por cadena → esa cadena; cada tipo de anomalía (ej. sin stock) → anomalías de ese tipo; fila de mercaderista en "cumplimiento" → **perfil del mercaderista** con el desglose de sus rutas en el periodo.
    - ❓ **Perfil del mercaderista — por mapear:** sería una página dedicada por mercaderista con su historial (rutas del periodo, cumplimiento, visitas omitidas, anomalías, fotos). Falta definir el alcance y el diseño antes de construirlo.
 4. [ ] **Clientes y tiendas**: filtro por **municipio** (si hay dato) y por **vendedor**. Clasificación ABC sigue esperando la data de P&B.
 5. [ ] **Dashboard dentro de Tareas**: la sección Tareas lleva sus propias tarjetas, iguales a las del dashboard principal: antigüedad de las tareas abiertas y cuántas tiene cada vendedor (abiertas, completadas y antigüedad).
 6. [ ] **Rediseñar los filtros del mapa**: hoy son difíciles de usar. Hay que hacerlos navegables y prácticos, con "ninguna/todas", filtro por cliente/cadena (ej. solo Central Madeirense) y selección múltiple cómoda. Diseño por definir.
-7. [ ] **Móvil — foto obligatoria**: no se puede cerrar una visita sin al menos una foto, tenga o no anomalía.
+7. [ ] **Móvil — foto obligatoria**: 🔎 *(2026-09-26)* la app ya la exige desde `3d5cc69`. El problema real era `BUG-029`: las fotos se subían pero no quedaban enlazadas; ya se corrigió en el servidor y se recuperaron 632 visitas. Queda para la versión móvil: comprimir fotos, dar más plazo con mala señal, reportar la versión de la app y actualizar a Willian (tiene una versión anterior al 15-jul). La nota "falta distribuir la app" estaba desactualizada: 4 de 5 teléfonos ya tienen la versión del 17-ago.
 8. [ ] **Reposiciones**: el vendedor puede editar "última reposición" (hoy no puede) + **historial de reposiciones** por fecha y producto.
 9. [ ] **Catálogo Corpañal**: segundo catálogo (P&B solo hace el trade marketing, no vende). El mercaderista ve productos de P&B y de Corpañal; hace falta una vista solo Corpañal. Diego envía la lista de productos.
 10. [ ] **Anomalías por producto**: en "reponer stock"/sin stock, desplegable para elegir producto o línea → métrica de productos con más quiebres.

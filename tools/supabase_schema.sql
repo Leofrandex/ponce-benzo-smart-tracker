@@ -898,6 +898,15 @@ CREATE POLICY "visit_photos_insert_own" ON storage.objects
     AND (storage.foldername(name))[1] = auth.uid()::text
   );
 
+-- El reintento del sync móvil vuelve a subir con upsert desde la foto 0; un
+-- upsert sobre un objeto existente exige UPDATE. Sin esta política el
+-- reintento fallaba siempre y la visita quedaba sin photo_urls. [BUG-029]
+DROP POLICY IF EXISTS "visit_photos_update_own" ON storage.objects;
+CREATE POLICY "visit_photos_update_own" ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (bucket_id = 'visit-photos' AND (storage.foldername(name))[1] = auth.uid()::text)
+  WITH CHECK (bucket_id = 'visit-photos' AND (storage.foldername(name))[1] = auth.uid()::text);
+
 -- El admin ve TODAS las fotos, igual que ya ve todas las visitas y tareas
 -- (políticas "_admin_read" más arriba). Sin esta rama, el hub le muestra el
 -- reporte pero no puede firmar las imágenes del bucket privado. [BUG-025]
