@@ -36,14 +36,20 @@ export function buildVendorRows(clients: ClientRow[], assignments: AssignmentRow
 // (p. ej. mercaderistas dueños de una cadena o vendedores inactivos), para que
 // se vean seleccionados y se puedan quitar.
 export function vendorOptions(users: ConfigUser[], rows: VendorAssignRow[]): { value: string; label: string }[] {
+  const userById = new Map(users.map((u) => [u.id, u]));
   const assignedIds = new Set(rows.flatMap((r) => r.assigned.map((p) => p.user_id)));
-  return users
+  const known = users
     .filter((u) => (u.role === "vendedor" && u.active) || assignedIds.has(u.id))
     .map((u) => ({
       value: u.id,
       label: !u.active ? `${u.full_name} (inactivo)` : u.role === "vendedor" ? u.full_name : `${u.full_name} (${roleLabel(u.role)})`,
-    }))
-    .sort((a, b) => byName(a.label, b.label));
+    }));
+  // Un user_id asignado que ya no existe en `users` (borrado) no tiene de dónde sacar
+  // un label: se agrega una opción propia, para que el chip nunca muestre el UUID crudo.
+  const ghosts = Array.from(assignedIds)
+    .filter((id) => !userById.has(id))
+    .map((id) => ({ value: id, label: "(usuario desconocido)" }));
+  return [...known, ...ghosts].sort((a, b) => byName(a.label, b.label));
 }
 
 export function diffAssignments(current: string[], next: string[]): { toAdd: string[]; toRemove: string[] } {

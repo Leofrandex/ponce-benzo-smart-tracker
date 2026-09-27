@@ -52,8 +52,8 @@ function VendedoresInner() {
     // Error: se conserva el borrador para reintentar. En ambos casos se relee,
     // así la fila muestra lo que de verdad quedó en la base; tras un éxito,
     // current(r) pasa a ser igual a `next` y la fila muestra "Guardado".
+    await refetch();
     setState((s) => ({ ...s, [r.client_id]: { draft: next, saving: false, error: e, saved: !e } }));
-    refetch();
     // "Guardado" es una confirmación, no un estado: se apaga a los pocos segundos.
     if (!e) timers.current[r.client_id] = setTimeout(() => {
       delete timers.current[r.client_id];
@@ -62,7 +62,7 @@ function VendedoresInner() {
   }
 
   if (error) return <div className="empty-state"><div className="empty-title">Error al cargar</div><div className="empty-desc">{error}</div></div>;
-  if (loading) return <div className="empty-state"><div className="empty-title">Cargando cadenas…</div></div>;
+  if (loading && !data) return <div className="empty-state"><div className="empty-title">Cargando cadenas…</div></div>;
 
   return (
     <>
@@ -75,7 +75,7 @@ function VendedoresInner() {
         </button>
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: "auto" }}>
+      <div className="card" style={{ padding: 0 }}>
         <table className="cfg-table">
           <thead>
             <tr>

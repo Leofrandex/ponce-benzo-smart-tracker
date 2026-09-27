@@ -34,13 +34,13 @@ export default function ProductosPage() {
     cancelTimer(p.product_id);
     setFb((s) => ({ ...s, [p.product_id]: { field, kind: "saving" } }));
     const { error: e } = await updateProduct(p.product_id, patch);
+    await refetch();
     setFb((s) => ({ ...s, [p.product_id]: e ? { field, kind: "error", msg: e } : { field, kind: "saved" } }));
     if (!e) {
       setDrafts((d) => { const n = { ...d }; delete n[p.product_id]; return n; });
       // "Guardado" es una confirmación, no un estado: se apaga sola.
       timers.current[p.product_id] = setTimeout(() => { delete timers.current[p.product_id]; clearFb(p.product_id, "saved"); }, SAVED_MS);
     }
-    refetch();
   }
 
   function commitLine(p: CatalogProduct) {
@@ -57,7 +57,7 @@ export default function ProductosPage() {
   }
 
   if (error) return <div className="empty-state"><div className="empty-title">Error al cargar</div><div className="empty-desc">{error}</div></div>;
-  if (loading) return <div className="empty-state"><div className="empty-title">Cargando productos…</div></div>;
+  if (loading && !data) return <div className="empty-state"><div className="empty-title">Cargando productos…</div></div>;
 
   return (
     <>

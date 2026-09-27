@@ -45,6 +45,12 @@ test("vendorOptions: vendedores activos más cualquier persona ya asignada, con 
   ]);
 });
 
+test("vendorOptions: un usuario asignado que no existe en users también aparece, para no mostrar su UUID en el chip", () => {
+  const rows = buildVendorRows(clients, [{ client_id: "c3", user_id: "u-ghost" }], users);
+  const opt = vendorOptions(users, rows).find((o) => o.value === "u-ghost");
+  assert.deepEqual(opt, { value: "u-ghost", label: "(usuario desconocido)" });
+});
+
 test("diffAssignments calcula altas y bajas sin tocar lo que no cambió", () => {
   assert.deepEqual(diffAssignments(["a", "b"], ["b", "c"]), { toAdd: ["c"], toRemove: ["a"] });
   assert.deepEqual(diffAssignments(["a"], ["a"]), { toAdd: [], toRemove: [] });

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 export function useSupabaseQuery<T>(
   fetcher: () => Promise<T>,
   deps: unknown[] = [],
-): { data: T | null; loading: boolean; error: string | null; refetch: () => void } {
+): { data: T | null; loading: boolean; error: string | null; refetch: () => Promise<void> } {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
