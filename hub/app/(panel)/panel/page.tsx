@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { BarChart3, AlertTriangle, ClipboardList, Target } from "lucide-react";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { useAuth } from "@/app/lib/auth-context";
@@ -9,6 +10,8 @@ import {
   fetchTiendasSinVisita, fetchTiendasCriticas, fetchBacklogTareas,
   fetchCumpleanos, fetchClientesSinVendedor, fetchTiempoResolucion,
 } from "@/app/lib/queries/dashboard";
+import { parsePeriodo, serializePeriodo } from "@/app/lib/queries/period";
+import { linkMercaderistas, linkTareasAnomalias, linkTareasAbiertas, linkTareasViejas } from "@/app/lib/queries/dashboardLinks";
 import TimePeriodSelector, { rangoDeDias } from "@/app/components/dashboard/TimePeriodSelector";
 import KpiCard from "@/app/components/dashboard/KpiCard";
 import CumplimientoChart from "@/app/components/dashboard/CumplimientoChart";
@@ -27,15 +30,17 @@ const DIAS_ABANDONO = 15;
 // convierte a UTC y en zonas horarias negativas (Chile, etc.) puede recortar
 // un dia entero del rango sin que nada falle (nos paso: dio 848 en vez de 872
 // planificadas). Por eso se arma el string a mano con los getters locales.
-export default function PanelPage() {
+function PanelInner() {
   const { profile } = useAuth();
   const esAdmin = profile?.role === "admin";
 
-  // El rango es estado propio, no un numero de dias: el selector permite tanto
-  // atajos (7/14/30/90) como fechas libres. rangoDeDias vive en el selector para
-  // que el calculo de "N dias" tenga un solo dueno.
-  const [rango, setRango] = useState<[string, string]>(() => rangoDeDias(7));
-  const [desde, hasta] = rango;
+  // El periodo vive en la URL (?desde=&hasta=) para que sea compartible y
+  // sobreviva a la navegacion "atras" desde un KPI clicable.
+  const sp = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { desde, hasta } = parsePeriodo(new URLSearchParams(sp.toString()), rangoDeDias(7));
+  const setPeriodo = (d: string, h: string) => router.replace(`${pathname}?${serializePeriodo(d, h)}`, { scroll: false });
 
   const { data: resumen }    = useSupabaseQuery(() => fetchResumen(desde, hasta), [desde, hasta]);
   const { data: cumpl }      = useSupabaseQuery(() => fetchCumplimiento(desde, hasta), [desde, hasta]);
@@ -62,7 +67,7 @@ export default function PanelPage() {
       <TimePeriodSelector
         desde={desde}
         hasta={hasta}
-        onChange={(d, h) => setRango([d, h])}
+        onChange={setPeriodo}
       />
 
       {esAdmin && <ClientesSinVendedor rows={huerfanos ?? []} />}
@@ -73,11 +78,13 @@ export default function PanelPage() {
           valor={`${r?.pct_cumplimiento ?? 0}%`}
           detalle={r ? `${r.hechas}/${r.planificadas}` : undefined}
           icono={<Target size={16} style={{ color: "var(--accent)", marginBottom: 6 }} />}
+          href={linkMercaderistas(desde, hasta)}
         />
         <KpiCard
           kpi="visitas"
           valor={String(r?.visitas ?? 0)}
           icono={<BarChart3 size={16} style={{ color: "var(--accent)", marginBottom: 6 }} />}
+          href={linkMercaderistas(desde, hasta)}
         />
         <KpiCard
           kpi="anomalias"
@@ -85,6 +92,7 @@ export default function PanelPage() {
           detalle={r ? `${r.anomalias} de ${r.visitas}` : undefined}
           tono={(r?.tasa_anomalias ?? 0) > 0 ? "peligro" : "normal"}
           icono={<AlertTriangle size={16} style={{ color: "var(--danger)", marginBottom: 6 }} />}
+          href={linkTareasAnomalias(null, desde, hasta)}
         />
         <KpiCard
           kpi="tareas"
@@ -94,6 +102,8 @@ export default function PanelPage() {
           icono={<ClipboardList size={16} style={{ color: "var(--accent)", marginBottom: 6 }} />}
           // Un admin no tiene cartera propia: "Mis tareas abiertas" no aplica.
           etiqueta={esAdmin ? "Tareas abiertas" : "Mis tareas abiertas"}
+          href={linkTareasAbiertas()}
+          detalleHref={linkTareasViejas()}
         />
       </div>
 
@@ -116,4 +126,8 @@ export default function PanelPage() {
       </div>
     </>
   );
+}
+
+export default function PanelPage() {
+  return <Suspense fallback={<div className="empty-state"><div className="empty-title">Cargando…</div></div>}><PanelInner /></Suspense>;
 }

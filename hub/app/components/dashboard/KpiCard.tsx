@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Info } from "lucide-react";
 import { kpiDef, type KpiId } from "@/app/lib/dashboard-kpis";
 
@@ -14,11 +15,15 @@ interface Props {
   // "Mis tareas abiertas" para un vendedor vs "Tareas abiertas" para un admin).
   // La descripcion del tooltip no cambia: solo el titulo.
   etiqueta?: string;
+  // El contenido de la tarjeta enlaza aqui.
+  href?: string;
+  // El texto de detalle es un enlace aparte (p.ej. "+15 dias").
+  detalleHref?: string;
 }
 
 const COLOR = { normal: undefined, peligro: "var(--danger)", exito: "var(--success)" };
 
-export default function KpiCard({ kpi, valor, detalle, tono = "normal", icono, etiqueta }: Props) {
+export default function KpiCard({ kpi, valor, detalle, tono = "normal", icono, etiqueta, href, detalleHref }: Props) {
   const def = kpiDef(kpi);
   const rotulo = etiqueta ?? def.etiqueta;
   // Un solo estado sirve a los tres gestos: hover en escritorio, tap en tactil
@@ -77,12 +82,25 @@ export default function KpiCard({ kpi, valor, detalle, tono = "normal", icono, e
         </div>
       )}
 
-      {icono}
-      <div className="stat-value" style={{ color: COLOR[tono] }}>{valor}</div>
-      <div className="stat-label">{rotulo}</div>
-      {detalle && (
-        <div className="text-muted" style={{ fontSize: 11, marginTop: 2 }}>{detalle}</div>
+      {href ? (
+        <Link href={href} className="kpi-link" style={{ display: "block", color: "inherit", textDecoration: "none" }}>
+          {icono}
+          <div className="stat-value" style={{ color: COLOR[tono] }}>{valor}</div>
+          <div className="stat-label">{rotulo}</div>
+        </Link>
+      ) : (
+        <>
+          {icono}
+          <div className="stat-value" style={{ color: COLOR[tono] }}>{valor}</div>
+          <div className="stat-label">{rotulo}</div>
+        </>
       )}
+      {detalle && (detalleHref ? (
+        <Link href={detalleHref} className="kpi-link" style={{ display: "inline-block", fontSize: 11, marginTop: 2, color: tono === "peligro" ? "var(--danger)" : "var(--text-muted)" }}>{detalle}</Link>
+      ) : (
+        <div className="text-muted" style={{ fontSize: 11, marginTop: 2 }}>{detalle}</div>
+      ))}
+      <style>{`.kpi-link:hover .stat-value, .kpi-link:focus-visible .stat-value { text-decoration: underline; } a.kpi-link:hover { text-decoration: underline; }`}</style>
     </div>
   );
 }
