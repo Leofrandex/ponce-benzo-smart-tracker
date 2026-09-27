@@ -10,6 +10,9 @@ import { fetchAnomaliasPorUsuario } from "@/app/lib/queries/merchandisers";
 import { parsePeriodo, serializePeriodo } from "@/app/lib/queries/period";
 import TimePeriodSelector, { rangoDeDias } from "@/app/components/dashboard/TimePeriodSelector";
 
+// Mismas bandas que CumplimientoChart del dashboard: el color marca solo la excepción.
+const tono = (pct: number) => (pct < 70 ? "var(--danger)" : pct < 90 ? "var(--warning)" : undefined);
+
 function MercaderistasInner() {
   const sp = useSearchParams();
   const router = useRouter();
@@ -50,13 +53,17 @@ function MercaderistasInner() {
 
       {cumpl && (
         <div className="card" style={{ padding: 0, overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <style>{`
+            .mz-table tbody tr:hover { background: var(--bg-base); }
+            .mz-table .mz-num { width: 1%; white-space: nowrap; padding-left: 32px !important; }
+          `}</style>
+          <table className="mz-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
               <tr style={{ color: "var(--text-muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
                 <th style={{ textAlign: "left", padding: "10px 14px", fontWeight: 600 }}>Mercaderista</th>
-                <th style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Cumplimiento</th>
-                <th style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Hechas / planificadas</th>
-                <th style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Anomalías</th>
+                <th className="mz-num" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Cumplimiento</th>
+                <th className="mz-num" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Hechas / planificadas</th>
+                <th className="mz-num" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Anomalías</th>
               </tr>
             </thead>
             <tbody>
@@ -65,11 +72,12 @@ function MercaderistasInner() {
                   <td style={{ padding: "10px 14px" }}>
                     <Link href={`/panel/mercaderistas/${f.id}?${qs}`} style={{ fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>{f.nombre}</Link>
                   </td>
-                  <td style={{ padding: "10px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>
+                  <td className="mz-num" style={{ padding: "10px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: f.c ? tono(f.c.pct) : undefined }}>
                     {f.c ? `${f.c.pct}%` : <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>Sin rutas</span>}
                   </td>
-                  <td style={{ padding: "10px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{f.c ? `${f.c.hechas} / ${f.c.planificadas}` : "—"}</td>
-                  <td style={{ padding: "10px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{f.anomalias || "—"}</td>
+                  <td className="mz-num" style={{ padding: "10px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{f.c ? `${f.c.hechas} / ${f.c.planificadas}` : <span style={{ color: "var(--text-muted)" }}>–</span>}</td>
+                  {/* Cero es cero; el guion queda solo mientras el dato no ha llegado. */}
+                  <td className="mz-num" style={{ padding: "10px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{anom ? f.anomalias : <span style={{ color: "var(--text-muted)" }}>–</span>}</td>
                 </tr>
               ))}
             </tbody>

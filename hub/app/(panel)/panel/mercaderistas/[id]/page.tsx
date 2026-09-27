@@ -20,6 +20,10 @@ const COLOR: Record<Resultado, string> = {
   omitida: "var(--warning)", no_visitada: "var(--text-muted)",
 };
 
+// Mismas bandas que CumplimientoChart del dashboard: el color marca solo la excepción.
+const tono = (pct: number) => (pct < 70 ? "var(--danger)" : pct < 90 ? "var(--warning)" : undefined);
+const LEYENDA: Resultado[] = ["completada", "anomalia", "cubierta", "omitida", "no_visitada"];
+
 const hora = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("es-VE", { hour: "2-digit", minute: "2-digit" }) : "—");
 const diaLargo = (ymd: string) => new Date(ymd + "T12:00:00").toLocaleDateString("es-VE", { weekday: "short", day: "numeric", month: "short" });
 const duracion = (m: number | null) => (m == null ? "Sin cerrar" : `${Math.floor(m / 60)} h ${m % 60} min`);
@@ -64,34 +68,57 @@ function PerfilInner() {
               <div style={{ fontSize: "15px", marginTop: "8px", color: "var(--text-secondary)" }}>Sin rutas planificadas en este periodo.</div>
             ) : (
               <>
-                <div style={{ fontSize: "40px", fontWeight: 800, letterSpacing: "-1px", fontVariantNumeric: "tabular-nums" }}>{resumen.pct}%</div>
-                <div style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "6px", display: "flex", gap: "14px", flexWrap: "wrap" }}>
-                  <span>{resumen.planificadas} planificadas</span>
-                  <span>{resumen.hechas} hechas ({resumen.completadas} completadas, {resumen.anomalias} con anomalía{resumen.cubiertas ? `, ${resumen.cubiertas} cubiertas` : ""})</span>
-                  <span>{resumen.omitidas} omitidas</span>
-                  <span>{resumen.no_visitadas} no visitadas</span>
+                <div style={{ fontSize: "40px", fontWeight: 800, letterSpacing: "-1px", fontVariantNumeric: "tabular-nums", color: tono(resumen.pct) }}>{resumen.pct}%</div>
+                {/* Desglose: label arriba, número debajo; secundario frente al %. */}
+                <div style={{ marginTop: "10px", display: "flex", gap: "28px", flexWrap: "wrap" }}>
+                  {([
+                    ["Planificadas", resumen.planificadas, null],
+                    ["Hechas", resumen.hechas, `${resumen.completadas} completadas · ${resumen.anomalias} con anomalía${resumen.cubiertas ? ` · ${resumen.cubiertas} cubiertas` : ""}`],
+                    ["Omitidas", resumen.omitidas, null],
+                    ["No visitadas", resumen.no_visitadas, null],
+                  ] as const).map(([label, n, sub]) => (
+                    <div key={label}>
+                      <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>{label}</div>
+                      <div style={{ fontSize: "16px", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                        {n}{sub && <span style={{ fontSize: "12px", fontWeight: 400, color: "var(--text-muted)", marginLeft: "6px" }}>{sub}</span>}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </>
             )}
             {incluyeHoy && <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "8px" }}>Hoy no cuenta hasta que termina el día.</div>}
           </div>
 
-          <div className="card" style={{ padding: 0 }}>
-            <div className="section-title" style={{ padding: "12px 14px 6px" }}>Día por día</div>
+          <style>{`
+            .mz-dia:hover, .mz-dia:focus-visible, .mz-tiendas tr:hover { background: var(--bg-base); }
+            .mz-dia:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+          `}</style>
+          <div className="card" style={{ padding: 0, overflow: "hidden", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", padding: "12px 14px 6px" }}>
+              <div className="section-title" style={{ margin: 0 }}>Día por día</div>
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", fontSize: "11px", color: "var(--text-muted)" }}>
+                {LEYENDA.map((r) => (
+                  <span key={r} style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: COLOR[r] }} />{RESULTADO_LABEL[r]}
+                  </span>
+                ))}
+              </div>
+            </div>
             {dias.length === 0 && <div style={{ padding: "12px 14px", color: "var(--text-muted)", fontSize: "13px" }}>Sin días con ruta.</div>}
             {dias.map((d) => (
               <div key={d.fecha} style={{ borderTop: "1px solid var(--border)" }}>
-                <button type="button" onClick={() => setAbierto(abierto === d.fecha ? null : d.fecha)}
+                <button type="button" className="mz-dia" aria-expanded={abierto === d.fecha} onClick={() => setAbierto(abierto === d.fecha ? null : d.fecha)}
                   style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: "12px", width: "100%", padding: "10px 14px", boxSizing: "border-box" }}>
                   <ChevronRight size={14} style={{ transform: abierto === d.fecha ? "rotate(90deg)" : "none", transition: "transform 150ms" }} />
                   <span style={{ width: "110px", fontWeight: 600, textTransform: "capitalize" }}>{diaLargo(d.fecha)}</span>
-                  <span style={{ width: "48px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>{d.resumen.pct}%</span>
+                  <span style={{ width: "48px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: tono(d.resumen.pct) }}>{d.resumen.pct}%</span>
                   <span style={{ display: "flex", gap: "3px", flexWrap: "wrap" }} aria-label={`${d.resumen.hechas} de ${d.resumen.planificadas} hechas`}>
                     {d.tiendas.map((t, i) => <span key={t.store_id + i} title={`${t.store_name}: ${RESULTADO_LABEL[t.resultado]}`} style={{ width: 10, height: 10, borderRadius: 2, background: COLOR[t.resultado] }} />)}
                   </span>
                 </button>
                 {abierto === d.fecha && (
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", marginBottom: "8px" }}>
+                  <table className="mz-tiendas" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", marginBottom: "8px" }}>
                     <tbody>
                       {d.tiendas.map((t, i) => (
                         <tr key={t.store_id + i} style={{ borderTop: "1px solid var(--border)" }}>
@@ -99,10 +126,12 @@ function PerfilInner() {
                             <Link href={`/panel/tiendas/${t.store_id}`} style={{ color: "var(--text-primary)", textDecoration: "none", fontWeight: 600 }}>{t.store_name}</Link>
                             <span style={{ color: "var(--text-muted)" }}>{t.client_name ? ` · ${t.client_name}` : ""}</span>
                           </td>
-                          <td style={{ padding: "8px 14px", color: COLOR[t.resultado], fontWeight: 600, whiteSpace: "nowrap" }}>{RESULTADO_LABEL[t.resultado]}</td>
+                          {/* Completada es lo esperado: texto neutro; el color queda para la excepción. */}
+                          <td style={{ padding: "8px 14px", color: t.resultado === "completada" ? "var(--text-secondary)" : COLOR[t.resultado], fontWeight: 600, whiteSpace: "nowrap" }}>{RESULTADO_LABEL[t.resultado]}</td>
                           <td style={{ padding: "8px 14px", color: "var(--text-secondary)" }}>
-                            {t.resultado === "omitida" && t.skip_reason ? SKIP_REASON_LABEL[t.skip_reason] ?? t.skip_reason : ""}
-                            {t.resultado === "anomalia" && t.anomaly_type ? t.anomaly_type.map(anomalyLabel).join(", ") : ""}
+                            {(t.resultado === "omitida" && t.skip_reason ? SKIP_REASON_LABEL[t.skip_reason] ?? t.skip_reason : "")
+                              || (t.resultado === "anomalia" && t.anomaly_type ? t.anomaly_type.map(anomalyLabel).join(", ") : "")
+                              || <span style={{ color: "var(--text-muted)" }}>–</span>}
                           </td>
                           <td style={{ padding: "8px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: "var(--text-muted)" }}>{hora(t.check_in_time)}</td>
                         </tr>
@@ -121,9 +150,9 @@ function PerfilInner() {
                 <tbody>
                   {(jornadas ?? []).map((j) => (
                     <tr key={j.session_id} style={{ borderTop: "1px solid var(--border)" }}>
-                      <td style={{ padding: "6px 0", textTransform: "capitalize" }}>{diaLargo(j.fecha)}</td>
-                      <td style={{ padding: "6px 8px", fontVariantNumeric: "tabular-nums" }}>{hora(j.inicio)} – {j.fin ? hora(j.fin) : "…"}</td>
-                      <td style={{ padding: "6px 0", textAlign: "right", color: j.minutos == null ? "var(--warning)" : "var(--text-secondary)" }}>{duracion(j.minutos)}</td>
+                      <td style={{ padding: "8px 0", textTransform: "capitalize", width: "120px" }}>{diaLargo(j.fecha)}</td>
+                      <td style={{ padding: "8px 8px", fontVariantNumeric: "tabular-nums" }}>{hora(j.inicio)} – {j.fin ? hora(j.fin) : "…"}</td>
+                      <td style={{ padding: "8px 0", textAlign: "right", fontVariantNumeric: "tabular-nums", color: j.minutos == null ? "var(--warning)" : "var(--text-secondary)" }}>{duracion(j.minutos)}</td>
                     </tr>
                   ))}
                 </tbody>
