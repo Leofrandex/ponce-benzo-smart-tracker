@@ -1073,14 +1073,16 @@ $$;
 -- no se delega solo a RLS (stores_read expone las 197 tiendas a todo
 -- mercaderista para la cache offline movil).
 -- ============================================================
-create or replace function public.fn_dash_visitas_por_cliente(p_desde date, p_hasta date)
-returns table (cliente text, visitas bigint, anomalias bigint)
+drop function if exists public.fn_dash_visitas_por_cliente(date, date);
+create function public.fn_dash_visitas_por_cliente(p_desde date, p_hasta date)
+returns table (client_id uuid, cliente text, visitas bigint, anomalias bigint)
 language sql
 stable
 security invoker
 set search_path to ''
 as $$
-  select coalesce(c.name, 'Sin cadena') as cliente,
+  select c.client_id,
+         coalesce(c.name, 'Sin cadena') as cliente,
          count(*)::bigint,
          count(*) filter (where v.status = 'anomaly')::bigint
   from public.visits v
@@ -1089,8 +1091,8 @@ as $$
   where public.fn_fecha_local(v.check_in_time) between p_desde and p_hasta
     and v.status <> 'skipped'
     and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
-  group by 1
-  order by 2 desc;
+  group by 1, 2
+  order by 3 desc;
 $$;
 
 -- anomaly_type es TEXT[]: una visita puede reportar varias anomalias a la vez,
@@ -1267,8 +1269,9 @@ as $$
 $$;
 
 -- Cumpleanos de compradores en los proximos p_dias, cruzando el año.
-create or replace function public.fn_dash_cumpleanos(p_dias integer)
-returns table (contact_id uuid, nombre text, cargo text, tienda text, cliente text,
+drop function if exists public.fn_dash_cumpleanos(integer);
+create function public.fn_dash_cumpleanos(p_dias integer)
+returns table (contact_id uuid, store_id uuid, nombre text, cargo text, tienda text, cliente text,
                cumple date, dias_para integer)
 language sql
 stable
@@ -1276,7 +1279,7 @@ security invoker
 set search_path to ''
 as $$
   with c as (
-    select ct.contact_id, ct.full_name, ct.role_title, ct.birthday,
+    select ct.contact_id, ct.store_id, ct.full_name, ct.role_title, ct.birthday,
            s.name as tienda, coalesce(cl.name, 'Sin cadena') as cliente,
            -- Proxima ocurrencia del cumpleanos a partir de hoy.
            case
@@ -1290,7 +1293,7 @@ as $$
     where ct.active and ct.birthday is not null
       and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
   )
-  select c.contact_id, c.full_name, c.role_title, c.tienda, c.cliente,
+  select c.contact_id, c.store_id, c.full_name, c.role_title, c.tienda, c.cliente,
          c.proximo, (c.proximo - public.fn_hoy())::int
   from c
   where c.proximo <= public.fn_hoy() + p_dias

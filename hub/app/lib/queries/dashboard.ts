@@ -20,7 +20,7 @@ export interface CumplimientoRow {
   cubiertas: number;
   pct: number;
 }
-export interface VisitasClienteRow { cliente: string; visitas: number; anomalias: number }
+export interface VisitasClienteRow { client_id: string | null; cliente: string; visitas: number; anomalias: number }
 export interface AnomaliaRow { tipo: string; n: number; n_periodo_anterior: number }
 export interface TiendaSinVisitaRow {
   store_id: string; tienda: string; cliente: string;
@@ -31,7 +31,7 @@ export interface TiendaCriticaRow {
 }
 export interface BacklogRow { tramo: string; n: number }
 export interface CumpleanosRow {
-  contact_id: string; nombre: string; cargo: string | null;
+  contact_id: string; store_id: string; nombre: string; cargo: string | null;
   tienda: string; cliente: string; cumple: string; dias_para: number;
 }
 export interface ClienteSinVendedorRow {
