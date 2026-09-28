@@ -1,13 +1,19 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { Suspense, useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { Map as MapIcon, Radio, History, Activity } from "lucide-react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchStores } from "@/app/lib/queries/stores";
 import { fetchLivePositions, fetchMerchandisers, type LivePosition } from "@/app/lib/queries/sessions";
-import { MapFilterSidebar, EMPTY_MAP_FILTERS, type MapFilterValue } from "@/app/components/mapa/MapFilterSidebar";
+import { fetchTaskAssignees } from "@/app/lib/queries/assignments";
+import { MapFilterSidebar } from "@/app/components/mapa/MapFilterSidebar";
+import {
+  TODAS, agruparPorCadena, elegirVendedor, parseMapParams, serializeMapParams,
+  type MapFilterValue, type TiendaMapa,
+} from "@/app/lib/queries/mapFilters";
 import type { MapMerchandiser } from "@/app/lib/map-data";
 
 const MapLiveView = dynamic(() => import("@/app/components/mapa/MapLiveView"), {
@@ -25,13 +31,45 @@ function MapLoading({ label }: { label: string }) {
 
 type Tab = "live" | "history";
 
-export default function MapaPage() {
+function MapaInner() {
   const [tab, setTab] = useState<Tab>("live");
-  const [filters, setFilters] = useState<MapFilterValue>(EMPTY_MAP_FILTERS);
 
   // --- Real data from Supabase ---
   const { data: stores } = useSupabaseQuery(fetchStores, []);
   const { data: roster } = useSupabaseQuery(fetchMerchandisers, []);
+  const { data: rawAssignees } = useSupabaseQuery(fetchTaskAssignees, []);
+  const assignees = useMemo(() => rawAssignees ?? [], [rawAssignees]);
+
+  // parseMapParams descarta las tiendas que no conoce: si corre mientras
+  // `stores` sigue cargando, la selección de una URL compartida colapsaría a
+  // "ninguna" y cualquier cambio de filtro escribiría tiendas=ninguna en la
+  // URL. Por eso, mientras stores no cargó, no se renderiza el sidebar y las
+  // vistas del mapa usan TODAS para tiendas (el merch/vendedor sí es
+  // independiente de stores y se parsea igual).
+  const storesLoaded = stores !== null;
+  const tiendasMapa = useMemo<TiendaMapa[]>(
+    () => (stores ?? []).map((s) => ({ store_id: s.store_id, name: s.name, client_id: s.client_id ?? null, client_name: s.client_name ?? null })),
+    [stores],
+  );
+  const grupos = useMemo(() => agruparPorCadena(tiendasMapa), [tiendasMapa]);
+  const sp = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const qs = sp.toString();
+  const parsedFilters = useMemo(
+    () => parseMapParams(new URLSearchParams(qs), storesLoaded ? tiendasMapa : []),
+    [qs, tiendasMapa, storesLoaded],
+  );
+  const filters: MapFilterValue = storesLoaded ? parsedFilters : { ...parsedFilters, tiendas: TODAS };
+  const setFilters = (v: MapFilterValue) => {
+    const next = serializeMapParams(v, grupos);
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+  };
+  const vendedores = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of assignees) m.set(a.user_id, a.full_name);
+    return Array.from(m, ([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, "es"));
+  }, [assignees]);
 
   const [positions, setPositions] = useState<LivePosition[]>([]);
   useEffect(() => {
@@ -97,12 +135,18 @@ export default function MapaPage() {
       </div>
 
       <div style={{ display: "flex", gap: "14px", flex: 1, minHeight: 0 }}>
-        <MapFilterSidebar
-          value={filters}
-          onChange={setFilters}
-          stores={safeStores}
-          merchandisers={filterMerchandisers}
-        />
+        {storesLoaded ? (
+          <MapFilterSidebar
+            value={filters}
+            onChange={setFilters}
+            grupos={grupos}
+            merchandisers={filterMerchandisers}
+            vendedores={vendedores}
+            onVendedor={(u) => setFilters(elegirVendedor(filters, u, tiendasMapa, assignees))}
+          />
+        ) : (
+          <div style={{ width: 250, flexShrink: 0, fontSize: 13, color: "var(--text-muted)" }}>Cargando filtros…</div>
+        )}
 
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "12px" }}>
           <div style={{ display: "flex", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "3px", width: "fit-content" }}>
@@ -131,5 +175,13 @@ export default function MapaPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MapaPage() {
+  return (
+    <Suspense fallback={<MapLoading label="Cargando mapa…" />}>
+      <MapaInner />
+    </Suspense>
   );
 }

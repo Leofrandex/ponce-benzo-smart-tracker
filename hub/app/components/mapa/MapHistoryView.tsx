@@ -8,7 +8,7 @@ import { StoreMarkersLayer } from "./StoreMarkersLayer";
 import { HeatmapLayer } from "./HeatmapLayer";
 import { DateRangeChips, presetRange, type DateRange } from "./DateRangeChips";
 import { fetchHeatPoints } from "@/app/lib/queries/sessions";
-import type { MapFilterValue } from "./MapFilterSidebar";
+import { aplicar, type MapFilterValue } from "@/app/lib/queries/mapFilters";
 import type { Store } from "@/app/lib/types";
 
 interface MapHistoryViewProps {
@@ -20,19 +20,23 @@ export default function MapHistoryView({ filters, stores }: MapHistoryViewProps)
   const [range, setRange] = useState<DateRange>(() => presetRange("7d"));
 
   const filteredStores = useMemo(
-    () => filters.storeIds.length === 0 ? stores : stores.filter((s) => filters.storeIds.includes(s.store_id)),
-    [stores, filters.storeIds],
+    () => aplicar(stores, filters.tiendas, (s) => s.store_id),
+    [stores, filters.tiendas],
   );
 
   // Puntos de calor reales desde location_pings, según rango + mercaderistas filtrados.
   const [points, setPoints] = useState<[number, number][]>([]);
   useEffect(() => {
     let active = true;
-    fetchHeatPoints(range.from, range.to, filters.merchIds)
+    // Selección vacía = ningún mercaderista: no se piden puntos (para
+    // fetchHeatPoints una lista vacía significa "todos").
+    if (filters.merch.modo === "seleccion" && filters.merch.ids.length === 0) { setPoints([]); return; }
+    const ids = filters.merch.modo === "todas" ? [] : filters.merch.ids;
+    fetchHeatPoints(range.from, range.to, ids)
       .then((p) => { if (active) setPoints(p); })
       .catch(() => { if (active) setPoints([]); });
     return () => { active = false; };
-  }, [range.from, range.to, filters.merchIds]);
+  }, [range.from, range.to, filters.merch]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "10px", padding: "10px" }}>

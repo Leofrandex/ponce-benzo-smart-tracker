@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { LIGHT_TILE_URL, LIGHT_TILE_ATTRIBUTION, CARACAS_CENTER } from "./tiles";
 import { StoreMarkersLayer } from "./StoreMarkersLayer";
 import { MerchandiserMarkersLayer } from "./MerchandiserMarkersLayer";
-import type { MapFilterValue } from "./MapFilterSidebar";
+import { aplicar, type MapFilterValue } from "@/app/lib/queries/mapFilters";
 import type { Store } from "@/app/lib/types";
 import type { MapMerchandiser } from "@/app/lib/map-data";
 
@@ -18,12 +18,12 @@ interface MapLiveViewProps {
 
 export default function MapLiveView({ filters, stores, merchandisers }: MapLiveViewProps) {
   const filteredStores = useMemo(
-    () => filters.storeIds.length === 0 ? stores : stores.filter((s) => filters.storeIds.includes(s.store_id)),
-    [stores, filters.storeIds],
+    () => aplicar(stores, filters.tiendas, (s) => s.store_id),
+    [stores, filters.tiendas],
   );
   const filteredMerchandisers = useMemo(
-    () => filters.merchIds.length === 0 ? merchandisers : merchandisers.filter((m) => filters.merchIds.includes(m.id)),
-    [merchandisers, filters.merchIds],
+    () => aplicar(merchandisers, filters.merch, (m) => m.id),
+    [merchandisers, filters.merch],
   );
 
   return (
