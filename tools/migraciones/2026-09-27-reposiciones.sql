@@ -23,6 +23,8 @@ create table if not exists public.restocks (
   check (source = 'panel' or visit_id is not null)
 );
 create index if not exists idx_restocks_store_date on public.restocks(store_id, restock_date desc);
+create index if not exists idx_restocks_visit on public.restocks(visit_id);
+alter table public.restocks enable row level security;
 
 create table if not exists public.restock_products (
   restock_id  uuid not null references public.restocks(restock_id) on delete cascade,
@@ -30,7 +32,9 @@ create table if not exists public.restock_products (
   primary key (restock_id, product_id)
 );
 create index if not exists idx_restock_products_product on public.restock_products(product_id);
+alter table public.restock_products enable row level security;
 
+-- Ojo (Bloque 7): una fecha nula borra la reposición y, en cascada, sus productos.
 -- Copia visits.last_restock_date a restocks. SECURITY DEFINER porque el
 -- mercaderista no tiene permiso de escribir restocks. Nunca lanza: una fecha
 -- nula o futura (reloj del teléfono adelantado) simplemente no crea reposición.
@@ -68,9 +72,7 @@ from public.visits v
 where v.last_restock_date is not null and v.last_restock_date <= public.fn_hoy()
 on conflict (restock_id) do nothing;
 
--- ── RLS ──────────────────────────────────────────────────────
-alter table public.restocks enable row level security;
-alter table public.restock_products enable row level security;
+-- ── RLS (habilitada junto a cada create table) ───────────────
 
 drop policy if exists restocks_read on public.restocks;
 create policy restocks_read on public.restocks
@@ -132,7 +134,7 @@ begin
   values (p_store_id, p_fecha, 'panel', auth.uid(), nullif(btrim(p_nota), ''))
   returning restock_id into v_id;
   insert into public.restock_products (restock_id, product_id)
-  select distinct v_id, x from unnest(coalesce(p_productos, '{}'::uuid[])) as x;
+  select distinct v_id, x from unnest(coalesce(p_productos, '{}'::uuid[])) as x where x is not null;
   return v_id;
 end;
 $$;
