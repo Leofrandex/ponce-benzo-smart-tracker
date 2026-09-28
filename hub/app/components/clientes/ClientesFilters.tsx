@@ -4,19 +4,9 @@ import { X } from "lucide-react";
 import type { GeoItem } from "@/app/components/geo/geoOptions";
 import { Select } from "@/app/components/ui/Select";
 import { GeoFilters } from "@/app/components/geo/GeoFilters";
+import { EMPTY_FILTERS, type ClientesFilterValue } from "@/app/lib/queries/storeFilters";
 
-export interface ClientesFilterValue {
-  clientId: string;           // "" = all (cadena/cliente)
-  estado: string;
-  municipio: string;
-  urbanizacion: string;
-  channel: string;            // "" = all
-  classifications: string[];  // subset of ["A","B","C"]
-}
-
-export const EMPTY_FILTERS: ClientesFilterValue = {
-  clientId: "", estado: "", municipio: "", urbanizacion: "", channel: "", classifications: [],
-};
+export { EMPTY_FILTERS, type ClientesFilterValue } from "@/app/lib/queries/storeFilters";
 
 const CHANNELS = ["drogueria", "farmacia", "supermercado", "autoservicio", "mayorista", "otro"];
 const CHANNEL_LABELS: Record<string, string> = {
@@ -25,16 +15,17 @@ const CHANNEL_LABELS: Record<string, string> = {
 };
 
 export function ClientesFilters({
-  value, onChange, clients = [], stores = [],
+  value, onChange, clients = [], stores = [], vendedores = [],
 }: {
   value: ClientesFilterValue;
   onChange: (v: ClientesFilterValue) => void;
   clients?: { client_id: string; name: string }[];
   stores?: GeoItem[];
+  vendedores?: { value: string; label: string }[];
 }) {
 
   const isDirty =
-    value.clientId || value.estado || value.municipio || value.urbanizacion || value.channel || value.classifications.length > 0;
+    value.clientId || value.vendedor || value.estado || value.municipio || value.urbanizacion || value.channel || value.classifications.length > 0;
 
   function toggleClass(c: string) {
     const has = value.classifications.includes(c);
@@ -46,6 +37,9 @@ export function ClientesFilters({
       <Select label="Cliente" value={value.clientId}
         options={clients.map((c) => ({ value: c.client_id, label: c.name }))}
         onChange={(v) => onChange({ ...value, clientId: v })} />
+      <Select label="Vendedor" value={value.vendedor}
+        options={vendedores}
+        onChange={(v) => onChange({ ...value, vendedor: v })} />
       <GeoFilters
         items={stores}
         value={{ estado: value.estado, municipio: value.municipio, urbanizacion: value.urbanizacion }}
