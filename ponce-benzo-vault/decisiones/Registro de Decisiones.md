@@ -27,6 +27,8 @@ Este documento actúa como índice histórico de todas las decisiones importante
 
 | [[decisiones/ADR-008-Cuenta-Maestra-Colaborador\|ADR-008]] | Cuenta maestra `colaborador` para recorridos de la dirección | `aceptado` | 2026-08-31 | Cuarto rol `colaborador` + **una sola cuenta compartida** que sustituye al `admin` entrando a la APK con su cuenta personal. `fn_is_colaborador()` se suma con `OR` **solo** a `stores_read`/`clients_select` (catálogo completo para el reporte suelto); **no** hereda la rama global de `fn_is_admin()` sobre visitas, tareas, pings ni storage. La escritura ya estaba cubierta por las políticas `*_own`. El admin conserva el login móvil, pierde la pestaña de reporte. Precio explícito: la visita no identifica a la persona — mitigable con el selector de acompañante del ADR-007. |
 
+| [[decisiones/ADR-009-Reposiciones-Como-Registro-Propio\|ADR-009]] | Reposiciones como registro propio | `aceptado` | 2026-09-28 | Tablas `restocks` + `restock_products`; trigger sobre `visits` que copia `last_restock_date` (la app no cambia, nunca lanza); backfill de 77 visitas; alta desde el panel con RPC SECURITY INVOKER para admin/vendedor que ven la tienda; borrado por autor (panel) o admin. |
+
 ---
 
 ## 🛠️ Cómo registrar un nuevo ADR
