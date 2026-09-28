@@ -9,6 +9,7 @@ import {
   fetchDetalle, fetchJornadas, fetchUserName, groupByDay, summarizeDetalle, RESULTADO_LABEL, SKIP_REASON_LABEL, type Resultado,
 } from "@/app/lib/queries/merchandisers";
 import { fetchUserReports } from "@/app/lib/queries/reports";
+import { estadoVersion, fetchVersiones } from "@/app/lib/queries/appVersion";
 import { anomalyLabel } from "@/app/lib/queries/visitDetail";
 import { hoyCaracas } from "@/app/lib/queries/taskFilters";
 import { parsePeriodo, serializePeriodo } from "@/app/lib/queries/period";
@@ -40,6 +41,7 @@ function PerfilInner() {
   const { data: jornadas } = useSupabaseQuery(() => fetchJornadas(id, desde, hasta), [id, desde, hasta]);
   const { data: reports } = useSupabaseQuery(() => fetchUserReports(id, desde, hasta), [id, desde, hasta]);
   const { data: userName } = useSupabaseQuery(() => fetchUserName(id), [id]);
+  const { data: versiones } = useSupabaseQuery(fetchVersiones, []);
   const [abierto, setAbierto] = useState<string | null>(null);
 
   const resumen = useMemo(() => summarizeDetalle(detalle ?? []), [detalle]);
@@ -53,7 +55,15 @@ function PerfilInner() {
         <ArrowLeft size={15} /> Mercaderistas
       </Link>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-        <h1 style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px" }}>{nombre}</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <h1 style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px" }}>{nombre}</h1>
+          {versiones && (() => {
+            const { texto, desactualizada } = estadoVersion(versiones.get(id));
+            return (
+              <span className={`badge ${desactualizada ? "badge-warning" : ""}`} title={desactualizada ? "Actualizar la app en este teléfono" : undefined}>{texto}</span>
+            );
+          })()}
+        </div>
         <TimePeriodSelector desde={desde} hasta={hasta} onChange={setPeriodo} />
       </div>
 

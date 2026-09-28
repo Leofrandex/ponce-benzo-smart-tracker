@@ -7,6 +7,7 @@ import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchCumplimiento } from "@/app/lib/queries/dashboard";
 import { fetchMerchandisers } from "@/app/lib/queries/sessions";
 import { fetchResumenesDetalle } from "@/app/lib/queries/merchandisers";
+import { estadoVersion, fetchVersiones } from "@/app/lib/queries/appVersion";
 import { parsePeriodo, serializePeriodo } from "@/app/lib/queries/period";
 import TimePeriodSelector, { rangoDeDias } from "@/app/components/dashboard/TimePeriodSelector";
 
@@ -31,6 +32,7 @@ function MercaderistasInner() {
   const idsKey = ids.join(",");
 
   const { data: anom } = useSupabaseQuery(() => fetchResumenesDetalle(ids, desde, hasta), [idsKey, desde, hasta]);
+  const { data: versiones } = useSupabaseQuery(fetchVersiones, []);
 
   // Todos los del roster, aunque no tengan rutas en el periodo; luego quien
   // aparezca en el cumplimiento sin estar en el roster (p. ej. supervisores).
@@ -71,6 +73,7 @@ function MercaderistasInner() {
                 <th className="mz-num" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Cumplimiento</th>
                 <th className="mz-num" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Hechas / planificadas</th>
                 <th className="mz-num" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Anomalías</th>
+                <th className="mz-num" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>App</th>
               </tr>
             </thead>
             <tbody>
@@ -85,6 +88,16 @@ function MercaderistasInner() {
                   <td className="mz-num" style={{ padding: "10px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{f.c ? `${f.c.hechas} / ${f.c.planificadas}` : <span style={{ color: "var(--text-muted)" }}>–</span>}</td>
                   {/* Cero es cero; el guion queda solo mientras el dato no ha llegado. */}
                   <td className="mz-num" style={{ padding: "10px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{anom ? f.anomalias : <span style={{ color: "var(--text-muted)" }}>–</span>}</td>
+                  <td className="mz-num" style={{ padding: "10px 14px", textAlign: "right" }}>
+                    {versiones ? (() => {
+                      const { texto, desactualizada } = estadoVersion(versiones.get(f.id));
+                      return (
+                        <span style={{ color: desactualizada ? "var(--warning)" : "var(--text-muted)", fontWeight: desactualizada ? 600 : 400 }} title={desactualizada ? "Actualizar la app en este teléfono" : undefined}>
+                          {texto}
+                        </span>
+                      );
+                    })() : <span style={{ color: "var(--text-muted)" }}>–</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>
