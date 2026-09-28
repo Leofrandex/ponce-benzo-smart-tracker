@@ -76,6 +76,7 @@ function fakeDb(tables: Record<string, Row[]>) {
 
 function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFailTables?: string[]; failUploadOnce?: string[] } = {}) {
   const calls: string[] = [];
+  const updates: { table: string; payload: any }[] = [];
   const uploaded = new Set<string>();
   const failedOnce = new Set<string>();
   const result = (table: string) =>
@@ -86,9 +87,10 @@ function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFa
         : Promise.resolve({ error: null });
   return {
     calls,
+    updates,
     from: (table: string) => ({
       upsert: (_payload: any, _opts: any) => { calls.push(`upsert:${table}`); return result(table); },
-      update: (_payload: any) => ({ eq: () => { calls.push(`update:${table}`); return result(table); } }),
+      update: (payload: any) => ({ eq: () => { calls.push(`update:${table}`); updates.push({ table, payload }); return result(table); } }),
     }),
     storage: {
       from: (_bucket: string) => ({
@@ -230,6 +232,7 @@ test('flush: corte a mitad de las fotos + reintento → photo_urls completo sin 
 
     await flush(db, supa);                         // reintento
     assert.equal(tables.visits[0].photos_synced, 1);
+    assert.deepEqual(supa.updates.at(-1).payload.photo_urls, ['u1/v1/0.jpg', 'u1/v1/1.jpg']);
     assert.equal(supa.calls.filter((c: string) => c === 'storage:upload:u1/v1/0.jpg').length, 1);
     assert.equal(supa.calls.filter((c: string) => c === 'storage:upload:u1/v1/1.jpg').length, 2);
   } finally {

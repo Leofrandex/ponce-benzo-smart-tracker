@@ -23,7 +23,10 @@ export async function uploadPhotos(
       supabase.storage.from("visit-photos").list(folder),
       timeoutMs, `listar ${folder}`,
     );
-    existing = new Set((data ?? []).map((o: { name: string }) => `${folder}/${o.name}`));
+    // Un objeto vacío no cuenta como subido: se vuelve a subir.
+    existing = new Set((data ?? [])
+      .filter((o: { metadata?: { size?: number } | null }) => (o.metadata?.size ?? 1) > 0)
+      .map((o: { name: string }) => `${folder}/${o.name}`));
   } catch { /* sin listado: se sube todo, como antes */ }
 
   const paths: string[] = [];

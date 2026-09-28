@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { ImageManipulator, SaveFormat, type ImageManipulatorContext, type ImageRef } from 'expo-image-manipulator';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, fonts } from '../theme';
 import { resizeTarget } from '../utils/photoSize';
@@ -33,15 +33,22 @@ export function CameraModal({ visible, onCapture, onClose }: CameraModalProps) {
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.75, skipProcessing: false });
       let uri = photo.uri;
+      // Contexto y resultado guardan bitmaps nativos (~48 MB el original): se
+      // liberan a mano para no esperar al GC en teléfonos con poca memoria.
+      let ctx: ImageManipulatorContext | null = null;
+      let rendered: ImageRef | null = null;
       try {
         const target = resizeTarget(photo.width, photo.height);
-        const ctx = ImageManipulator.manipulate(uri);
+        ctx = ImageManipulator.manipulate(uri);
         if (target) ctx.resize(target);
-        const rendered = await ctx.renderAsync();
+        rendered = await ctx.renderAsync();
         const saved = await rendered.saveAsync({ compress: 0.6, format: SaveFormat.JPEG });
         uri = saved.uri;
       } catch (e) {
         console.warn('[camera] no se pudo reducir la foto, se usa la original:', (e as Error)?.message ?? e);
+      } finally {
+        rendered?.release();
+        ctx?.release();
       }
       setPreviewUri(uri);
     } catch {
