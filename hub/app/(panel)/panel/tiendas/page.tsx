@@ -118,7 +118,7 @@ function TiendasInner() {
       </div>
 
       <ClientesFilters value={filters} onChange={handleFiltersChange} clients={clients ?? []} stores={stores ?? []} vendedores={vendedores} />
-      <ClientesTable rows={rows} />
+      <ClientesTable rows={rows} loading={loadingStores} />
     </>
   );
 }

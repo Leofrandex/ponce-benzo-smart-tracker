@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Search, User, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { Select } from "@/app/components/ui/Select";
 import type { MapMerchandiser } from "@/app/lib/map-data";
 import {
@@ -14,13 +14,19 @@ function Casilla({ estado, onClick, label }: { estado: "todas" | "algunas" | "ni
   return (
     <button type="button" role="checkbox" aria-checked={estado === "todas" ? true : estado === "algunas" ? "mixed" : false}
       aria-label={label} onClick={onClick}
-      style={{ width: 16, height: 16, flexShrink: 0, borderRadius: 4, cursor: "pointer", padding: 0,
+      style={{ width: 14, height: 14, flexShrink: 0, borderRadius: 3, cursor: "pointer", padding: 0,
         border: `1.5px solid ${estado === "ninguna" ? "var(--border)" : "var(--accent)"}`,
-        background: estado === "todas" ? "var(--accent)" : "var(--bg-card)", color: "#fff", fontSize: 11, lineHeight: "12px" }}>
+        background: estado === "todas" ? "var(--accent)" : "var(--bg-card)", color: "#fff", fontSize: 10, lineHeight: "10px" }}>
       {estado === "todas" ? "✓" : estado === "algunas" ? <span style={{ color: "var(--accent)" }}>–</span> : ""}
     </button>
   );
 }
+
+// Chips compactos: los .filter-chip de tamaño normal no caben junto al título en 250px.
+const CHIP = { padding: "2px 7px", fontSize: 10 } as const;
+const TITLE = { fontSize: 11, letterSpacing: 0.5 } as const;
+// Casillas nativas con el mismo acento y tamaño que la casilla de cadena.
+const CHECK = { width: 14, height: 14, margin: 0, flexShrink: 0, accentColor: "var(--accent)" } as const;
 
 export function MapFilterSidebar({
   value, onChange, grupos, merchandisers, vendedores, onVendedor,
@@ -43,7 +49,7 @@ export function MapFilterSidebar({
   const dirty = value.tiendas.modo !== "todas" || value.merch.modo !== "todas" || !!value.vendedor;
 
   return (
-    <div style={{ width: 250, flexShrink: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto", paddingRight: 2 }}>
+    <div style={{ width: 250, flexShrink: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto", overflowX: "hidden", paddingRight: 2 }}>
       <div className="card" style={{ padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{resumenMapa(value, grupos, merchandisers.length)}</span>
         {dirty && (
@@ -57,20 +63,19 @@ export function MapFilterSidebar({
       {/* Mercaderistas */}
       <div className="card" style={{ padding: "10px 12px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-          <span className="section-title">Mercaderistas</span>
-          <span style={{ display: "flex", gap: 6 }}>
-            <button type="button" className="filter-chip" onClick={() => onChange({ ...value, merch: TODAS })}>Todos</button>
-            <button type="button" className="filter-chip" onClick={() => onChange({ ...value, merch: NINGUNA })}>Ninguno</button>
+          <span className="section-title" style={TITLE}>Mercaderistas</span>
+          <span style={{ display: "flex", gap: 4 }}>
+            <button type="button" className="filter-chip" style={CHIP} onClick={() => onChange({ ...value, merch: TODAS })}>Todos</button>
+            <button type="button" className="filter-chip" style={CHIP} onClick={() => onChange({ ...value, merch: NINGUNA })}>Ninguno</button>
           </span>
         </div>
         {merchandisers.map((m) => {
           const on = incluye(value.merch, m.id);
           return (
             <label key={m.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12, cursor: "pointer" }}>
-              <input type="checkbox" checked={on} onChange={() => onChange({ ...value, merch: toggleUno(value.merch, m.id, allMerchIds) })} />
-              <User size={12} />
-              <span style={{ flex: 1 }}>{m.name}</span>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: m.status !== "offline" ? "var(--success)" : "var(--text-muted)" }}
+              <input type="checkbox" style={CHECK} checked={on} onChange={() => onChange({ ...value, merch: toggleUno(value.merch, m.id, allMerchIds) })} />
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.name}>{m.name}</span>
+              <span style={{ width: 6, height: 6, flexShrink: 0, borderRadius: "50%", background: m.status !== "offline" ? "var(--success)" : "var(--text-muted)" }}
                 title={m.status !== "offline" ? "Activo" : "Desconectado"} />
             </label>
           );
@@ -80,10 +85,10 @@ export function MapFilterSidebar({
       {/* Sucursales por cadena */}
       <div className="card" style={{ padding: "10px 12px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-          <span className="section-title">Sucursales</span>
-          <span style={{ display: "flex", gap: 6 }}>
-            <button type="button" className="filter-chip" onClick={() => onChange({ ...value, tiendas: TODAS })}>Todas</button>
-            <button type="button" className="filter-chip" onClick={() => onChange({ ...value, tiendas: NINGUNA })}>Ninguna</button>
+          <span className="section-title" style={TITLE}>Sucursales</span>
+          <span style={{ display: "flex", gap: 4 }}>
+            <button type="button" className="filter-chip" style={CHIP} onClick={() => onChange({ ...value, tiendas: TODAS })}>Todas</button>
+            <button type="button" className="filter-chip" style={CHIP} onClick={() => onChange({ ...value, tiendas: NINGUNA })}>Ninguna</button>
           </span>
         </div>
         <label style={{ position: "relative", display: "flex", alignItems: "center", marginBottom: 6 }}>
@@ -102,14 +107,15 @@ export function MapFilterSidebar({
                 <Casilla estado={est} label={`Seleccionar ${g.nombre}`}
                   onClick={() => onChange({ ...value, tiendas: setVarios(value.tiendas, ids, est !== "todas", allStoreIds) })} />
                 <button type="button" onClick={() => setAbiertos((s) => ({ ...s, [key]: !abierto }))} aria-expanded={abierto}
-                  style={{ all: "unset", cursor: "pointer", flex: 1, display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600 }}>
-                  {abierto ? <ChevronDown size={12} /> : <ChevronRight size={12} />} {g.nombre}
-                  <span style={{ marginLeft: "auto", color: "var(--text-muted)", fontWeight: 400 }}>{g.tiendas.length}</span>
+                  style={{ all: "unset", cursor: "pointer", flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600 }}>
+                  {abierto ? <ChevronDown size={12} style={{ flexShrink: 0 }} /> : <ChevronRight size={12} style={{ flexShrink: 0 }} />}
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={g.nombre}>{g.nombre}</span>
+                  <span style={{ marginLeft: "auto", color: "var(--text-muted)", fontWeight: 400, fontVariantNumeric: "tabular-nums" }}>{g.tiendas.length}</span>
                 </button>
               </div>
               {abierto && g.tiendas.map((s) => (
                 <label key={s.store_id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0 3px 22px", fontSize: 12, cursor: "pointer" }}>
-                  <input type="checkbox" checked={incluye(value.tiendas, s.store_id)}
+                  <input type="checkbox" style={CHECK} checked={incluye(value.tiendas, s.store_id)}
                     onChange={() => onChange({ ...value, tiendas: toggleUno(value.tiendas, s.store_id, allStoreIds) })} />
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={s.name}>{s.name}</span>
                 </label>

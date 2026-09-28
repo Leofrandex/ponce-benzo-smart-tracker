@@ -2,27 +2,35 @@
 
 import Link from "next/link";
 import { Building2, ChevronRight, AlertTriangle } from "lucide-react";
-import type { Store } from "@/app/lib/types";
+import type { ClientRow } from "@/app/lib/queries/derive";
+import { fechaCaracas } from "@/app/lib/queries/taskFilters";
 
-const CHANNEL_LABELS: Record<string, string> = {
+export const CHANNEL_LABELS: Record<string, string> = {
   drogueria: "Droguería", farmacia: "Farmacia", supermercado: "Supermercado",
   autoservicio: "Autoservicio", mayorista: "Mayorista", otro: "Otro",
 };
 const CLASS_COLORS: Record<string, string> = {
   A: "var(--success)", B: "var(--warning)", C: "var(--text-muted)",
 };
+// Mismos colores y textos que ActivityFeed para el estado de una visita.
+const VISIT_STATUS: Record<NonNullable<ClientRow["last_visit_status"]>, { label: string; color: string }> = {
+  completed: { label: "Completado", color: "var(--success)" },
+  skipped: { label: "Omitido", color: "var(--warning)" },
+  anomaly: { label: "Anomalía", color: "var(--danger)" },
+};
 
-export interface ClientRow extends Store {
-  pending_tasks: number;
-}
+const COLUMNS = "2fr 1fr 0.6fr 1fr 1fr auto";
 
-export function ClientesTable({ rows }: { rows: ClientRow[] }) {
+export function ClientesTable({ rows, loading = false }: { rows: ClientRow[]; loading?: boolean }) {
+  if (loading) {
+    return <div className="empty-state"><div className="empty-desc">Cargando tiendas…</div></div>;
+  }
   if (rows.length === 0) {
     return (
       <div className="empty-state">
         <Building2 size={44} style={{ opacity: 0.2 }} />
-        <div className="empty-title">Sin clientes</div>
-        <div className="empty-desc">Ningún cliente coincide con los filtros.</div>
+        <div className="empty-title">Sin tiendas</div>
+        <div className="empty-desc">Ninguna tienda coincide con los filtros.</div>
       </div>
     );
   }
@@ -30,42 +38,55 @@ export function ClientesTable({ rows }: { rows: ClientRow[] }) {
   return (
     <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
       <div className="contactos-table-header" style={{
-        gridTemplateColumns: "2fr 1fr 0.6fr 1fr auto",
+        gridTemplateColumns: COLUMNS,
         position: "sticky", top: 0, zIndex: 1, background: "var(--bg-base)",
       }}>
-        <div>Nombre</div><div>Canal</div><div>Clase</div><div>Actividades</div><div></div>
+        <div>Nombre</div><div>Canal</div><div>Clase</div><div>Tareas</div>
+        <div style={{ textAlign: "right" }}>Última visita</div><div></div>
       </div>
-      {rows.map((r, idx) => (
-        <Link key={r.store_id} href={`/panel/tiendas/${r.store_id}`} style={{ textDecoration: "none" }}>
-          <div className="contactos-table-row clientes-flat-row" style={{
-            gridTemplateColumns: "2fr 1fr 0.6fr 1fr auto",
-            borderTop: idx === 0 ? "none" : "1px solid var(--border)",
-            opacity: r.active ? 1 : 0.6,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
-              <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: r.active ? "var(--success)" : "var(--text-muted)" }} />
-              <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
+      {rows.map((r, idx) => {
+        const visita = r.last_visit_status ? VISIT_STATUS[r.last_visit_status] : null;
+        return (
+          <Link key={r.store_id} href={`/panel/tiendas/${r.store_id}`} style={{ textDecoration: "none" }}>
+            <div className="contactos-table-row clientes-flat-row" style={{
+              gridTemplateColumns: COLUMNS,
+              borderTop: idx === 0 ? "none" : "1px solid var(--border)",
+              opacity: r.active ? 1 : 0.6,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: r.active ? "var(--success)" : "var(--text-muted)" }} />
+                <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.name}>{r.name}</span>
+              </div>
+              <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+                {r.business_channel ? (CHANNEL_LABELS[r.business_channel] ?? r.business_channel) : <span style={{ color: "var(--text-muted)" }}>—</span>}
+              </div>
+              <div>
+                {r.classification ? (
+                  <span className="badge" style={{ background: "transparent", border: `1px solid ${CLASS_COLORS[r.classification]}`, color: CLASS_COLORS[r.classification] }}>{r.classification}</span>
+                ) : <span style={{ color: "var(--text-muted)" }}>—</span>}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                {r.pending_tasks > 0 && <AlertTriangle size={12} color="var(--warning)" />}
+                <span style={{ fontSize: "12px", color: r.pending_tasks > 0 ? "var(--warning)" : "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                  {r.pending_tasks > 0 ? `${r.pending_tasks} pendiente${r.pending_tasks === 1 ? "" : "s"}` : "Sin pendientes"}
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px", fontSize: "12px", fontVariantNumeric: "tabular-nums" }}>
+                {r.last_visit_date && visita ? (
+                  <>
+                    <span role="img" aria-label={visita.label} title={visita.label}
+                      style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, background: visita.color }} />
+                    <span style={{ color: "var(--text-secondary)" }}>{fechaCaracas(r.last_visit_date)}</span>
+                  </>
+                ) : <span style={{ color: "var(--text-muted)" }}>Sin visitas</span>}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", paddingLeft: "8px" }}>
+                <ChevronRight size={15} color="var(--text-muted)" />
+              </div>
             </div>
-            <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-              {r.business_channel ? (CHANNEL_LABELS[r.business_channel] ?? r.business_channel) : "—"}
-            </div>
-            <div>
-              {r.classification ? (
-                <span className="badge" style={{ background: "transparent", border: `1px solid ${CLASS_COLORS[r.classification]}`, color: CLASS_COLORS[r.classification] }}>{r.classification}</span>
-              ) : <span style={{ color: "var(--text-muted)" }}>—</span>}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              {r.pending_tasks > 0 && <AlertTriangle size={12} color="var(--warning)" />}
-              <span style={{ fontSize: "12px", color: r.pending_tasks > 0 ? "var(--warning)" : "var(--text-muted)" }}>
-                {r.pending_tasks > 0 ? `${r.pending_tasks} pendiente${r.pending_tasks === 1 ? "" : "s"}` : "Sin pendientes"}
-              </span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", paddingLeft: "8px" }}>
-              <ChevronRight size={15} color="var(--text-muted)" />
-            </div>
-          </div>
-        </Link>
-      ))}
+          </Link>
+        );
+      })}
     </div>
   );
 }

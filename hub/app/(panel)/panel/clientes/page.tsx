@@ -2,7 +2,7 @@
 
 import { Suspense, useMemo } from "react";
 import Link from "next/link";
-import { Store } from "lucide-react";
+import { ChevronRight, X } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchClients, fetchStoreGeo } from "@/app/lib/queries/clients";
@@ -12,6 +12,7 @@ import {
   type ClientesFiltro,
 } from "@/app/lib/queries/clientFilters";
 import { Select } from "@/app/components/ui/Select";
+import { CHANNEL_LABELS } from "@/app/components/clientes/ClientesTable";
 
 function ClientesInner() {
   const sp = useSearchParams();
@@ -57,9 +58,9 @@ function ClientesInner() {
     <>
       <div>
         <h1 style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px" }}>Clientes</h1>
-        <p className="text-muted text-sm" style={{ marginTop: "4px" }}>{loading ? "Cargando…" : `${rows.length} cadenas`}</p>
+        <p className="text-muted text-sm" style={{ marginTop: "4px" }}>{loading ? "Cargando…" : hasFilters ? `${rows.length} de ${(clients ?? []).length} cadenas` : `${rows.length} cadenas`}</p>
       </div>
-      <div className="card" style={{ padding: "12px", display: "flex", gap: "10px", alignItems: "flex-end" }}>
+      <div className="card" style={{ padding: "12px", display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "flex-end" }}>
         <Select label="Estado" value={filters.estado}
           options={estados.map((e) => ({ value: e, label: e }))}
           onChange={(estado) => setFilters({ ...filters, estado, municipio: "" })} />
@@ -71,23 +72,36 @@ function ClientesInner() {
           options={vendedores}
           onChange={(vendedor) => setFilters({ ...filters, vendedor })} />
         {hasFilters && (
-          <button className="filter-chip" onClick={() => setFilters({ estado: "", municipio: "", vendedor: "" })} style={{ marginLeft: "auto" }}>
-            Limpiar
+          <button className="filter-chip" onClick={() => setFilters({ estado: "", municipio: "", vendedor: "" })}
+            style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "auto" }}>
+            <X size={12} /> Limpiar filtros
           </button>
         )}
       </div>
-      <div style={{ display: "grid", gap: "10px", marginTop: "16px" }}>
-        {rows.map((c) => (
-          <Link key={c.client_id} href={`/panel/tiendas?client=${c.client_id}${extraQs ? `&${extraQs}` : ""}`} className="card"
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", textDecoration: "none" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <Store size={18} />
-              <div><div style={{ fontWeight: 700 }}>{c.name}</div><div className="text-muted text-sm">{c.business_channel ?? "—"}</div></div>
-            </div>
-            <span className="filter-chip">{c.store_count} sucursales</span>
-          </Link>
-        ))}
-      </div>
+      {!loading && rows.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-title">Sin cadenas</div>
+          <div className="empty-desc">Ninguna cadena coincide con los filtros.</div>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          {rows.map((c, idx) => (
+            <Link key={c.client_id} href={`/panel/tiendas?client=${c.client_id}${extraQs ? `&${extraQs}` : ""}`}
+              className="contactos-table-row"
+              style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", textDecoration: "none", color: "inherit",
+                borderTop: idx === 0 ? "none" : "1px solid var(--border)" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={c.name}>{c.name}</div>
+                <div className="text-muted text-sm">{c.business_channel ? (CHANNEL_LABELS[c.business_channel] ?? c.business_channel) : "—"}</div>
+              </div>
+              <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums", textAlign: "right", whiteSpace: "nowrap" }}>
+                {c.store_count} {c.store_count === 1 ? "sucursal" : "sucursales"}
+              </span>
+              <ChevronRight size={15} color="var(--text-muted)" />
+            </Link>
+          ))}
+        </div>
+      )}
     </>
   );
 }
