@@ -3,15 +3,19 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Building2, Pencil, Camera, Megaphone } from "lucide-react";
+import { ArrowLeft, Building2, Pencil, Camera, Megaphone, Package } from "lucide-react";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
+import { useAuth } from "@/app/lib/auth-context";
 import { fetchStoreById, fetchContacts, fetchEngagements } from "@/app/lib/queries/contacts";
 import { fetchFullTasks } from "@/app/lib/queries/tasks";
 import { tasksForStore } from "@/app/lib/queries/taskFilters";
 import { fetchStoreReports, fetchStoreCompetition } from "@/app/lib/queries/reports";
+import { fetchStoreRestocks, ultimaReposicion, type RestockRow } from "@/app/lib/queries/restocks";
 import { updateStore } from "@/app/lib/mutations/stores";
 import { createContact, updateContact, deleteContact } from "@/app/lib/mutations/contacts";
 import { createEngagement, toggleEngagementDone } from "@/app/lib/mutations/engagements";
+import { eliminarReposicion } from "@/app/lib/mutations/restocks";
+import { canRegisterRestock } from "@/app/lib/roles";
 import type { Store, ContactEngagement } from "@/app/lib/types";
 import type { ContactFormValue } from "@/app/components/clientes/ContactFormModal";
 import { ClientInfoPanel } from "@/app/components/clientes/ClientInfoPanel";
@@ -19,11 +23,14 @@ import { ContactList } from "@/app/components/clientes/ContactList";
 import { EngagementsPanel } from "@/app/components/clientes/EngagementsPanel";
 import { ActivityFeed } from "@/app/components/clientes/ActivityFeed";
 import { CompetitionReportsPanel } from "@/app/components/clientes/CompetitionReportsPanel";
+import { RestocksPanel } from "@/app/components/clientes/RestocksPanel";
+import { RestockFormModal } from "@/app/components/clientes/RestockFormModal";
 import { LongTermPlaceholders } from "@/app/components/clientes/LongTermPlaceholders";
 import { StoreFormModal } from "@/app/components/clientes/StoreFormModal";
 
 export default function ClienteDetailPage() {
   const { storeId } = useParams<{ storeId: string }>();
+  const { profile } = useAuth();
 
   const { data: store, loading, refetch: refetchStore } = useSupabaseQuery(() => fetchStoreById(storeId), [storeId]);
   const { data: contacts, refetch: refetchContacts } = useSupabaseQuery(() => fetchContacts(storeId), [storeId]);
@@ -32,10 +39,12 @@ export default function ClienteDetailPage() {
   const tasks = useMemo(() => tasksForStore(allTasks ?? [], storeId), [allTasks, storeId]);
   const { data: reports } = useSupabaseQuery(() => fetchStoreReports(storeId), [storeId]);
   const { data: competition } = useSupabaseQuery(() => fetchStoreCompetition(storeId), [storeId]);
-  const lastRestock = null;
+  const { data: restocks, loading: loadingRestocks, refetch: refetchRestocks } = useSupabaseQuery(() => fetchStoreRestocks(storeId), [storeId]);
+  const lastRestock = useMemo(() => ultimaReposicion(restocks ?? []), [restocks]);
 
   const [editOpen, setEditOpen] = useState(false);
-  const [activityTab, setActivityTab] = useState<"visitas" | "competencia">("visitas");
+  const [restockOpen, setRestockOpen] = useState(false);
+  const [activityTab, setActivityTab] = useState<"visitas" | "competencia" | "reposiciones">("visitas");
 
   const onStoreSave = async (updated: Store) => {
     const patch: Partial<Store> = {
@@ -77,6 +86,13 @@ export default function ClienteDetailPage() {
     const { error } = await toggleEngagementDone(e);
     if (error) { alert("No se pudo actualizar: " + error); return; }
     refetchEngagements();
+  };
+
+  const onRestockDelete = async (r: RestockRow) => {
+    if (!confirm("¿Eliminar esta reposición? No se puede deshacer.")) return;
+    const { error } = await eliminarReposicion(r.restock_id);
+    if (error) { alert(error); return; }
+    refetchRestocks();
   };
 
   if (loading) {
@@ -125,7 +141,7 @@ export default function ClienteDetailPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <div>
             <div style={{ display: "flex", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "3px", marginBottom: "8px" }}>
-              {([["visitas", "Visitas", Camera], ["competencia", "Competencia", Megaphone]] as [typeof activityTab, string, React.ElementType][]).map(([key, label, Icon]) => (
+              {([["visitas", "Visitas", Camera], ["competencia", "Competencia", Megaphone], ["reposiciones", "Reposiciones", Package]] as [typeof activityTab, string, React.ElementType][]).map(([key, label, Icon]) => (
                 <button
                   key={key}
                   onClick={() => setActivityTab(key)}
@@ -141,12 +157,25 @@ export default function ClienteDetailPage() {
                   {key === "competencia" && (competition?.length ?? 0) > 0 && (
                     <span style={{ fontSize: "10px", fontWeight: 700, background: "var(--accent-glow)", color: "var(--accent)", borderRadius: "999px", padding: "1px 6px" }}>{competition!.length}</span>
                   )}
+                  {key === "reposiciones" && (restocks?.length ?? 0) > 0 && (
+                    <span style={{ fontSize: "10px", fontWeight: 700, background: "var(--accent-glow)", color: "var(--accent)", borderRadius: "999px", padding: "1px 6px" }}>{restocks!.length}</span>
+                  )}
                 </button>
               ))}
             </div>
-            {activityTab === "visitas"
-              ? <ActivityFeed reports={reports ?? []} tasks={tasks} />
-              : <CompetitionReportsPanel reports={competition ?? []} />}
+            {activityTab === "visitas" && <ActivityFeed reports={reports ?? []} tasks={tasks} />}
+            {activityTab === "competencia" && <CompetitionReportsPanel reports={competition ?? []} />}
+            {activityTab === "reposiciones" && (
+              <RestocksPanel
+                rows={restocks ?? []}
+                loading={loadingRestocks}
+                canRegister={canRegisterRestock(profile?.role)}
+                currentUserId={profile?.id ?? null}
+                isAdmin={profile?.role === "admin"}
+                onRegister={() => setRestockOpen(true)}
+                onDelete={onRestockDelete}
+              />
+            )}
           </div>
           <EngagementsPanel
             key={storeId}
@@ -162,6 +191,12 @@ export default function ClienteDetailPage() {
         store={store}
         onClose={() => setEditOpen(false)}
         onSave={onStoreSave}
+      />
+      <RestockFormModal
+        open={restockOpen}
+        storeId={storeId}
+        onClose={() => setRestockOpen(false)}
+        onSaved={() => { setRestockOpen(false); refetchRestocks(); }}
       />
     </>
   );
