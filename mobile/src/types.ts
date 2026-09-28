@@ -90,6 +90,8 @@ export interface VisitRecord {
   supervisor_present_user_id: string | null;
   /** product_ids por tipo de anomalia. Clave = AnomalyType. Vacio = sin productos. */
   anomaly_products: Record<string, string[]>;
+  /** product_ids repuestos. Solo se guardan si hay last_restock_date. */
+  restock_products: string[];
 }
 
 export type GPSState = 'idle' | 'searching' | 'found' | 'error';

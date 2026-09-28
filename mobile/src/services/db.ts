@@ -157,3 +157,22 @@ export async function insertAnomalyProducts(
     }
   }
 }
+
+// ── Productos repuestos ──────────────────────────────────────────────────────
+
+export interface RestockProductRow {
+  visit_id: string;
+  product_id: string;
+  synced: number;
+}
+
+export async function insertRestockProducts(
+  db: SQLiteDatabase, visitId: string, productIds: string[],
+): Promise<void> {
+  for (const productId of new Set(productIds)) {
+    await db.runAsync(
+      `INSERT OR REPLACE INTO restock_products (visit_id, product_id, synced) VALUES (?, ?, 0)`,
+      visitId, productId,
+    );
+  }
+}

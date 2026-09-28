@@ -34,6 +34,10 @@ function fakeDb(tables: Record<string, Row[]>) {
     if (sql.includes('FROM competition_reports') && sql.includes('photos_synced = 0')) return tables.competition_reports.filter((r) => r.synced === 1 && r.photos_synced === 0);
     if (sql.includes('FROM competition_reports') && sql.includes('synced = 0')) return tables.competition_reports.filter((r) => r.synced === 0);
     if (sql.includes('FROM location_pings')) return tables.location_pings.filter((r) => r.synced === 0);
+    if (sql.includes('FROM restock_products')) {
+      const syncedVisits = new Set(tables.visits.filter((v) => v.synced === 1).map((v) => v.visit_id));
+      return (tables.restock_products ?? []).filter((r) => r.synced === 0 && syncedVisits.has(r.visit_id));
+    }
     return [];
   };
   return {
@@ -62,16 +66,22 @@ function fakeDb(tables: Record<string, Row[]>) {
       if (sql.includes('UPDATE competition_reports SET synced=1')) { const r = find(tables.competition_reports, 'report_id'); if (r) { r.synced = 1; r.photos_synced = args[0]; } }
       if (sql.includes('UPDATE competition_reports SET photos_synced=1')) { const r = find(tables.competition_reports, 'report_id'); if (r) r.photos_synced = 1; }
       if (sql.includes('UPDATE location_pings')) { const r = find(tables.location_pings, 'ping_id'); if (r) r.synced = 1; }
+      if (sql.includes('UPDATE restock_products SET synced=1')) {
+        const r = (tables.restock_products ?? []).find((rp) => rp.visit_id === args[0] && rp.product_id === args[1]);
+        if (r) r.synced = 1;
+      }
     },
   } as any;
 }
 
-function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean } = {}) {
+function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFailTables?: string[] } = {}) {
   const calls: string[] = [];
   const result = (table: string) =>
-    opts.failTables?.includes(table)
-      ? Promise.resolve({ error: { message: `red caída (${table})` } })
-      : Promise.resolve({ error: null });
+    opts.fkFailTables?.includes(table)
+      ? Promise.resolve({ error: { code: '23503', message: 'violates foreign key constraint' } })
+      : opts.failTables?.includes(table)
+        ? Promise.resolve({ error: { message: `red caída (${table})` } })
+        : Promise.resolve({ error: null });
   return {
     calls,
     from: (table: string) => ({
@@ -97,7 +107,7 @@ const visit = (id: string, over: Row = {}): Row => ({
   anomaly_type: null, skip_reason: null, last_restock_date: null, synced: 0, photos_synced: 0, ...over,
 });
 
-const baseTables = () => ({ sessions: [] as Row[], visits: [] as Row[], competition_reports: [] as Row[], location_pings: [] as Row[] });
+const baseTables = () => ({ sessions: [] as Row[], visits: [] as Row[], competition_reports: [] as Row[], location_pings: [] as Row[], restock_products: [] as Row[] });
 
 test('flush: visita sin fotos sube y queda synced + photos_synced', async () => {
   const tables = baseTables();
@@ -153,6 +163,44 @@ test('flush: registros suben ANTES que pings y fotos (orden por valor)', async (
   const iVisit = supa.calls.indexOf('upsert:visits');
   const iPing = supa.calls.indexOf('upsert:location_pings');
   assert.ok(iVisit >= 0 && iPing >= 0 && iVisit < iPing, `visita antes que ping: ${supa.calls.join(',')}`);
+});
+
+test('flush: productos repuestos suben después de la visita y quedan synced', async () => {
+  const tables = baseTables();
+  tables.visits.push(visit('v1', { last_restock_date: '2026-09-20' }));
+  tables.restock_products.push({ visit_id: 'v1', product_id: 'p1', synced: 0 });
+  const supa = fakeSupabase();
+  const r = await flush(fakeDb(tables), supa);
+  assert.equal(r.failed, 0);
+  assert.equal(tables.restock_products[0].synced, 1);
+  assert.ok(supa.calls.indexOf('upsert:visits') < supa.calls.indexOf('upsert:restock_products'));
+});
+
+test('flush: visita con fecha de reposición y sin productos no toca restock_products', async () => {
+  const tables = baseTables();
+  tables.visits.push(visit('v1', { last_restock_date: '2026-09-20' }));
+  const supa = fakeSupabase();
+  await flush(fakeDb(tables), supa);
+  assert.ok(!supa.calls.includes('upsert:restock_products'));
+});
+
+test('flush: FK 23503 en productos repuestos se descarta (no se reintenta)', async () => {
+  const tables = baseTables();
+  tables.visits.push(visit('v1'));
+  tables.restock_products.push({ visit_id: 'v1', product_id: 'p1', synced: 0 });
+  const supa = fakeSupabase({ fkFailTables: ['restock_products'] });
+  const r = await flush(fakeDb(tables), supa);
+  assert.equal(tables.restock_products[0].synced, 1);
+  assert.equal(r.failed, 0);
+});
+
+test('flush: otro error en productos repuestos queda para reintentar', async () => {
+  const tables = baseTables();
+  tables.visits.push(visit('v1'));
+  tables.restock_products.push({ visit_id: 'v1', product_id: 'p1', synced: 0 });
+  const r = await flush(fakeDb(tables), fakeSupabase({ failTables: ['restock_products'] }));
+  assert.equal(tables.restock_products[0].synced, 0);
+  assert.equal(r.failed, 1);
 });
 
 test('pendingCounts: separa records / photos / pings', async () => {

@@ -26,6 +26,7 @@ import {
 } from '../services/catalogCache';
 import { ProductPickerSheet } from '../components/ProductPickerSheet';
 import { newId } from '../services/sync/ids';
+import { fechaLocalISO, fechaDesdeISO } from '../utils/localDate';
 import type { StoreStatus, VisitRecord, Visit, AnomalyType, Product, SupervisorOption, CompetitionReportRecord } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -92,6 +93,8 @@ export function CheckInScreen() {
   const [supervisors, setSupervisors] = useState<SupervisorOption[]>([]);
   const [anomalyProducts, setAnomalyProducts] = useState<Record<string, string[]>>({});
   const [productSheetFor, setProductSheetFor] = useState<AnomalyType | null>(null);
+  const [restockProducts, setRestockProducts] = useState<string[]>([]);
+  const [restockSheetOpen, setRestockSheetOpen] = useState(false);
   const [supervisorId, setSupervisorId] = useState<string | null>(null);
   const [supervisorSheetOpen, setSupervisorSheetOpen] = useState(false);
 
@@ -178,6 +181,7 @@ export function CheckInScreen() {
       last_restock_date: lastRestockDate,
       supervisor_present_user_id: supervisorId,
       anomaly_products: selectedStatus === 'anomaly' ? anomalyProducts : {},
+      restock_products: lastRestockDate ? restockProducts : [],
     };
 
     // recordVisit actualiza la lista (optimista) y persiste en SQLite; la subida a
@@ -359,23 +363,44 @@ export function CheckInScreen() {
               </Text>
             </TouchableOpacity>
             {lastRestockDate && (
-              <TouchableOpacity onPress={() => setLastRestockDate(null)} style={styles.clearDateBtn}>
+              <TouchableOpacity
+                onPress={() => { setLastRestockDate(null); setRestockProducts([]); }}
+                style={styles.clearDateBtn}
+              >
                 <Ionicons name="close" size={16} color={colors.danger} />
               </TouchableOpacity>
             )}
           </View>
           {datePickerOpen && (
             <DateTimePicker
-              value={lastRestockDate ? new Date(lastRestockDate) : new Date()}
+              value={lastRestockDate ? fechaDesdeISO(lastRestockDate) : new Date()}
               mode="date"
               maximumDate={new Date()}
               onChange={(event, date) => {
                 setDatePickerOpen(Platform.OS === 'ios');
                 if (event.type === 'set' && date) {
-                  setLastRestockDate(date.toISOString().split('T')[0]);
+                  setLastRestockDate(fechaLocalISO(date));
                 }
               }}
             />
+          )}
+          {lastRestockDate && (
+            <TouchableOpacity
+              style={[styles.dropdownField, styles.productBlock]}
+              onPress={() => setRestockSheetOpen(true)}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="cube-outline" size={16} color={colors.textMuted} />
+              <Text style={[styles.dropdownText, restockProducts.length === 0 && styles.dropdownPlaceholder]}>
+                {restockProducts.length === 0
+                  ? 'Productos repuestos (opcional)'
+                  : restockProducts
+                      .map((id) => products.find((p) => p.product_id === id)?.name)
+                      .filter(Boolean)
+                      .join(', ')}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
           )}
         </View>
 
@@ -483,6 +508,15 @@ export function CheckInScreen() {
           setAnomalyProducts((prev) => ({ ...prev, [t]: ids }));
         }}
         onClose={() => setProductSheetFor(null)}
+      />
+
+      <ProductPickerSheet
+        visible={restockSheetOpen}
+        title="Productos repuestos"
+        options={products}
+        selectedIds={restockProducts}
+        onConfirm={setRestockProducts}
+        onClose={() => setRestockSheetOpen(false)}
       />
 
       <BottomSheetSelect

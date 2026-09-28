@@ -39,3 +39,7 @@ export function toCompetitionPayload(r: CompetitionRawRow, photoUrls: string[]) 
 export function toAnomalyProductPayload(r: AnomalyProductRow) {
   return { visit_id: r.visit_id, anomaly_type: r.anomaly_type, product_id: r.product_id };
 }
+
+export function toRestockProductPayload(r: { visit_id: string; product_id: string }) {
+  return { restock_id: r.visit_id, product_id: r.product_id };
+}

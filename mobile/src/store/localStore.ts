@@ -50,6 +50,11 @@ const CREATE_SQL = `
     synced INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (visit_id, anomaly_type, product_id)
   );
+  CREATE TABLE IF NOT EXISTS restock_products (
+    visit_id TEXT NOT NULL, product_id TEXT NOT NULL,
+    synced INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (visit_id, product_id)
+  );
   CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
   CREATE TABLE IF NOT EXISTS sync_log (
     log_id TEXT PRIMARY KEY, ts TEXT NOT NULL, level TEXT NOT NULL,

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { toSessionPayload, toPingPayload, toVisitPayload, toCompetitionPayload, toAnomalyProductPayload } from '../services/sync/payloads';
+import { toSessionPayload, toPingPayload, toVisitPayload, toCompetitionPayload, toAnomalyProductPayload, toRestockProductPayload } from '../services/sync/payloads';
 import { uploadPhotos } from '../services/sync/photoUpload';
 import { withDeadline } from '../utils/withTimeout';
 
@@ -57,7 +57,8 @@ let isFlushing = false;
 
 /**
  * Vacía la cola local hacia Supabase. Orden por valor del dato:
- * sesiones → REGISTROS de visita (sin fotos) → reportes (sin fotos) → pings → fotos.
+ * sesiones → REGISTROS de visita (sin fotos) → vínculos de anomalía → productos
+ * repuestos → reportes (sin fotos) → pings → fotos.
  * El registro (pequeño, crítico) NUNCA espera por sus fotos (pesadas): sube primero
  * con photo_urls=[] y las fotos se completan en una fase aparte (photos_synced).
  */
@@ -119,6 +120,34 @@ export async function flush(db: SQLiteDatabase, supabase: SupabaseClient): Promi
       } catch (e) {
         failed++;
         console.warn(`[sync] anomaly_product ${ap.visit_id}/${ap.product_id} FAIL:`, errMsg(e));
+      }
+    }
+
+    // 2c) Productos repuestos. restock_id = visit_id: la fila de restocks la
+    // crea un trigger al subir la visita con fecha. Si no existe (fecha nula o
+    // futura), la FK falla (23503): es definitivo, se descarta.
+    for (const rp of await db.getAllAsync<any>(
+      `SELECT rp.* FROM restock_products rp
+         JOIN visits v ON v.visit_id = rp.visit_id
+        WHERE rp.synced = 0 AND v.synced = 1`,
+    )) {
+      try {
+        const { error } = await withDeadline(
+          supabase.from('restock_products').upsert(
+            toRestockProductPayload(rp), { onConflict: 'restock_id,product_id', ignoreDuplicates: true },
+          ),
+          NET_TIMEOUT_MS, `restock_product ${rp.visit_id}/${rp.product_id}`,
+        );
+        if (error && (error as { code?: string }).code !== '23503') throw error;
+        if (error) console.warn(`[sync] restock_product ${rp.visit_id}/${rp.product_id} descartado: sin reposición en el servidor`);
+        await db.runAsync(
+          `UPDATE restock_products SET synced=1 WHERE visit_id=? AND product_id=?`,
+          rp.visit_id, rp.product_id,
+        );
+        if (!error) pushed++;
+      } catch (e) {
+        failed++;
+        console.warn(`[sync] restock_product ${rp.visit_id}/${rp.product_id} FAIL:`, errMsg(e));
       }
     }
 
