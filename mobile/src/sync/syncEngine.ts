@@ -221,6 +221,7 @@ export async function pendingCounts(db: SQLiteDatabase): Promise<PendingCounts> 
        (SELECT COUNT(*) FROM sessions WHERE synced=0)
      + (SELECT COUNT(*) FROM visits WHERE synced=0)
      + (SELECT COUNT(*) FROM visit_anomaly_products WHERE synced=0)
+     + (SELECT COUNT(*) FROM restock_products WHERE synced=0)
      + (SELECT COUNT(*) FROM competition_reports WHERE synced=0) AS records,
        (SELECT COUNT(*) FROM visits WHERE synced=1 AND photos_synced=0)
      + (SELECT COUNT(*) FROM competition_reports WHERE synced=1 AND photos_synced=0) AS photos,
