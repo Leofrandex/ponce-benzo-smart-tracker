@@ -9,6 +9,9 @@ import { withDeadline } from '../utils/withTimeout';
 // y el banner mentía "Sincronizando…" indefinidamente.
 const NET_TIMEOUT_MS = 15_000;
 
+// Una foto de ~300 KB con señal débil necesita más que 15 s.
+const PHOTO_TIMEOUT_MS = 30_000;
+
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : JSON.stringify(e));
 
 export function splitUploadable(pings: { ping_id: string; user_id: string | null }[]): { ok: string[]; orphan: string[] } {
@@ -190,7 +193,7 @@ async function flushPendingPhotos(
     try {
       const uris: string[] = r.photo_uri ? JSON.parse(r.photo_uri) : [];
       if (!uris.length) { await db.runAsync(`UPDATE ${table} SET photos_synced=1 WHERE ${idCol}=?`, id); continue; }
-      const urls = await uploadPhotos(supabase, r.user_id, id, uris, NET_TIMEOUT_MS);
+      const urls = await uploadPhotos(supabase, r.user_id, id, uris, PHOTO_TIMEOUT_MS);
       const { error } = await withDeadline(
         supabase.from(table).update({ photo_urls: urls }).eq(idCol, id),
         NET_TIMEOUT_MS, `photo_urls ${id}`,

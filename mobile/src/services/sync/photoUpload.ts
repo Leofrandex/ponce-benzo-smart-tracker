@@ -16,9 +16,20 @@ export async function uploadPhotos(
   uris: string[],
   timeoutMs = 30_000,
 ): Promise<string[]> {
+  const folder = `${userId}/${ownerId}`;
+  let existing = new Set<string>();
+  try {
+    const { data } = await withDeadline(
+      supabase.storage.from("visit-photos").list(folder),
+      timeoutMs, `listar ${folder}`,
+    );
+    existing = new Set((data ?? []).map((o: { name: string }) => `${folder}/${o.name}`));
+  } catch { /* sin listado: se sube todo, como antes */ }
+
   const paths: string[] = [];
   for (let i = 0; i < uris.length; i++) {
     const path = storagePath(userId, ownerId, i);
+    if (existing.has(path)) { paths.push(path); continue; }
     const res = await withDeadline(fetch(uris[i]), timeoutMs, `leer foto ${path}`);
     const buf = await res.arrayBuffer();
     const { error } = await withDeadline(

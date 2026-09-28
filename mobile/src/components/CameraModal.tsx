@@ -5,8 +5,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, fonts } from '../theme';
+import { resizeTarget } from '../utils/photoSize';
 
 interface CameraModalProps {
   visible: boolean;
@@ -30,7 +32,18 @@ export function CameraModal({ visible, onCapture, onClose }: CameraModalProps) {
     setCapturing(true);
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.75, skipProcessing: false });
-      setPreviewUri(photo.uri);
+      let uri = photo.uri;
+      try {
+        const target = resizeTarget(photo.width, photo.height);
+        const ctx = ImageManipulator.manipulate(uri);
+        if (target) ctx.resize(target);
+        const rendered = await ctx.renderAsync();
+        const saved = await rendered.saveAsync({ compress: 0.6, format: SaveFormat.JPEG });
+        uri = saved.uri;
+      } catch (e) {
+        console.warn('[camera] no se pudo reducir la foto, se usa la original:', (e as Error)?.message ?? e);
+      }
+      setPreviewUri(uri);
     } catch {
       // camera error — just close
       handleClose();

@@ -74,8 +74,10 @@ function fakeDb(tables: Record<string, Row[]>) {
   } as any;
 }
 
-function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFailTables?: string[] } = {}) {
+function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFailTables?: string[]; failUploadOnce?: string[] } = {}) {
   const calls: string[] = [];
+  const uploaded = new Set<string>();
+  const failedOnce = new Set<string>();
   const result = (table: string) =>
     opts.fkFailTables?.includes(table)
       ? Promise.resolve({ error: { code: '23503', message: 'violates foreign key constraint' } })
@@ -90,11 +92,22 @@ function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFa
     }),
     storage: {
       from: (_bucket: string) => ({
-        upload: () => {
-          calls.push('storage:upload');
-          return opts.failStorage
-            ? Promise.resolve({ error: { message: 'foto no subió' } })
-            : Promise.resolve({ error: null });
+        list: (folder: string) => {
+          calls.push('storage:list');
+          return Promise.resolve({
+            data: [...uploaded].filter((p) => p.startsWith(folder + '/')).map((p) => ({ name: p.slice(folder.length + 1) })),
+            error: null,
+          });
+        },
+        upload: (path: string) => {
+          calls.push(`storage:upload:${path}`);
+          if (opts.failStorage) return Promise.resolve({ error: { message: 'foto no subió' } });
+          if (opts.failUploadOnce?.includes(path) && !failedOnce.has(path)) {
+            failedOnce.add(path);
+            return Promise.resolve({ error: { message: 'foto no subió' } });
+          }
+          uploaded.add(path);
+          return Promise.resolve({ error: null });
         },
       }),
     },
@@ -201,6 +214,27 @@ test('flush: otro error en productos repuestos queda para reintentar', async () 
   const r = await flush(fakeDb(tables), fakeSupabase({ failTables: ['restock_products'] }));
   assert.equal(tables.restock_products[0].synced, 0);
   assert.equal(r.failed, 1);
+});
+
+test('flush: corte a mitad de las fotos + reintento → photo_urls completo sin re-subir (BUG-029)', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => ({ arrayBuffer: async () => new ArrayBuffer(1) })) as any;
+  try {
+    const tables = baseTables();
+    tables.visits.push(visit('v1', { photo_uri: JSON.stringify(['file:///a.jpg', 'file:///b.jpg']) }));
+    const db = fakeDb(tables);
+    const supa = fakeSupabase({ failUploadOnce: ['u1/v1/1.jpg'] });
+
+    await flush(db, supa);                         // sube 0.jpg, falla 1.jpg
+    assert.equal(tables.visits[0].photos_synced, 0);
+
+    await flush(db, supa);                         // reintento
+    assert.equal(tables.visits[0].photos_synced, 1);
+    assert.equal(supa.calls.filter((c: string) => c === 'storage:upload:u1/v1/0.jpg').length, 1);
+    assert.equal(supa.calls.filter((c: string) => c === 'storage:upload:u1/v1/1.jpg').length, 2);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
 
 test('pendingCounts: separa records / photos / pings', async () => {
