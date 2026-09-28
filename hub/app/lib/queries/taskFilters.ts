@@ -1,5 +1,6 @@
 import type { FullTaskRow } from "./tasks";
 import type { TaskAssignee } from "./assignments";
+import { clientesDeVendedor } from "./vendorScope";
 import { anomalyLabel } from "./visitDetail";
 import { EMPTY_GEO, type GeoFilterValue } from "@/app/components/geo/geoOptions";
 
@@ -169,7 +170,7 @@ export function filterTasks(
   const clientesConVendedor = new Set(assignees.map((a) => a.client_id));
   // Clientes del vendedor elegido; null = sin filtro por un vendedor concreto.
   const clientesDelVendedor = value.vendedor && value.vendedor !== VENDEDOR_NINGUNO
-    ? new Set(assignees.filter((a) => a.user_id === value.vendedor).map((a) => a.client_id))
+    ? clientesDeVendedor(assignees, value.vendedor)
     : null;
   const q = normalizeText(value.texto);
 
