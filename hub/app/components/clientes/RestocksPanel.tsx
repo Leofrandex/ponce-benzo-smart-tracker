@@ -3,7 +3,8 @@
 import { Package, Plus, Trash2 } from "lucide-react";
 import { ORIGEN_LABEL, type RestockRow } from "@/app/lib/queries/restocks";
 
-const COLUMNS = "1fr 2fr 0.8fr 1fr auto";
+const COLUMNS = "1fr 2fr 0.8fr 1fr 32px";
+const TRUNC: React.CSSProperties = { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
 
 export function RestocksPanel({ rows, loading, canRegister, currentUserId, isAdmin, onRegister, onDelete }: {
   rows: RestockRow[]; loading: boolean; canRegister: boolean;
@@ -13,9 +14,9 @@ export function RestocksPanel({ rows, loading, canRegister, currentUserId, isAdm
   const puedeBorrar = (r: RestockRow) => r.source === "panel" && (isAdmin || r.created_by === currentUserId);
 
   return (
-    <div className="card" style={{ padding: "12px 16px" }}>
+    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
       {canRegister && (
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", padding: "12px 16px 8px" }}>
           <button type="button" onClick={onRegister} className="filter-chip" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
             <Plus size={12} /> Registrar reposición
           </button>
@@ -32,22 +33,23 @@ export function RestocksPanel({ rows, loading, canRegister, currentUserId, isAdm
         </div>
       ) : (
         <div style={{ maxHeight: "50vh", overflowY: "auto" }}>
-          <div className="contactos-table-header" style={{ gridTemplateColumns: COLUMNS, position: "sticky", top: 0, zIndex: 1, background: "var(--bg-base)" }}>
+          <div className="contactos-table-header" style={{ gridTemplateColumns: COLUMNS, position: "sticky", top: 0, zIndex: 1, background: "var(--bg-card)" }}>
             <div>Fecha</div><div>Productos</div><div>Origen</div><div>Registró</div><div></div>
           </div>
           {rows.map((r, idx) => {
+            const productos = r.productos.map((p) => p.name).join(", ");
             const fecha = new Date(r.restock_date + "T00:00:00").toLocaleDateString("es-VE", { day: "numeric", month: "short", year: "numeric" });
             return (
-              <div key={r.restock_id} className="contactos-table-row" style={{ gridTemplateColumns: COLUMNS, borderTop: idx === 0 ? "none" : "1px solid var(--border)" }}>
+              <div key={r.restock_id} className="contactos-table-row" style={{ gridTemplateColumns: COLUMNS, borderTop: idx === 0 ? "none" : "1px solid var(--border)", cursor: "default" }}>
                 <div style={{ fontSize: "13px", color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>{fecha}</div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: "13px", color: r.productos.length ? "var(--text-primary)" : "var(--text-muted)" }}>
-                    {r.productos.length ? r.productos.map((p) => p.name).join(", ") : "Sin productos"}
+                  <div title={productos || undefined} style={{ ...TRUNC, fontSize: "13px", color: productos ? "var(--text-primary)" : "var(--text-muted)" }}>
+                    {productos || "Sin productos"}
                   </div>
-                  {r.note && <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{r.note}</div>}
+                  {r.note && <div title={r.note} style={{ ...TRUNC, fontSize: "12px", color: "var(--text-muted)" }}>{r.note}</div>}
                 </div>
                 <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{ORIGEN_LABEL[r.source]}</div>
-                <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{r.autor ?? "—"}</div>
+                <div style={{ ...TRUNC, fontSize: "12px", color: r.autor ? "var(--text-secondary)" : "var(--text-muted)" }}>{r.autor ?? "—"}</div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
                   {puedeBorrar(r) && (
                     <button

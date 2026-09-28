@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Tag, Layers, Package, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 import type { Store } from "@/app/lib/types";
 import { haceTexto } from "@/app/lib/queries/restocks";
 import { diasEntre, hoyCaracas } from "@/app/lib/queries/taskFilters";
@@ -10,15 +10,13 @@ const CHANNEL_LABELS: Record<string, string> = {
   autoservicio: "Autoservicio", mayorista: "Mayorista", otro: "Otro",
 };
 
-function Row({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
+const LABEL: React.CSSProperties = { fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "2px" };
+
+function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
-      <div style={{ width: 32, height: 32, borderRadius: "var(--radius-sm)", background: "var(--bg-elevated)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "2px" }}>{label}</div>
-        <div style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500 }}>{value}</div>
-        {sub && <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{sub}</div>}
-      </div>
+    <div style={{ padding: "9px 0", borderBottom: "1px solid var(--border)" }}>
+      <div style={LABEL}>{label}</div>
+      <div style={{ fontSize: "13px", color: value === "—" ? "var(--text-muted)" : "var(--text-primary)" }}>{value}</div>
     </div>
   );
 }
@@ -36,22 +34,25 @@ export function ClientInfoPanel({ store, lastRestock, onEdit }: { store: Store; 
         )}
       </div>
       <div className="card" style={{ padding: "0 16px" }}>
-        <Row icon={<MapPin size={15} color="var(--accent)" />} label="Dirección" value={store.address ?? "—"} />
-        <Row icon={<Layers size={15} color="var(--accent)" />} label="Zona" value={zona} />
-        <Row icon={<Tag size={15} color="var(--accent)" />} label="Canal" value={store.business_channel ? (CHANNEL_LABELS[store.business_channel] ?? store.business_channel) : "—"} />
-        <Row icon={<Tag size={15} color="var(--accent)" />} label="Clasificación" value={store.classification ?? "—"} />
-        <Row
-          icon={<Package size={15} color="var(--accent)" />}
-          label="Última reposición"
-          value={lastRestock ? haceTexto(diasEntre(lastRestock, hoyCaracas())) : "Sin registro"}
-          sub={lastRestock ? new Date(lastRestock + "T00:00:00").toLocaleDateString("es-VE", { day: "numeric", month: "long", year: "numeric" }) : undefined}
-        />
-        <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", padding: "10px 0" }}>
-          <div style={{ width: 32, height: 32, borderRadius: "var(--radius-sm)", background: "var(--bg-elevated)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><MapPin size={15} color="var(--text-muted)" /></div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "2px" }}>Coordenadas GPS</div>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "monospace" }}>{store.master_lat.toFixed(4)}, {store.master_lng.toFixed(4)}</div>
+        {/* Métrica primaria: días desde la última reposición. */}
+        <div style={{ padding: "14px 0 12px", borderBottom: "1px solid var(--border)" }}>
+          <div style={LABEL}>Última reposición</div>
+          <div style={{ fontSize: "24px", fontWeight: 700, letterSpacing: "-0.4px", lineHeight: 1.2, fontVariantNumeric: "tabular-nums", color: lastRestock ? "var(--text-primary)" : "var(--text-muted)" }}>
+            {lastRestock ? haceTexto(diasEntre(lastRestock, hoyCaracas())) : "Sin registro"}
           </div>
+          {lastRestock && (
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
+              {new Date(lastRestock + "T00:00:00").toLocaleDateString("es-VE", { day: "numeric", month: "long", year: "numeric" })}
+            </div>
+          )}
+        </div>
+        <Row label="Dirección" value={store.address ?? "—"} />
+        <Row label="Zona" value={zona} />
+        <Row label="Canal" value={store.business_channel ? (CHANNEL_LABELS[store.business_channel] ?? store.business_channel) : "—"} />
+        <Row label="Clasificación" value={store.classification ?? "—"} />
+        <div style={{ padding: "9px 0 12px" }}>
+          <div style={LABEL}>Coordenadas GPS</div>
+          <div style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "monospace", fontVariantNumeric: "tabular-nums" }}>{store.master_lat.toFixed(4)}, {store.master_lng.toFixed(4)}</div>
         </div>
       </div>
     </div>

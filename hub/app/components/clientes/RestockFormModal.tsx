@@ -116,13 +116,14 @@ export function RestockFormModal({ open, storeId, onClose, onSaved }: {
                     key={p.product_id}
                     style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", fontSize: "13px", color: "var(--text-primary)", borderBottom: "1px solid var(--border)", cursor: "pointer" }}
                   >
-                    <input type="checkbox" checked={productos.includes(p.product_id)} onChange={() => toggle(p.product_id)} />
-                    {p.name}{p.brand ? ` · ${p.brand}` : ""}
+                    <input type="checkbox" checked={productos.includes(p.product_id)} onChange={() => toggle(p.product_id)} style={{ flexShrink: 0 }} />
+                    <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={p.name}>{p.name}</span>
+                    {p.brand && <span style={{ flexShrink: 0, fontSize: "11px", color: "var(--text-muted)" }}>{p.brand}</span>}
                   </label>
                 ))
               )}
             </div>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px", fontVariantNumeric: "tabular-nums" }}>
               {productos.length} seleccionado{productos.length === 1 ? "" : "s"}
             </div>
 
