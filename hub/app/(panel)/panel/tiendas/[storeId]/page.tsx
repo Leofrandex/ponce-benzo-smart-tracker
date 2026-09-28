@@ -168,7 +168,7 @@ export default function ClienteDetailPage() {
             {activityTab === "reposiciones" && (
               <RestocksPanel
                 rows={restocks ?? []}
-                loading={loadingRestocks}
+                loading={loadingRestocks && !restocks}
                 canRegister={canRegisterRestock(profile?.role)}
                 currentUserId={profile?.id ?? null}
                 isAdmin={profile?.role === "admin"}

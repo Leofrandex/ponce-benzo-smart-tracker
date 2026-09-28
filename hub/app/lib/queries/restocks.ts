@@ -60,6 +60,7 @@ export function validarFechaReposicion(fecha: string, hoy: string): string | nul
 export function mensajeError(msg: string): string {
   if (msg.includes("row-level security")) return "No tienes permiso para registrar reposiciones en esta tienda.";
   if (msg.includes("fecha_futura")) return "La fecha no puede ser posterior a hoy.";
+  if (msg.includes("foreign key")) return "Uno de los productos ya no está en el catálogo. Recarga la página e inténtalo de nuevo.";
   return msg;
 }
 

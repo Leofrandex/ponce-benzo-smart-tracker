@@ -57,6 +57,8 @@ test("mensajeError traduce RLS y fecha futura; deja pasar lo demás", () => {
   assert.equal(mensajeError('new row violates row-level security policy for table "restocks"'),
     "No tienes permiso para registrar reposiciones en esta tienda.");
   assert.equal(mensajeError("fecha_futura"), "La fecha no puede ser posterior a hoy.");
+  assert.equal(mensajeError('insert or update on table "restock_products" violates foreign key constraint'),
+    "Uno de los productos ya no está en el catálogo. Recarga la página e inténtalo de nuevo.");
   assert.equal(mensajeError("Failed to fetch"), "Failed to fetch");
 });
 
