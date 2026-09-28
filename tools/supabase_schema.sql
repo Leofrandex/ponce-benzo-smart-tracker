@@ -1506,3 +1506,8 @@ end;
 $$;
 revoke execute on function public.fn_registrar_reposicion(uuid, date, uuid[], text) from public, anon;
 grant execute on function public.fn_registrar_reposicion(uuid, date, uuid[], text) to authenticated;
+
+-- ============================================================
+-- Versión de la app (Bloque 7, 2026-09-28)
+-- ============================================================
+alter table public.sessions add column if not exists app_version text;
