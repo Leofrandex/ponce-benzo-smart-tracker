@@ -17,3 +17,8 @@ export function roleLabel(role: string): string {
 export function canConfigure(role: string | null | undefined): boolean {
   return role === "admin";
 }
+
+// Registrar reposiciones desde la ficha: vendedores y admins. La protección real es RLS.
+export function canRegisterRestock(role: string | null | undefined): boolean {
+  return role === "admin" || role === "vendedor";
+}

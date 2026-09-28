@@ -87,7 +87,7 @@ export function hoyCaracas(): string {
   return FMT_CARACAS.format(new Date());
 }
 
-function diasEntre(desde: string, hasta: string): number {
+export function diasEntre(desde: string, hasta: string): number {
   return Math.round((Date.parse(hasta + "T00:00:00Z") - Date.parse(desde + "T00:00:00Z")) / 86400000);
 }
 
