@@ -23,14 +23,14 @@ export async function closeStaleSessions(db: SQLiteDatabase, userId: string): Pr
 
 export async function startSession(
   db: SQLiteDatabase,
-  p: { userId: string; routeId: string; startLat: number | null; startLng: number | null },
+  p: { userId: string; routeId: string; startLat: number | null; startLng: number | null; appVersion: string },
 ): Promise<string> {
   const sid = newId();
   const startIso = new Date().toISOString();
   await db.runAsync(
-    `INSERT INTO sessions (session_id, user_id, route_id, session_start, start_lat, start_lng, synced)
-     VALUES (?, ?, ?, ?, ?, ?, 0)`,
-    sid, p.userId, p.routeId, startIso, p.startLat ?? null, p.startLng ?? null,
+    `INSERT INTO sessions (session_id, user_id, route_id, session_start, start_lat, start_lng, app_version, synced)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+    sid, p.userId, p.routeId, startIso, p.startLat ?? null, p.startLng ?? null, p.appVersion,
   );
   if (p.startLat != null && p.startLng != null) {
     await db.runAsync(

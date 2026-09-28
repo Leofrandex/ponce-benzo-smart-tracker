@@ -10,6 +10,7 @@ export interface SessionRow {
   session_end: string | null;
   start_lat: number | null;
   start_lng: number | null;
+  app_version?: string | null;
   synced: number;
 }
 

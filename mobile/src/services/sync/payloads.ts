@@ -1,6 +1,6 @@
 import type { SessionRow, VisitRow, PingRow, CompetitionRawRow, AnomalyProductRow } from "../db";
 export function toSessionPayload(r: SessionRow) {
-  return { session_id:r.session_id, user_id:r.user_id, route_id:r.route_id, session_start:r.session_start, session_end:r.session_end, start_location:{ lat:r.start_lat ?? 0, lng:r.start_lng ?? 0 } };
+  return { session_id:r.session_id, user_id:r.user_id, route_id:r.route_id, session_start:r.session_start, session_end:r.session_end, start_location:{ lat:r.start_lat ?? 0, lng:r.start_lng ?? 0 }, app_version: r.app_version ?? null };
 }
 export function toPingPayload(r: PingRow) {
   return { ping_id:r.ping_id, session_id:r.session_id, user_id:r.user_id, timestamp:r.timestamp, lat:r.lat, lng:r.lng };

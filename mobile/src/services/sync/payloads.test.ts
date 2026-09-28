@@ -52,3 +52,9 @@ test('toVisitPayload manda null cuando no hubo acompanante', () => {
   };
   assert.equal(toVisitPayload(row, []).supervisor_present_user_id, null);
 });
+
+test("toSessionPayload: envía app_version y null si falta (jornada de app vieja)", () => {
+  const base = { session_id:"s1", user_id:"u1", route_id:"r1", session_start:"t0", session_end:null, start_lat:10.5, start_lng:-66.9, synced:0 };
+  assert.equal(toSessionPayload({ ...base, app_version: "1.3.0" }).app_version, "1.3.0");
+  assert.equal(toSessionPayload(base).app_version, null);
+});

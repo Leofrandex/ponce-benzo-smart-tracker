@@ -23,6 +23,7 @@ test('buildMigrations: sin faltantes devuelve []', () => {
     visits: new Set(['anomaly_type', 'skip_reason', 'last_restock_date', 'photos_synced', 'supervisor_present_user_id']),
     location_pings: new Set(['user_id', 'synced']),
     competition_reports: new Set(['visit_id', 'photos_synced']),
+    sessions: new Set(['app_version']),
   };
   assert.deepEqual(buildMigrations(full), []);
 });
@@ -35,4 +36,11 @@ test('buildMigrations: existing vacío emite TODAS las columnas opcionales', () 
   assert.ok(stmts.some((s) => s.includes('ALTER TABLE competition_reports ADD COLUMN visit_id')));
   assert.ok(stmts.some((s) => s.includes('ALTER TABLE location_pings ADD COLUMN user_id')));
   assert.ok(stmts.some((s) => s.includes('ALTER TABLE location_pings ADD COLUMN synced')));
+});
+
+test("buildMigrations: agrega sessions.app_version si falta y no la repite", () => {
+  const faltan = buildMigrations({ sessions: new Set(["session_id"]) });
+  assert.ok(faltan.includes("ALTER TABLE sessions ADD COLUMN app_version TEXT"));
+  const ya = buildMigrations({ sessions: new Set(["session_id", "app_version"]) });
+  assert.ok(!ya.some((s) => s.startsWith("ALTER TABLE sessions")));
 });
