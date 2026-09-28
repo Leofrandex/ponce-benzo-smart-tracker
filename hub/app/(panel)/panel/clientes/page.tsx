@@ -66,7 +66,7 @@ function ClientesInner() {
           onChange={(estado) => setFilters({ ...filters, estado, municipio: "" })} />
         <Select label="Municipio" value={filters.municipio}
           options={municipios.map((m) => ({ value: m, label: m }))}
-          disabled={municipios.length === 0}
+          disabled={!filters.estado || municipios.length === 0}
           onChange={(municipio) => setFilters({ ...filters, municipio })} />
         <Select label="Vendedor" value={filters.vendedor}
           options={vendedores}
