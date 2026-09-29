@@ -29,6 +29,7 @@ Este documento actúa como índice histórico de todas las decisiones importante
 
 | [[decisiones/ADR-009-Reposiciones-Como-Registro-Propio\|ADR-009]] | Reposiciones como registro propio | `aceptado` | 2026-09-28 | Tablas `restocks` + `restock_products`; trigger sobre `visits` que copia `last_restock_date` (la app no cambia, nunca lanza); backfill de 77 visitas; alta desde el panel con RPC SECURITY INVOKER para admin/vendedor que ven la tienda; borrado por autor (panel) o admin. |
 | [[decisiones/ADR-010-Tipografia-Hub\|ADR-010]] | Tipografía del hub: Plus Jakarta Sans y escala fija | `aceptado` | 2026-09-29 | `next/font` en lugar del `@import` roto, que dejaba Arial en producción. Tokens `--text-*` de 11 a 40 px, pesos 400/500/600 (700 solo en el KPI), sin subrayados. Solo el hub. |
+| [[decisiones/ADR-011-Navegacion-Instantanea-Hub\|ADR-011]] | Navegación instantánea del hub | `aceptado` | 2026-09-29 | `loading.tsx` con skeleton por sección, caché stale-while-revalidate en `useSupabaseQuery` (con `key`, se vacía al cambiar de usuario) y middleware con `getSession()` en navegación RSC/prefetch (`getUser()` sigue en cargas completas). |
 
 ---
 
