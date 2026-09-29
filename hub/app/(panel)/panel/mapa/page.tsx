@@ -1,17 +1,19 @@
 "use client";
 
-import { Suspense, useState, useEffect, useMemo } from "react";
+import { Suspense, useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
-import { Map as MapIcon, Radio, History, Activity } from "lucide-react";
+import { Map as MapIcon, Radio, History, Activity, SlidersHorizontal, X } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchStores } from "@/app/lib/queries/stores";
 import { fetchLivePositions, fetchMerchandisers, type LivePosition } from "@/app/lib/queries/sessions";
 import { fetchTaskAssignees } from "@/app/lib/queries/assignments";
 import { MapFilterSidebar } from "@/app/components/mapa/MapFilterSidebar";
+import Segmented from "@/app/components/ui/Segmented";
 import {
-  TODAS, agruparPorCadena, elegirVendedor, parseMapParams, serializeMapParams,
+  TODAS, agruparPorCadena, elegirVendedor, parseMapParams, resumenMapa, serializeMapParams,
   type MapFilterValue, type TiendaMapa,
 } from "@/app/lib/queries/mapFilters";
 import type { MapMerchandiser } from "@/app/lib/map-data";
@@ -26,13 +28,61 @@ const MapHistoryView = dynamic(() => import("@/app/components/mapa/MapHistoryVie
 });
 
 function MapLoading({ label }: { label: string }) {
-  return <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: "13px" }}><MapIcon size={20} style={{ marginRight: 8, opacity: 0.5 }} /> {label}</div>;
+  return <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: "var(--text-sm)" }}><MapIcon size={20} style={{ marginRight: 8, opacity: 0.5 }} /> {label}</div>;
 }
 
 type Tab = "live" | "history";
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+// Bottom sheet de filtros (solo < 768px; en escritorio el CSS lo oculta).
+// Esc / tap fuera cierran; el foco entra al abrir y vuelve al botón al cerrar.
+function FilterSheet({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.activeElement as HTMLElement | null;
+    const el = ref.current;
+    (el?.querySelector<HTMLElement>(FOCUSABLE) ?? el)?.focus();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") { e.preventDefault(); onCloseRef.current(); return; }
+      if (e.key !== "Tab" || !el) return;
+      const items = Array.from(el.querySelectorAll<HTMLElement>(FOCUSABLE));
+      if (items.length === 0) return;
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("keydown", onKey); prev?.focus(); };
+  }, [open]);
+
+  if (!open) return null;
+  return createPortal(
+    <>
+      <div className="sheet-overlay map-filters-sheet" onClick={onClose} aria-hidden="true" />
+      <div ref={ref} className="sheet map-filters-sheet" role="dialog" aria-modal="true" aria-labelledby="map-filters-title" tabIndex={-1}>
+        <div className="sheet-grip" />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <div id="map-filters-title" className="sheet-title" style={{ margin: 0 }}>Filtros del mapa</div>
+          <button type="button" onClick={onClose} aria-label="Cerrar filtros" className="focus-ring"
+            style={{ width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "transparent", color: "var(--text-muted)", cursor: "pointer" }}>
+            <X size={18} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </>,
+    document.body,
+  );
+}
+
 function MapaInner() {
   const [tab, setTab] = useState<Tab>("live");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // --- Real data from Supabase ---
   const { data: stores } = useSupabaseQuery(fetchStores, []);
@@ -127,39 +177,53 @@ function MapaInner() {
 
   const safeStores = stores ?? [];
 
+  const sidebar = (inSheet: boolean) => (
+    <MapFilterSidebar
+      value={filters}
+      onChange={setFilters}
+      grupos={grupos}
+      merchandisers={filterMerchandisers}
+      vendedores={vendedores}
+      onVendedor={(u) => setFilters(elegirVendedor(filters, u, tiendasMapa, assignees))}
+      inSheet={inSheet}
+    />
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", gap: "12px" }}>
       <div>
-        <h1 style={{ fontSize: "22px", fontWeight: 800 }}>Mapa</h1>
+        <h1 style={{ fontSize: "var(--text-xl)", fontWeight: 600 }}>Mapa</h1>
         <p className="text-muted text-sm" style={{ display: "flex", alignItems: "center", gap: "6px" }}><Activity size={13} /> {activeCount} mercaderistas activos</p>
       </div>
 
       <div style={{ display: "flex", gap: "14px", flex: 1, minHeight: 0 }}>
-        {storesLoaded ? (
-          <MapFilterSidebar
-            value={filters}
-            onChange={setFilters}
-            grupos={grupos}
-            merchandisers={filterMerchandisers}
-            vendedores={vendedores}
-            onVendedor={(u) => setFilters(elegirVendedor(filters, u, tiendasMapa, assignees))}
-          />
-        ) : (
-          <div style={{ width: 250, flexShrink: 0, fontSize: 13, color: "var(--text-muted)" }}>Cargando filtros…</div>
-        )}
+        {/* Escritorio: columna fija de filtros. En teléfono (< 768px) la oculta el CSS. */}
+        <div className="map-filters-desktop" style={{ display: "flex", minHeight: 0 }}>
+          {storesLoaded ? sidebar(false) : (
+            <div style={{ width: 250, flexShrink: 0, fontSize: 13, color: "var(--text-muted)" }}>Cargando filtros…</div>
+          )}
+        </div>
 
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "12px" }}>
-          <div style={{ display: "flex", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "3px", width: "fit-content" }}>
-            {([["live", "En vivo", Radio], ["history", "Histórico", History]] as [Tab, string, React.ElementType][]).map(([key, label, Icon]) => (
-              <button key={key} onClick={() => setTab(key)} style={{
-                border: "none", borderRadius: "calc(var(--radius-md) - 2px)", padding: "7px 16px",
-                fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-                background: tab === key ? "var(--bg-surface)" : "transparent",
-                color: tab === key ? "var(--text-primary)" : "var(--text-muted)",
-                display: "flex", alignItems: "center", gap: "6px",
-              }}><Icon size={14} /> {label}</button>
-            ))}
-          </div>
+          {/* Teléfono: los filtros se abren en un bottom sheet; el mapa usa todo el ancho. */}
+          <button type="button" className="map-filters-btn" disabled={!storesLoaded}
+            aria-haspopup="dialog" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)}>
+            <SlidersHorizontal size={15} style={{ flexShrink: 0 }} />
+            <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {storesLoaded ? `Filtros (${resumenMapa(filters, grupos, filterMerchandisers.length)})` : "Cargando filtros…"}
+            </span>
+          </button>
+
+          <Segmented<Tab>
+            ariaLabel="Vista del mapa"
+            value={tab}
+            onChange={setTab}
+            style={{ width: "fit-content" }}
+            options={[
+              { value: "live", label: <><Radio size={14} /> En vivo</> },
+              { value: "history", label: <><History size={14} /> Histórico</> },
+            ]}
+          />
 
           <div style={{ flex: 1, borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--border)", background: "#f8fafc", position: "relative" }}>
             <AnimatePresence mode="wait">
@@ -174,6 +238,10 @@ function MapaInner() {
           </div>
         </div>
       </div>
+
+      <FilterSheet open={filtersOpen && storesLoaded} onClose={() => setFiltersOpen(false)}>
+        {sidebar(true)}
+      </FilterSheet>
     </div>
   );
 }

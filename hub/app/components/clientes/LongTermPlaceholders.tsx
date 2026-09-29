@@ -8,12 +8,12 @@ function Placeholder({ icon, title, desc }: { icon: React.ReactNode; title: stri
       <div style={{ width: 32, height: 32, borderRadius: "var(--radius-sm)", background: "var(--bg-elevated)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
       <div style={{ flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>{title}</span>
+          <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)" }}>{title}</span>
           <Lock size={11} color="var(--text-muted)" />
         </div>
-        <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{desc}</div>
+        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: "2px" }}>{desc}</div>
       </div>
-      <span className="badge" style={{ background: "var(--bg-elevated)", color: "var(--text-muted)", border: "1px solid var(--border)", fontSize: "9px" }}>Próximamente</span>
+      <span className="badge" style={{ background: "var(--bg-elevated)", color: "var(--text-muted)", border: "1px solid var(--border)", fontSize: "var(--text-2xs)" }}>Próximamente</span>
     </div>
   );
 }

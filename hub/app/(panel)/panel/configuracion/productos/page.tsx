@@ -65,9 +65,9 @@ export default function ProductosPage() {
         <label style={{ position: "relative", display: "flex", alignItems: "center", flex: "1 1 240px", maxWidth: "360px" }}>
           <Search size={14} color="var(--text-muted)" style={{ position: "absolute", left: "12px", pointerEvents: "none" }} />
           <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nombre, SKU o marca" aria-label="Buscar productos"
-            style={{ width: "100%", padding: "8px 12px 8px 32px", fontFamily: "inherit", fontSize: "13px", color: "var(--text-primary)", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }} />
+            style={{ width: "100%", padding: "8px 12px 8px 32px", fontFamily: "inherit", fontSize: "var(--text-sm)", color: "var(--text-primary)", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }} />
         </label>
-        <button type="button" className={`filter-chip ${soloSinLinea ? "active" : ""}`} onClick={() => setSoloSinLinea((v) => !v)}>
+        <button type="button" aria-pressed={soloSinLinea} className={`filter-chip ${soloSinLinea ? "active" : ""}`} onClick={() => setSoloSinLinea((v) => !v)}>
           Sin línea ({sinLinea})
         </button>
       </div>
@@ -96,8 +96,8 @@ export default function ProductosPage() {
               const saving = f?.kind === "saving";
               const note = (field: Feedback["field"]) =>
                 f?.field !== field ? null
-                  : f.kind === "error" ? <div role="alert" style={{ marginTop: "4px", fontSize: "12px", color: "var(--danger)" }}>No se pudo guardar: {f.msg}</div>
-                  : f.kind === "saved" ? <span role="status" style={{ marginLeft: "8px", whiteSpace: "nowrap", fontSize: "12px", color: "var(--success)" }}>Guardado</span>
+                  : f.kind === "error" ? <div role="alert" style={{ marginTop: "4px", fontSize: "var(--text-xs)", color: "var(--danger)" }}>No se pudo guardar: {f.msg}</div>
+                  : f.kind === "saved" ? <span role="status" style={{ marginLeft: "8px", whiteSpace: "nowrap", fontSize: "var(--text-xs)", color: "var(--success)" }}>Guardado</span>
                   : null;
               return (
                 <tr key={p.product_id} style={{ opacity: p.active ? 1 : 0.6 }}>

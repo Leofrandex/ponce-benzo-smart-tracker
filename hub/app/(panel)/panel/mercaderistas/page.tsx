@@ -51,7 +51,7 @@ function MercaderistasInner() {
     <>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px" }}>Mercaderistas</h1>
+          <h1 style={{ fontSize: "var(--text-xl)", fontWeight: 600, letterSpacing: "var(--tracking-tight)" }}>Mercaderistas</h1>
           <p className="text-muted text-sm" style={{ marginTop: "4px" }}>Cumplimiento de ruta en el periodo. Hoy no cuenta hasta que termina el día.</p>
         </div>
         <TimePeriodSelector desde={desde} hasta={hasta} onChange={setPeriodo} />
@@ -66,9 +66,9 @@ function MercaderistasInner() {
             .mz-table tbody tr:hover { background: var(--bg-base); }
             .mz-table .mz-num { width: 1%; white-space: nowrap; padding-left: 32px !important; }
           `}</style>
-          <table className="mz-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <table className="mz-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--text-sm)" }}>
             <thead>
-              <tr style={{ color: "var(--text-muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+              <tr style={{ color: "var(--text-muted)", fontSize: "var(--text-2xs)", textTransform: "uppercase", letterSpacing: "0.4px" }}>
                 <th style={{ textAlign: "left", padding: "10px 14px", fontWeight: 600 }}>Mercaderista</th>
                 <th className="mz-num" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Cumplimiento</th>
                 <th className="mz-num" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Hechas / planificadas</th>
@@ -82,7 +82,7 @@ function MercaderistasInner() {
                   <td style={{ padding: "10px 14px" }}>
                     <Link href={`/panel/mercaderistas/${f.id}?${qs}`} style={{ fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>{f.nombre}</Link>
                   </td>
-                  <td className="mz-num" style={{ padding: "10px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: f.c ? tono(f.c.pct) : undefined }}>
+                  <td className="mz-num" style={{ padding: "10px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600, color: f.c ? tono(f.c.pct) : undefined }}>
                     {f.c ? `${f.c.pct}%` : <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>Sin rutas</span>}
                   </td>
                   <td className="mz-num" style={{ padding: "10px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{f.c ? `${f.c.hechas} / ${f.c.planificadas}` : <span style={{ color: "var(--text-muted)" }}>–</span>}</td>

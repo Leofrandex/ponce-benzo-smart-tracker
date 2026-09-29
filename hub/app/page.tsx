@@ -49,7 +49,7 @@ export default function LoginPage() {
       {/* Login Card */}
       <form className="login-card" onSubmit={handleLogin}>
         <div>
-          <h1 style={{ fontSize: "20px", fontWeight: 700, marginBottom: "4px" }}>
+          <h1 style={{ fontSize: "var(--text-lg)", fontWeight: 600, marginBottom: "4px" }}>
             Bienvenido
           </h1>
           <p className="text-muted text-sm">
@@ -64,7 +64,7 @@ export default function LoginPage() {
               background: "rgba(244,63,94,0.08)",
               border: "1px solid rgba(244,63,94,0.25)",
               borderRadius: "var(--radius-md)",
-              fontSize: "13px",
+              fontSize: "var(--text-sm)",
               color: "#f43f5e",
               fontWeight: 500,
             }}

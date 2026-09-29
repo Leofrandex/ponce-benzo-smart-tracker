@@ -10,6 +10,7 @@ import type { SupervisorReport } from "@/app/lib/types";
 import type { FullTaskRow } from "@/app/lib/queries/tasks";
 import { taskTitleLabel, taskTypeLabel } from "@/app/lib/queries/taskFilters";
 import { PhotoLightbox } from "./PhotoLightbox";
+import Segmented from "@/app/components/ui/Segmented";
 
 type DateFilter = "all" | "today" | "week";
 type ActivityTab = "reportes" | "tareas";
@@ -53,29 +54,31 @@ export function ActivityFeed({ reports, tasks, showTasks = true }: { reports: Su
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "16px", display: "flex", flexDirection: "column", gap: "12px", height: "380px" }}>
 
         {showTasks && (
-          <div style={{ display: "flex", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "3px" }}>
-            {(["reportes", "tareas"] as ActivityTab[]).map((tab) => (
-              <button key={tab} onClick={() => setActiveTab(tab)} style={{
-                flex: 1, border: "none", borderRadius: "calc(var(--radius-md) - 2px)", padding: "7px 12px",
-                fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-                background: activeTab === tab ? "var(--bg-surface)" : "transparent",
-                color: activeTab === tab ? "var(--text-primary)" : "var(--text-muted)",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
-              }}>
-                {tab === "reportes" ? <Camera size={13} /> : <ClipboardList size={13} />}
-                {tab === "reportes" ? "Reportes" : "Tareas"}
-                {tab === "tareas" && pendingTasks.length > 0 && (
-                  <span style={{ fontSize: "10px", fontWeight: 700, background: "var(--danger-bg)", color: "var(--danger)", borderRadius: "999px", padding: "1px 6px" }}>{pendingTasks.length}</span>
-                )}
-              </button>
-            ))}
-          </div>
+          <Segmented<ActivityTab>
+            ariaLabel="Actividad"
+            value={activeTab}
+            onChange={setActiveTab}
+            options={[
+              { value: "reportes", label: <><Camera size={13} aria-hidden /> Reportes</> },
+              {
+                value: "tareas",
+                label: (
+                  <>
+                    <ClipboardList size={13} aria-hidden /> Tareas
+                    {pendingTasks.length > 0 && (
+                      <span style={{ fontSize: "var(--text-2xs)", fontWeight: 600, background: "var(--danger-bg)", color: "var(--danger)", borderRadius: "999px", padding: "1px 6px" }}>{pendingTasks.length}</span>
+                    )}
+                  </>
+                ),
+              },
+            ]}
+          />
         )}
 
         {activeTab === "reportes" && (
-          <div style={{ display: "flex", gap: "8px" }}>
+          <div role="group" aria-label="Período" style={{ display: "flex", gap: "8px" }}>
             {DATE_FILTERS.map(({ key, label }) => (
-              <button key={key} className={`filter-chip ${dateFilter === key ? "active" : ""}`} onClick={() => setDateFilter(key)}>{label}</button>
+              <button key={key} type="button" aria-pressed={dateFilter === key} className={`filter-chip focus-ring ${dateFilter === key ? "active" : ""}`} onClick={() => setDateFilter(key)}>{label}</button>
             ))}
           </div>
         )}
@@ -84,7 +87,7 @@ export function ActivityFeed({ reports, tasks, showTasks = true }: { reports: Su
           {activeTab === "reportes" && (
             <>
               {filtered.length === 0 ? (
-                <div className="card" style={{ padding: "28px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>Sin reportes en este período.</div>
+                <div className="card" style={{ padding: "28px", textAlign: "center", color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>Sin reportes en este período.</div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {filtered.map((report) => {
@@ -96,8 +99,8 @@ export function ActivityFeed({ reports, tasks, showTasks = true }: { reports: Su
                         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
                           <div style={{ width: 32, height: 32, borderRadius: "var(--radius-sm)", background: cfg.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><StatusIcon size={15} color={cfg.iconColor} /></div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{formatDateTime(report.check_in_time)}</div>
-                            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px", display: "flex", alignItems: "center", gap: "3px", flexWrap: "wrap" }}>
+                            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)" }}>{formatDateTime(report.check_in_time)}</div>
+                            <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)", marginTop: "2px", display: "flex", alignItems: "center", gap: "3px", flexWrap: "wrap" }}>
                               <User size={10} /> {report.merchandiser_name}
                               {report.author_is_supervisor && (
                                 <span className="badge" style={{ background: "var(--bg-elevated)" }}>Supervisor</span>
@@ -108,7 +111,7 @@ export function ActivityFeed({ reports, tasks, showTasks = true }: { reports: Su
                               const productos = report.products_by_anomaly[a] ?? [];
                               if (productos.length === 0) return null;
                               return (
-                                <div key={a} style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                <div key={a} style={{ fontSize: "var(--text-2xs)", color: "var(--text-secondary)", marginTop: "2px" }}>
                                   {a.replace(/_/g, " ")}: {productos.join(", ")}
                                 </div>
                               );
@@ -119,7 +122,7 @@ export function ActivityFeed({ reports, tasks, showTasks = true }: { reports: Su
                             <ChevronRight size={13} color="var(--text-muted)" style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 150ms ease" }} />
                           </div>
                         </div>
-                        <div style={{ display: "flex", gap: "10px", fontSize: "11px", color: "var(--text-muted)", flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: "10px", fontSize: "var(--text-2xs)", color: "var(--text-muted)", flexWrap: "wrap" }}>
                           <span style={{ display: "flex", alignItems: "center", gap: "3px" }}><Clock size={11} />{report.duration_minutes > 0 ? `${report.duration_minutes}min` : "—"}</span>
                           <span style={{ display: "flex", alignItems: "center", gap: "3px" }}><Camera size={11} />{report.photo_urls.length} fotos</span>
                           <span style={{ display: "flex", alignItems: "center", gap: "3px", color: report.location_verified ? "var(--success)" : "var(--warning)" }}><MapPin size={11} />{report.location_verified ? "Verificado" : "Sin verificar"}</span>
@@ -127,7 +130,7 @@ export function ActivityFeed({ reports, tasks, showTasks = true }: { reports: Su
                         {isExpanded && (
                           <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
                             {report.observations && (
-                              <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: "10px" }}>{report.observations}</p>
+                              <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: "10px" }}>{report.observations}</p>
                             )}
                             {report.photo_urls.length > 0 && (
                               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: "6px" }}>
@@ -150,7 +153,7 @@ export function ActivityFeed({ reports, tasks, showTasks = true }: { reports: Su
 
           {activeTab === "tareas" && (
             tasks.length === 0 ? (
-              <div className="card" style={{ padding: "28px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}><CheckCircle2 size={16} color="var(--success)" />Sin tareas registradas.</div>
+              <div className="card" style={{ padding: "28px", textAlign: "center", color: "var(--text-muted)", fontSize: "var(--text-sm)", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}><CheckCircle2 size={16} color="var(--success)" />Sin tareas registradas.</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {tasks.map((task) => {
@@ -163,14 +166,14 @@ export function ActivityFeed({ reports, tasks, showTasks = true }: { reports: Su
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                         <div style={{ width: 32, height: 32, borderRadius: "var(--radius-sm)", background: iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><TypeIcon size={15} color={iconColor} /></div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{taskTypeLabel(task.task_type)}</div>
-                          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "1px", display: "flex", alignItems: "center", gap: "3px" }}><User size={10} /> {task.created_by_name ?? "—"} · <Clock size={10} /> {formatDateTime(task.created_at)}</div>
+                          <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)" }}>{taskTypeLabel(task.task_type)}</div>
+                          <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)", marginTop: "1px", display: "flex", alignItems: "center", gap: "3px" }}><User size={10} /> {task.created_by_name ?? "—"} · <Clock size={10} /> {formatDateTime(task.created_at)}</div>
                         </div>
                         <div style={{ display: "flex", gap: "4px" }}>
                           {task.status === "resolved" && <span className="badge badge-success">Completada</span>}
                         </div>
                       </div>
-                      {body && <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.6, marginTop: "10px" }}>{body}</p>}
+                      {body && <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", lineHeight: 1.6, marginTop: "10px" }}>{body}</p>}
                     </Link>
                   );
                 })}

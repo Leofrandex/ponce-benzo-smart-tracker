@@ -27,65 +27,75 @@ import { RestocksPanel } from "@/app/components/clientes/RestocksPanel";
 import { RestockFormModal } from "@/app/components/clientes/RestockFormModal";
 import { LongTermPlaceholders } from "@/app/components/clientes/LongTermPlaceholders";
 import { StoreFormModal } from "@/app/components/clientes/StoreFormModal";
+import SectionError from "@/app/components/ui/SectionError";
+import Segmented from "@/app/components/ui/Segmented";
 
 export default function ClienteDetailPage() {
   const { storeId } = useParams<{ storeId: string }>();
   const { profile } = useAuth();
 
-  const { data: store, loading, refetch: refetchStore } = useSupabaseQuery(() => fetchStoreById(storeId), [storeId]);
-  const { data: contacts, refetch: refetchContacts } = useSupabaseQuery(() => fetchContacts(storeId), [storeId]);
-  const { data: engagements, refetch: refetchEngagements } = useSupabaseQuery(() => fetchEngagements(storeId), [storeId]);
-  const { data: allTasks } = useSupabaseQuery(fetchFullTasks, []);
+  // Cada sección lee su `error`: un fallo de red no se muestra como "vacío".
+  const { data: store, loading, error: storeError, refetch: refetchStore } = useSupabaseQuery(() => fetchStoreById(storeId), [storeId]);
+  const { data: contacts, error: contactsError, refetch: refetchContacts } = useSupabaseQuery(() => fetchContacts(storeId), [storeId]);
+  const { data: engagements, error: engagementsError, refetch: refetchEngagements } = useSupabaseQuery(() => fetchEngagements(storeId), [storeId]);
+  const { data: allTasks, error: tasksError, refetch: refetchTasks } = useSupabaseQuery(fetchFullTasks, []);
   const tasks = useMemo(() => tasksForStore(allTasks ?? [], storeId), [allTasks, storeId]);
-  const { data: reports } = useSupabaseQuery(() => fetchStoreReports(storeId), [storeId]);
-  const { data: competition } = useSupabaseQuery(() => fetchStoreCompetition(storeId), [storeId]);
-  const { data: restocks, loading: loadingRestocks, refetch: refetchRestocks } = useSupabaseQuery(() => fetchStoreRestocks(storeId), [storeId]);
+  const { data: reports, error: reportsError, refetch: refetchReports } = useSupabaseQuery(() => fetchStoreReports(storeId), [storeId]);
+  const { data: competition, error: competitionError, refetch: refetchCompetition } = useSupabaseQuery(() => fetchStoreCompetition(storeId), [storeId]);
+  const { data: restocks, loading: loadingRestocks, error: restocksError, refetch: refetchRestocks } = useSupabaseQuery(() => fetchStoreRestocks(storeId), [storeId]);
   const lastRestock = useMemo(() => ultimaReposicion(restocks ?? []), [restocks]);
 
   const [editOpen, setEditOpen] = useState(false);
   const [restockOpen, setRestockOpen] = useState(false);
   const [activityTab, setActivityTab] = useState<"visitas" | "competencia" | "reposiciones">("visitas");
 
-  const onStoreSave = async (updated: Store) => {
+  // Los handlers de guardado devuelven { error } en vez de hacer alert: el modal/panel lo
+  // muestra adentro y conserva lo escrito; solo se cierra si salió bien.
+  const onStoreSave = async (updated: Store): Promise<{ error?: string }> => {
     const patch: Partial<Store> = {
       ...updated,
       master_lat: Number(updated.master_lat),
       master_lng: Number(updated.master_lng),
     };
     const { error } = await updateStore(storeId, patch);
-    if (error) { alert("No se pudo guardar la sucursal: " + error); return; }
-    setEditOpen(false);
+    if (error) return { error };
     refetchStore();
+    return {};
   };
 
-  const onContactCreate = async (v: ContactFormValue) => {
+  const onContactCreate = async (v: ContactFormValue): Promise<{ error?: string }> => {
     const { error } = await createContact(storeId, v);
-    if (error) { alert("No se pudo crear el contacto: " + error); return; }
+    if (error) return { error };
     refetchContacts();
+    return {};
   };
 
-  const onContactUpdate = async (contactId: string, v: ContactFormValue) => {
+  const onContactUpdate = async (contactId: string, v: ContactFormValue): Promise<{ error?: string }> => {
     const { error } = await updateContact(storeId, contactId, v);
-    if (error) { alert("No se pudo actualizar el contacto: " + error); return; }
+    if (error) return { error };
     refetchContacts();
+    return {};
   };
 
-  const onContactDelete = async (contactId: string) => {
+  const onContactDelete = async (contactId: string): Promise<{ error?: string }> => {
     const { error } = await deleteContact(contactId);
-    if (error) { alert("No se pudo eliminar el contacto: " + error); return; }
+    if (error) return { error };
     refetchContacts();
+    return {};
   };
 
-  const onEngagementCreate = async (type: "note" | "todo", body: string) => {
+  const onEngagementCreate = async (type: "note" | "todo", body: string): Promise<{ error?: string }> => {
     const { error } = await createEngagement(storeId, type, body);
-    if (error) { alert("No se pudo registrar: " + error); return; }
+    if (error) return { error };
     refetchEngagements();
+    return {};
   };
 
-  const onEngagementToggle = async (e: ContactEngagement) => {
+  const onEngagementToggle = async (e: ContactEngagement): Promise<{ error?: string }> => {
     const { error } = await toggleEngagementDone(e);
-    if (error) { alert("No se pudo actualizar: " + error); return; }
+    if (error) return { error };
     refetchEngagements();
+    return {};
   };
 
   const onRestockDelete = async (r: RestockRow) => {
@@ -95,27 +105,32 @@ export default function ClienteDetailPage() {
     refetchRestocks();
   };
 
-  if (loading) {
+  // Solo la primera carga reemplaza la página: al refrescar tras guardar se mantiene lo visible.
+  if (loading && !store) {
     return <div className="empty-state"><div className="empty-title">Cargando…</div></div>;
   }
 
   if (!store) {
     return (
       <>
-        <Link href="/panel/tiendas" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}><ArrowLeft size={15} /> Tiendas</Link>
-        <div className="empty-state"><Building2 size={44} style={{ opacity: 0.2 }} /><div className="empty-title">Cliente no encontrado</div></div>
+        <Link href="/panel/tiendas" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--text-sm)", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}><ArrowLeft size={15} /> Tiendas</Link>
+        {storeError ? (
+          <SectionError what="el cliente" detail={storeError} onRetry={refetchStore} />
+        ) : (
+          <div className="empty-state"><Building2 size={44} style={{ opacity: 0.2 }} /><div className="empty-title">Cliente no encontrado</div></div>
+        )}
       </>
     );
   }
 
   return (
     <>
-      <Link href="/panel/tiendas" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}><ArrowLeft size={15} /> Tiendas</Link>
+      <Link href="/panel/tiendas" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--text-sm)", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}><ArrowLeft size={15} /> Tiendas</Link>
 
       <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
         <div style={{ width: 48, height: 48, borderRadius: "var(--radius-md)", background: "var(--accent-glow)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Building2 size={24} color="var(--accent)" /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{ fontSize: "20px", fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.4px", margin: 0 }}>{store.name}</h1>
+          <h1 style={{ fontSize: "var(--text-lg)", fontWeight: 600, color: "var(--text-primary)", letterSpacing: "var(--tracking-tight)", margin: 0 }}>{store.name}</h1>
           <div style={{ marginTop: "4px" }}>
             <span className={store.active ? "badge badge-success" : "badge"} style={!store.active ? { background: "var(--bg-elevated)", color: "var(--text-muted)", border: "1px solid var(--border)" } : {}}>{store.active ? "Activa" : "Inactiva"}</span>
           </div>
@@ -131,7 +146,9 @@ export default function ClienteDetailPage() {
           <ContactList
             key={storeId}
             storeId={storeId}
-            contacts={contacts ?? []}
+            contacts={contacts}
+            error={contactsError}
+            onRetry={refetchContacts}
             onCreate={onContactCreate}
             onUpdate={onContactUpdate}
             onDelete={onContactDelete}
@@ -140,32 +157,47 @@ export default function ClienteDetailPage() {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <div>
-            <div style={{ display: "flex", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "3px", marginBottom: "8px" }}>
-              {([["visitas", "Visitas", Camera], ["competencia", "Competencia", Megaphone], ["reposiciones", "Reposiciones", Package]] as [typeof activityTab, string, React.ElementType][]).map(([key, label, Icon]) => (
-                <button
-                  key={key}
-                  onClick={() => setActivityTab(key)}
-                  style={{
-                    flex: 1, border: "none", borderRadius: "calc(var(--radius-md) - 2px)", padding: "7px 12px",
-                    fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-                    background: activityTab === key ? "var(--bg-surface)" : "transparent",
-                    color: activityTab === key ? "var(--text-primary)" : "var(--text-muted)",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
-                  }}
-                >
-                  <Icon size={13} /> {label}
-                  {key === "competencia" && (competition?.length ?? 0) > 0 && (
-                    <span style={{ fontSize: "10px", fontWeight: 700, background: "var(--accent-glow)", color: "var(--accent)", borderRadius: "999px", padding: "1px 6px" }}>{competition!.length}</span>
-                  )}
-                  {key === "reposiciones" && (restocks?.length ?? 0) > 0 && (
-                    <span style={{ fontSize: "10px", fontWeight: 700, background: "var(--accent-glow)", color: "var(--accent)", borderRadius: "999px", padding: "1px 6px" }}>{restocks!.length}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-            {activityTab === "visitas" && <ActivityFeed reports={reports ?? []} tasks={tasks} />}
-            {activityTab === "competencia" && <CompetitionReportsPanel reports={competition ?? []} />}
-            {activityTab === "reposiciones" && (
+            <Segmented<typeof activityTab>
+              ariaLabel="Actividad del cliente"
+              value={activityTab}
+              onChange={setActivityTab}
+              style={{ marginBottom: "8px" }}
+              options={[
+                { value: "visitas", label: <><Camera size={13} aria-hidden /> Visitas</> },
+                {
+                  value: "competencia",
+                  label: <><Megaphone size={13} aria-hidden /> Competencia{(competition?.length ?? 0) > 0 && <span style={{ fontSize: "var(--text-2xs)", fontWeight: 600, background: "var(--accent-glow)", color: "var(--accent)", borderRadius: "999px", padding: "1px 6px" }}>{competition!.length}</span>}</>,
+                },
+                {
+                  value: "reposiciones",
+                  label: <><Package size={13} aria-hidden /> Reposiciones{(restocks?.length ?? 0) > 0 && <span style={{ fontSize: "var(--text-2xs)", fontWeight: 600, background: "var(--accent-glow)", color: "var(--accent)", borderRadius: "999px", padding: "1px 6px" }}>{restocks!.length}</span>}</>,
+                },
+              ]}
+            />
+            {activityTab === "visitas" && (
+              reportsError || tasksError ? (
+                <div className="card" style={{ padding: "4px 16px" }}>
+                  <SectionError
+                    what={reportsError ? "las visitas" : "las tareas"}
+                    detail={reportsError ?? tasksError}
+                    onRetry={() => { if (reportsError) refetchReports(); if (tasksError) refetchTasks(); }}
+                    compact
+                  />
+                </div>
+              ) : <ActivityFeed reports={reports ?? []} tasks={tasks} />
+            )}
+            {activityTab === "competencia" && (
+              competitionError ? (
+                <div className="card" style={{ padding: "4px 16px" }}>
+                  <SectionError what="los reportes de competencia" detail={competitionError} onRetry={refetchCompetition} compact />
+                </div>
+              ) : <CompetitionReportsPanel reports={competition ?? []} />
+            )}
+            {activityTab === "reposiciones" && (restocksError ? (
+              <div className="card" style={{ padding: "4px 16px" }}>
+                <SectionError what="las reposiciones" detail={restocksError} onRetry={refetchRestocks} compact />
+              </div>
+            ) : (
               <RestocksPanel
                 rows={restocks ?? []}
                 loading={loadingRestocks && !restocks}
@@ -175,11 +207,13 @@ export default function ClienteDetailPage() {
                 onRegister={() => setRestockOpen(true)}
                 onDelete={onRestockDelete}
               />
-            )}
+            ))}
           </div>
           <EngagementsPanel
             key={storeId}
-            engagements={engagements ?? []}
+            engagements={engagements}
+            error={engagementsError}
+            onRetry={refetchEngagements}
             onCreate={onEngagementCreate}
             onToggle={onEngagementToggle}
           />

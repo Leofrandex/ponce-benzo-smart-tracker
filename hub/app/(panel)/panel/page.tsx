@@ -21,6 +21,7 @@ import Cumpleanos from "@/app/components/dashboard/Cumpleanos";
 import ClientesSinVendedor from "@/app/components/dashboard/ClientesSinVendedor";
 import VisitasPorCliente from "@/app/components/dashboard/VisitasPorCliente";
 import TasksProgress from "@/app/components/dashboard/TasksProgress";
+import SectionError from "@/app/components/ui/SectionError";
 
 const DIAS_ABANDONO = 15;
 
@@ -46,23 +47,27 @@ function PanelInner() {
   const { desde, hasta } = parsePeriodo(new URLSearchParams(sp.toString()), rangoDeDias(7));
   const setPeriodo = (d: string, h: string) => router.replace(`${pathname}?${serializePeriodo(d, h)}`, { scroll: false });
 
-  const { data: resumen }    = useSupabaseQuery(() => fetchResumen(desde, hasta), [desde, hasta]);
-  const { data: cumpl }      = useSupabaseQuery(() => fetchCumplimiento(desde, hasta), [desde, hasta]);
-  const { data: porCliente } = useSupabaseQuery(() => fetchVisitasPorCliente(desde, hasta), [desde, hasta]);
-  const { data: anomalias }  = useSupabaseQuery(() => fetchAnomalias(desde, hasta), [desde, hasta]);
-  const { data: sinVisita }  = useSupabaseQuery(() => fetchTiendasSinVisita(DIAS_ABANDONO), [DIAS_ABANDONO]);
-  const { data: criticas }   = useSupabaseQuery(() => fetchTiendasCriticas(desde, hasta, 8), [desde, hasta]);
-  const { data: backlog }    = useSupabaseQuery(() => fetchBacklogTareas(), []);
-  const { data: cumples }    = useSupabaseQuery(() => fetchCumpleanos(7), []);
-  const { data: huerfanos }  = useSupabaseQuery(() => fetchClientesSinVendedor(), []);
-  const { data: resolucion } = useSupabaseQuery(() => fetchTiempoResolucion(desde, hasta), [desde, hasta]);
+  // Cada sección lee su propio `error`: un fallo se muestra con Reintentar en
+  // esa sección, nunca como "0" o "sin datos".
+  const qResumen    = useSupabaseQuery(() => fetchResumen(desde, hasta), [desde, hasta]);
+  const qCumpl      = useSupabaseQuery(() => fetchCumplimiento(desde, hasta), [desde, hasta]);
+  const qPorCliente = useSupabaseQuery(() => fetchVisitasPorCliente(desde, hasta), [desde, hasta]);
+  const qAnomalias  = useSupabaseQuery(() => fetchAnomalias(desde, hasta), [desde, hasta]);
+  const qSinVisita  = useSupabaseQuery(() => fetchTiendasSinVisita(DIAS_ABANDONO), [DIAS_ABANDONO]);
+  const qCriticas   = useSupabaseQuery(() => fetchTiendasCriticas(desde, hasta, 8), [desde, hasta]);
+  const qBacklog    = useSupabaseQuery(() => fetchBacklogTareas(), []);
+  const qCumples    = useSupabaseQuery(() => fetchCumpleanos(7), []);
+  const qHuerfanos  = useSupabaseQuery(() => fetchClientesSinVendedor(), []);
+  const qResolucion = useSupabaseQuery(() => fetchTiempoResolucion(desde, hasta), [desde, hasta]);
 
-  const r = resumen;
+  // null mientras carga o si falló: los KPI muestran "—" sin color, no "0%" en rojo.
+  const r = qResumen.error ? null : qResumen.data;
+  const SIN_DATO = "—";
 
   return (
     <>
       <div>
-        <h1 style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px" }}>Panel</h1>
+        <h1 style={{ fontSize: "var(--text-xl)", fontWeight: 600, letterSpacing: "var(--tracking-tight)" }}>Panel</h1>
         <p className="text-muted text-sm" style={{ marginTop: "4px" }}>
           Equipo de campo · {fechaCorta(desde)} – {fechaCorta(hasta)}
         </p>
@@ -74,66 +79,76 @@ function PanelInner() {
         onChange={setPeriodo}
       />
 
-      {esAdmin && <ClientesSinVendedor rows={huerfanos ?? []} />}
+      {esAdmin && <ClientesSinVendedor rows={qHuerfanos.data} error={qHuerfanos.error} onRetry={qHuerfanos.refetch} />}
 
       <div className="kpi-grid">
         <KpiCard
           kpi="cumplimiento"
           primaria
-          valor={`${r?.pct_cumplimiento ?? 0}%`}
+          valor={r ? `${r.pct_cumplimiento}%` : SIN_DATO}
           detalle={r ? `${r.hechas} de ${r.planificadas} visitas planificadas` : undefined}
           href={linkMercaderistas(desde, hasta)}
         >
           <div className="progress-track" aria-hidden="true">
-            <div
-              className="progress-fill"
-              style={{
-                width: `${Math.min(100, r?.pct_cumplimiento ?? 0)}%`,
-                background: colorCumplimiento(r?.pct_cumplimiento ?? 0),
-              }}
-            />
+            {r && (
+              <div
+                className="progress-fill"
+                style={{
+                  width: `${Math.min(100, r.pct_cumplimiento)}%`,
+                  background: colorCumplimiento(r.pct_cumplimiento),
+                }}
+              />
+            )}
           </div>
         </KpiCard>
         <KpiCard
           kpi="visitas"
-          valor={String(r?.visitas ?? 0)}
+          valor={r ? String(r.visitas) : SIN_DATO}
           href={linkMercaderistas(desde, hasta)}
         />
         <KpiCard
           kpi="anomalias"
-          valor={`${r?.tasa_anomalias ?? 0}%`}
+          valor={r ? `${r.tasa_anomalias}%` : SIN_DATO}
           detalle={r ? `${r.anomalias} de ${r.visitas} visitas` : undefined}
-          tono={(r?.tasa_anomalias ?? 0) > 0 ? "peligro" : "normal"}
+          tono={r && r.tasa_anomalias > 0 ? "peligro" : "normal"}
           href={linkTareasAnomalias(null, desde, hasta)}
         />
         <KpiCard
           kpi="tareas"
-          valor={String(r?.tareas_abiertas ?? 0)}
+          valor={r ? String(r.tareas_abiertas) : SIN_DATO}
           detalle={r && r.tareas_viejas > 0 ? `${r.tareas_viejas} con +15 días` : undefined}
-          tono={(r?.tareas_viejas ?? 0) > 0 ? "peligro" : "normal"}
+          tono={r && r.tareas_viejas > 0 ? "peligro" : "normal"}
           // Un admin no tiene cartera propia: "Mis tareas abiertas" no aplica.
           etiqueta={esAdmin ? "Tareas abiertas" : "Mis tareas abiertas"}
           href={linkTareasAbiertas()}
           detalleHref={linkTareasViejas()}
         />
       </div>
+      {qResumen.error && (
+        <div className="card" style={{ padding: "4px 16px" }}>
+          <SectionError what="los indicadores del período" detail={qResumen.error} onRetry={qResumen.refetch} compact />
+        </div>
+      )}
 
-      <CumplimientoChart rows={cumpl ?? []} desde={desde} hasta={hasta} />
+      <CumplimientoChart rows={qCumpl.data} error={qCumpl.error} onRetry={qCumpl.refetch} desde={desde} hasta={hasta} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
                     gap: 16, alignItems: "start" }}>
-        <VisitasPorCliente rows={porCliente ?? []} />
-        <AnomaliasPorTipo rows={anomalias ?? []} desde={desde} hasta={hasta} />
+        <VisitasPorCliente rows={qPorCliente.data} error={qPorCliente.error} onRetry={qPorCliente.refetch} />
+        <AnomaliasPorTipo rows={qAnomalias.data} error={qAnomalias.error} onRetry={qAnomalias.refetch} desde={desde} hasta={hasta} />
       </div>
 
-      <TiendasCriticas rows={criticas ?? []} />
+      <TiendasCriticas rows={qCriticas.data} error={qCriticas.error} onRetry={qCriticas.refetch} />
 
-      <TiendasSinVisita rows={sinVisita ?? []} dias={DIAS_ABANDONO} />
+      <TiendasSinVisita rows={qSinVisita.data} error={qSinVisita.error} onRetry={qSinVisita.refetch} dias={DIAS_ABANDONO} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
                     gap: 16, alignItems: "start" }}>
-        <Cumpleanos rows={cumples ?? []} />
-        <TasksProgress rows={backlog ?? []} resolucion={resolucion} />
+        <Cumpleanos rows={qCumples.data} error={qCumples.error} onRetry={qCumples.refetch} />
+        <TasksProgress
+          rows={qBacklog.data} error={qBacklog.error} onRetry={qBacklog.refetch}
+          resolucion={qResolucion.data} resolucionError={qResolucion.error} onRetryResolucion={qResolucion.refetch}
+        />
       </div>
     </>
   );

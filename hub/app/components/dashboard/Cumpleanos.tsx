@@ -4,8 +4,10 @@ import Link from "next/link";
 import "./dashboard.css";
 import type { CumpleanosRow } from "@/app/lib/queries/dashboard";
 import { linkTienda } from "@/app/lib/queries/dashboardLinks";
+import SectionError from "@/app/components/ui/SectionError";
 
-interface Props { rows: CumpleanosRow[] }
+// rows === null: todavía cargando (o falló). Nunca se confunde con "ninguno".
+interface Props { rows: CumpleanosRow[] | null; error?: string | null; onRetry?: () => void }
 
 const LIMITE = 8;
 
@@ -15,13 +17,17 @@ function cuando(dias: number) {
   return `en ${dias} días`;
 }
 
-export default function Cumpleanos({ rows }: Props) {
+export default function Cumpleanos({ rows, error, onRetry }: Props) {
   return (
     <div className="card" style={{ padding: 16 }}>
-      <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+      <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
         Cumpleaños de compradores
       </h2>
-      {rows.length === 0 ? (
+      {error ? (
+        <SectionError what="los cumpleaños" detail={error} onRetry={onRetry} compact />
+      ) : !rows ? (
+        <p className="text-muted text-sm">Cargando…</p>
+      ) : rows.length === 0 ? (
         <p className="text-muted text-sm">Ninguno en los próximos días.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -42,7 +48,7 @@ export default function Cumpleanos({ rows }: Props) {
           ))}
         </ul>
       )}
-      {rows.length > LIMITE && (
+      {!error && rows && rows.length > LIMITE && (
         <p className="text-muted" style={{ fontSize: 11, marginTop: 8 }}>
           y {rows.length - LIMITE} más
         </p>

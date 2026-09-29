@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { CheckCircle2, MessageSquare, Pencil } from "lucide-react";
 import { updateTaskNote } from "@/app/lib/mutations/tasks";
 import type { FullTaskRow } from "@/app/lib/queries/tasks";
@@ -31,6 +31,7 @@ export function TaskResolutionNote({
   const [editando, setEditando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const campoId = useId();
 
   const resuelta = task.status === "resolved";
 
@@ -56,12 +57,13 @@ export function TaskResolutionNote({
 
   const campo = (
     <div className="form-group" style={{ marginBottom: "12px" }}>
-      <label className="form-label" style={{ fontSize: "11px" }}>
+      <label htmlFor={campoId} className="form-label" style={{ fontSize: "var(--text-2xs)" }}>
         Comentario {resuelta ? "" : "(opcional)"}
       </label>
       <textarea
+        id={campoId}
         className="form-textarea"
-        style={{ fontSize: "13px", padding: "10px 12px", minHeight: "72px" }}
+        style={{ fontSize: "var(--text-sm)", padding: "10px 12px", minHeight: "72px" }}
         placeholder="Qué se hizo, con quién se habló, qué quedó pendiente…"
         maxLength={MAX_NOTA}
         value={texto}
@@ -75,10 +77,10 @@ export function TaskResolutionNote({
     return (
       <>
         {campo}
-        {error && <p style={{ fontSize: "12px", color: "var(--danger)", marginBottom: "8px" }}>{error}</p>}
+        {error && <p style={{ fontSize: "var(--text-xs)", color: "var(--danger)", marginBottom: "8px" }}>{error}</p>}
         <button
           className="btn btn-primary"
-          style={{ fontSize: "13px", padding: "10px" }}
+          style={{ fontSize: "var(--text-sm)", padding: "10px" }}
           disabled={guardando}
           onClick={completar}
         >
@@ -94,7 +96,7 @@ export function TaskResolutionNote({
     return (
       <>
         {campo}
-        {error && <p style={{ fontSize: "12px", color: "var(--danger)", marginBottom: "8px" }}>{error}</p>}
+        {error && <p style={{ fontSize: "var(--text-xs)", color: "var(--danger)", marginBottom: "8px" }}>{error}</p>}
         <div style={{ display: "flex", gap: "8px" }}>
           <button className="btn btn-primary btn-sm" disabled={guardando} onClick={guardar}>
             {guardando ? "Guardando…" : "Guardar"}
@@ -132,7 +134,7 @@ export function TaskResolutionNote({
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
         <MessageSquare size={13} color="var(--text-muted)" style={{ marginTop: "3px", flexShrink: 0 }} />
-        <p style={{ flex: 1, fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+        <p style={{ flex: 1, fontSize: "var(--text-sm)", color: "var(--text-secondary)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
           {task.resolution_note}
         </p>
         <button
@@ -144,7 +146,7 @@ export function TaskResolutionNote({
           <Pencil size={12} />
         </button>
       </div>
-      <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "8px", paddingLeft: "21px" }}>
+      <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)", marginTop: "8px", paddingLeft: "21px" }}>
         {[task.resolution_note_by_name, task.resolution_note_at ? fechaNota(task.resolution_note_at) : null]
           .filter(Boolean)
           .join(" · ")}

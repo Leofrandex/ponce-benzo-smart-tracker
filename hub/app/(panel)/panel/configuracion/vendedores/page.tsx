@@ -67,10 +67,10 @@ function VendedoresInner() {
   return (
     <>
       <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-        <button type="button" className={`filter-chip ${!soloSinVendedor ? "active" : ""}`} onClick={() => setSoloSinVendedor(false)}>
+        <button type="button" aria-pressed={!soloSinVendedor} className={`filter-chip ${!soloSinVendedor ? "active" : ""}`} onClick={() => setSoloSinVendedor(false)}>
           Todas ({rows.length})
         </button>
-        <button type="button" className={`filter-chip ${soloSinVendedor ? "active" : ""}`} onClick={() => setSoloSinVendedor(true)}>
+        <button type="button" aria-pressed={soloSinVendedor} className={`filter-chip ${soloSinVendedor ? "active" : ""}`} onClick={() => setSoloSinVendedor(true)}>
           Sin vendedor ({sinVendedor})
         </button>
       </div>
@@ -101,7 +101,7 @@ function VendedoresInner() {
                     <MultiSelect value={draft} options={options} disabled={st?.saving}
                       ariaLabel={`Editar vendedores de ${r.name}`}
                       onChange={(v) => { cancelTimer(r.client_id); patch(r.client_id, { draft: v, saved: false, error: null }, r); }} />
-                    {st?.error && <div role="alert" style={{ marginTop: "6px", fontSize: "12px", color: "var(--danger)" }}>No se pudo guardar: {st.error}</div>}
+                    {st?.error && <div role="alert" style={{ marginTop: "6px", fontSize: "var(--text-xs)", color: "var(--danger)" }}>No se pudo guardar: {st.error}</div>}
                   </td>
                   <td style={{ whiteSpace: "nowrap", textAlign: "right", width: "1%" }}>
                     {dirty ? (
@@ -109,7 +109,7 @@ function VendedoresInner() {
                         {st?.saving ? "Guardando…" : "Guardar"}
                       </button>
                     ) : st?.saved ? (
-                      <span role="status" style={{ fontSize: "12px", color: "var(--success)" }}>Guardado</span>
+                      <span role="status" style={{ fontSize: "var(--text-xs)", color: "var(--success)" }}>Guardado</span>
                     ) : null}
                   </td>
                 </tr>

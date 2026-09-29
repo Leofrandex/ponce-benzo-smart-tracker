@@ -25,7 +25,7 @@ export function CompetitionReportsPanel({ reports }: { reports: StoreCompetition
     return (
       <div
         className="card"
-        style={{ padding: "28px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}
+        style={{ padding: "28px", textAlign: "center", color: "var(--text-muted)", fontSize: "var(--text-sm)", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}
       >
         <Megaphone size={20} style={{ opacity: 0.4 }} />
         Sin reportes de competencia para esta tienda.
@@ -49,8 +49,8 @@ export function CompetitionReportsPanel({ reports }: { reports: StoreCompetition
                 <Tag size={15} color="var(--accent)" />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{r.brand_name}</div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px", display: "flex", alignItems: "center", gap: "3px" }}>
+                <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)" }}>{r.brand_name}</div>
+                <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)", marginTop: "2px", display: "flex", alignItems: "center", gap: "3px" }}>
                   <User size={10} /> {r.merchandiser_name} · {formatDateTime(r.created_at)}
                 </div>
               </div>
@@ -59,13 +59,13 @@ export function CompetitionReportsPanel({ reports }: { reports: StoreCompetition
                 <ChevronRight size={13} color="var(--text-muted)" style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 150ms ease" }} />
               </div>
             </div>
-            <div style={{ display: "flex", gap: "10px", fontSize: "11px", color: "var(--text-muted)" }}>
+            <div style={{ display: "flex", gap: "10px", fontSize: "var(--text-2xs)", color: "var(--text-muted)" }}>
               <span style={{ display: "flex", alignItems: "center", gap: "3px" }}><Camera size={11} />{r.photo_urls.length} fotos</span>
             </div>
             {isExpanded && (
               <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
                 {r.notes && (
-                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: "10px" }}>{r.notes}</p>
+                  <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: "10px" }}>{r.notes}</p>
                 )}
                 {r.photo_urls.length > 0 && (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: "6px" }}>

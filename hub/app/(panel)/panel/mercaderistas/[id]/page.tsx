@@ -15,6 +15,7 @@ import { hoyCaracas } from "@/app/lib/queries/taskFilters";
 import { parsePeriodo, serializePeriodo } from "@/app/lib/queries/period";
 import { ActivityFeed } from "@/app/components/clientes/ActivityFeed";
 import TimePeriodSelector, { rangoDeDias } from "@/app/components/dashboard/TimePeriodSelector";
+import SectionError from "@/app/components/ui/SectionError";
 
 const COLOR: Record<Resultado, string> = {
   completada: "var(--success)", anomalia: "var(--danger)", cubierta: "var(--accent)",
@@ -37,9 +38,12 @@ function PerfilInner() {
   const { desde, hasta } = parsePeriodo(new URLSearchParams(sp.toString()), rangoDeDias(7));
   const setPeriodo = (d: string, h: string) => router.replace(`${pathname}?${serializePeriodo(d, h)}`, { scroll: false });
 
-  const { data: detalle, loading, error } = useSupabaseQuery(() => fetchDetalle(id, desde, hasta), [id, desde, hasta]);
-  const { data: jornadas } = useSupabaseQuery(() => fetchJornadas(id, desde, hasta), [id, desde, hasta]);
-  const { data: reports } = useSupabaseQuery(() => fetchUserReports(id, desde, hasta), [id, desde, hasta]);
+  const { data: detalle, loading, error, refetch } = useSupabaseQuery(() => fetchDetalle(id, desde, hasta), [id, desde, hasta]);
+  // Jornadas y reportes leen su error: si fallan se dice, no "Sin jornadas".
+  const qJornadas = useSupabaseQuery(() => fetchJornadas(id, desde, hasta), [id, desde, hasta]);
+  const qReports = useSupabaseQuery(() => fetchUserReports(id, desde, hasta), [id, desde, hasta]);
+  const { data: jornadas } = qJornadas;
+  const { data: reports } = qReports;
   const { data: userName } = useSupabaseQuery(() => fetchUserName(id), [id]);
   const { data: versiones } = useSupabaseQuery(fetchVersiones, []);
   const [abierto, setAbierto] = useState<string | null>(null);
@@ -51,12 +55,12 @@ function PerfilInner() {
 
   return (
     <>
-      <Link href={`/panel/mercaderistas?${serializePeriodo(desde, hasta)}`} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}>
+      <Link href={`/panel/mercaderistas?${serializePeriodo(desde, hasta)}`} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--text-sm)", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}>
         <ArrowLeft size={15} /> Mercaderistas
       </Link>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <h1 style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px" }}>{nombre}</h1>
+          <h1 style={{ fontSize: "var(--text-xl)", fontWeight: 600, letterSpacing: "var(--tracking-tight)" }}>{nombre}</h1>
           {versiones && (() => {
             const { texto, desactualizada } = estadoVersion(versiones.get(id));
             return (
@@ -67,18 +71,18 @@ function PerfilInner() {
         <TimePeriodSelector desde={desde} hasta={hasta} onChange={setPeriodo} />
       </div>
 
-      {error && <div className="empty-state"><div className="empty-title">Error al cargar</div><div className="empty-desc">{error}</div></div>}
+      {error && <SectionError what="el detalle del periodo" detail={error} onRetry={refetch} />}
       {loading && !detalle && <div className="empty-state"><div className="empty-title">Cargando…</div></div>}
 
       {detalle && (
         <>
           <div className="card" style={{ padding: "18px" }}>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 600 }}>Cumplimiento del periodo</div>
+            <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: 600 }}>Cumplimiento del periodo</div>
             {resumen.planificadas === 0 ? (
-              <div style={{ fontSize: "15px", marginTop: "8px", color: "var(--text-secondary)" }}>Sin rutas planificadas en este periodo.</div>
+              <div style={{ fontSize: "var(--text-base)", marginTop: "8px", color: "var(--text-secondary)" }}>Sin rutas planificadas en este periodo.</div>
             ) : (
               <>
-                <div style={{ fontSize: "40px", fontWeight: 800, letterSpacing: "-1px", fontVariantNumeric: "tabular-nums", color: tono(resumen.pct) }}>{resumen.pct}%</div>
+                <div style={{ fontSize: "var(--text-kpi)", fontWeight: 700, letterSpacing: "var(--tracking-tight)", fontVariantNumeric: "tabular-nums", color: tono(resumen.pct) }}>{resumen.pct}%</div>
                 {/* Desglose: label arriba, número debajo; secundario frente al %. */}
                 <div style={{ marginTop: "10px", display: "flex", gap: "28px", flexWrap: "wrap" }}>
                   {([
@@ -88,16 +92,16 @@ function PerfilInner() {
                     ["No visitadas", resumen.no_visitadas, null],
                   ] as const).map(([label, n, sub]) => (
                     <div key={label}>
-                      <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>{label}</div>
-                      <div style={{ fontSize: "16px", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-                        {n}{sub && <span style={{ fontSize: "12px", fontWeight: 400, color: "var(--text-muted)", marginLeft: "6px" }}>{sub}</span>}
+                      <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)", fontWeight: 600 }}>{label}</div>
+                      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+                        {n}{sub && <span style={{ fontSize: "var(--text-xs)", fontWeight: 400, color: "var(--text-muted)", marginLeft: "6px" }}>{sub}</span>}
                       </div>
                     </div>
                   ))}
                 </div>
               </>
             )}
-            {incluyeHoy && <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "8px" }}>Hoy no cuenta hasta que termina el día.</div>}
+            {incluyeHoy && <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: "8px" }}>Hoy no cuenta hasta que termina el día.</div>}
           </div>
 
           <style>{`
@@ -107,7 +111,7 @@ function PerfilInner() {
           <div className="card" style={{ padding: 0, overflow: "hidden", flexShrink: 0 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", padding: "12px 14px 6px" }}>
               <div className="section-title" style={{ margin: 0 }}>Día por día</div>
-              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", fontSize: "11px", color: "var(--text-muted)" }}>
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", fontSize: "var(--text-2xs)", color: "var(--text-muted)" }}>
                 {LEYENDA.map((r) => (
                   <span key={r} style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
                     <span style={{ width: 8, height: 8, borderRadius: 2, background: COLOR[r] }} />{RESULTADO_LABEL[r]}
@@ -115,20 +119,20 @@ function PerfilInner() {
                 ))}
               </div>
             </div>
-            {dias.length === 0 && <div style={{ padding: "12px 14px", color: "var(--text-muted)", fontSize: "13px" }}>Sin días con ruta.</div>}
+            {dias.length === 0 && <div style={{ padding: "12px 14px", color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>Sin días con ruta.</div>}
             {dias.map((d) => (
               <div key={d.fecha} style={{ borderTop: "1px solid var(--border)" }}>
                 <button type="button" className="mz-dia" aria-expanded={abierto === d.fecha} onClick={() => setAbierto(abierto === d.fecha ? null : d.fecha)}
                   style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: "12px", width: "100%", padding: "10px 14px", boxSizing: "border-box" }}>
                   <ChevronRight size={14} style={{ transform: abierto === d.fecha ? "rotate(90deg)" : "none", transition: "transform 150ms" }} />
                   <span style={{ width: "110px", fontWeight: 600, textTransform: "capitalize" }}>{diaLargo(d.fecha)}</span>
-                  <span style={{ width: "48px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: tono(d.resumen.pct) }}>{d.resumen.pct}%</span>
+                  <span style={{ width: "48px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600, color: tono(d.resumen.pct) }}>{d.resumen.pct}%</span>
                   <span style={{ display: "flex", gap: "3px", flexWrap: "wrap" }} aria-label={`${d.resumen.hechas} de ${d.resumen.planificadas} hechas`}>
                     {d.tiendas.map((t, i) => <span key={t.store_id + i} title={`${t.store_name}: ${RESULTADO_LABEL[t.resultado]}`} style={{ width: 10, height: 10, borderRadius: 2, background: COLOR[t.resultado] }} />)}
                   </span>
                 </button>
                 {abierto === d.fecha && (
-                  <table className="mz-tiendas" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", marginBottom: "8px" }}>
+                  <table className="mz-tiendas" style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--text-sm)", marginBottom: "8px" }}>
                     <tbody>
                       {d.tiendas.map((t, i) => (
                         <tr key={t.store_id + i} style={{ borderTop: "1px solid var(--border)" }}>
@@ -155,8 +159,10 @@ function PerfilInner() {
 
           <div className="card" style={{ padding: "12px 14px" }}>
             <div className="section-title" style={{ marginBottom: "6px" }}>Jornadas</div>
-            {(jornadas ?? []).length === 0 ? <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>Sin jornadas en el periodo.</div> : (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+            {qJornadas.error ? <SectionError what="las jornadas" detail={qJornadas.error} onRetry={qJornadas.refetch} compact />
+              : !jornadas ? <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>Cargando…</div>
+              : jornadas.length === 0 ? <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>Sin jornadas en el periodo.</div> : (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--text-sm)" }}>
                 <tbody>
                   {(jornadas ?? []).map((j) => (
                     <tr key={j.session_id} style={{ borderTop: "1px solid var(--border)" }}>
@@ -170,7 +176,15 @@ function PerfilInner() {
             )}
           </div>
 
-          <ActivityFeed reports={reports ?? []} tasks={[]} showTasks={false} />
+          {qReports.error ? (
+            <div className="card" style={{ padding: "4px 14px" }}>
+              <SectionError what="los reportes" detail={qReports.error} onRetry={qReports.refetch} compact />
+            </div>
+          ) : reports ? (
+            <ActivityFeed reports={reports} tasks={[]} showTasks={false} />
+          ) : (
+            <div className="card" style={{ padding: "12px 14px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>Cargando reportes…</div>
+          )}
         </>
       )}
     </>

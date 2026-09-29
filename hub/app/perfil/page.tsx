@@ -59,7 +59,7 @@ export default function PerfilPage() {
       {/* Content */}
       <main style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column", gap: "16px", maxWidth: "480px", width: "100%", margin: "0 auto" }}>
         <div>
-          <h1 style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px" }}>
+          <h1 style={{ fontSize: "var(--text-xl)", fontWeight: 600, letterSpacing: "var(--tracking-tight)" }}>
             Mi Perfil
           </h1>
           <p className="text-muted text-sm" style={{ marginTop: "4px" }}>
@@ -81,7 +81,7 @@ export default function PerfilPage() {
           >
             <User size={32} color="var(--accent-light)" strokeWidth={1.5} />
           </div>
-          <div style={{ fontSize: "19px", fontWeight: 700 }}>{profile?.full_name ?? "—"}</div>
+          <div style={{ fontSize: "var(--text-lg)", fontWeight: 600 }}>{profile?.full_name ?? "—"}</div>
           <div className="text-muted text-sm" style={{ marginTop: "4px" }}>{profile?.email ?? "—"}</div>
           <div style={{ marginTop: "10px" }}>
             <span className="badge badge-accent">

@@ -16,20 +16,20 @@ function Casilla({ estado, onClick, label }: { estado: "todas" | "algunas" | "ni
       aria-label={label} onClick={onClick}
       style={{ width: 14, height: 14, flexShrink: 0, borderRadius: 3, cursor: "pointer", padding: 0,
         border: `1.5px solid ${estado === "ninguna" ? "var(--border)" : "var(--accent)"}`,
-        background: estado === "todas" ? "var(--accent)" : "var(--bg-card)", color: "#fff", fontSize: 10, lineHeight: "10px" }}>
+        background: estado === "todas" ? "var(--accent)" : "var(--bg-card)", color: "#fff", fontSize: 11, lineHeight: "10px" }}>
       {estado === "todas" ? "✓" : estado === "algunas" ? <span style={{ color: "var(--accent)" }}>–</span> : ""}
     </button>
   );
 }
 
 // Chips compactos: los .filter-chip de tamaño normal no caben junto al título en 250px.
-const CHIP = { padding: "2px 7px", fontSize: 10 } as const;
+const CHIP = { padding: "2px 7px", fontSize: 11 } as const;
 const TITLE = { fontSize: 11, letterSpacing: 0.5 } as const;
 // Casillas nativas con el mismo acento y tamaño que la casilla de cadena.
 const CHECK = { width: 14, height: 14, margin: 0, flexShrink: 0, accentColor: "var(--accent)" } as const;
 
 export function MapFilterSidebar({
-  value, onChange, grupos, merchandisers, vendedores, onVendedor,
+  value, onChange, grupos, merchandisers, vendedores, onVendedor, inSheet = false,
 }: {
   value: MapFilterValue;
   onChange: (v: MapFilterValue) => void;
@@ -37,6 +37,8 @@ export function MapFilterSidebar({
   merchandisers: MapMerchandiser[];
   vendedores: { value: string; label: string }[];
   onVendedor: (userId: string) => void;
+  /** Dentro del bottom sheet del teléfono: ancho completo y sin scroll propio. */
+  inSheet?: boolean;
 }) {
   const [q, setQ] = useState("");
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
@@ -49,11 +51,11 @@ export function MapFilterSidebar({
   const dirty = value.tiendas.modo !== "todas" || value.merch.modo !== "todas" || !!value.vendedor;
 
   return (
-    <div style={{ width: 250, flexShrink: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto", overflowX: "hidden", paddingRight: 2 }}>
+    <div style={{ width: inSheet ? "100%" : 250, flexShrink: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: 10, overflowY: inSheet ? "visible" : "auto", overflowX: inSheet ? "visible" : "hidden", paddingRight: 2 }}>
       <div className="card" style={{ padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{resumenMapa(value, grupos, merchandisers.length)}</span>
         {dirty && (
-          <button type="button" aria-label="Restablecer filtros" onClick={() => onChange(DEFAULT_MAP_FILTER)}
+          <button type="button" aria-label="Restablecer filtros" className="focus-ring" onClick={() => onChange(DEFAULT_MAP_FILTER)}
             style={{ all: "unset", cursor: "pointer", display: "inline-flex", color: "var(--text-muted)" }}><X size={14} /></button>
         )}
       </div>
@@ -107,6 +109,7 @@ export function MapFilterSidebar({
                 <Casilla estado={est} label={`Seleccionar ${g.nombre}`}
                   onClick={() => onChange({ ...value, tiendas: setVarios(value.tiendas, ids, est !== "todas", allStoreIds) })} />
                 <button type="button" onClick={() => setAbiertos((s) => ({ ...s, [key]: !abierto }))} aria-expanded={abierto}
+                  className="focus-ring"
                   style={{ all: "unset", cursor: "pointer", flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600 }}>
                   {abierto ? <ChevronDown size={12} style={{ flexShrink: 0 }} /> : <ChevronRight size={12} style={{ flexShrink: 0 }} />}
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={g.nombre}>{g.nombre}</span>

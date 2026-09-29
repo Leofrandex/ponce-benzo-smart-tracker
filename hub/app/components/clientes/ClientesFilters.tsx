@@ -50,10 +50,10 @@ export function ClientesFilters({
         onChange={(v) => onChange({ ...value, channel: v })} />
 
       <div>
-        <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", marginBottom: "4px" }}>Clasificación</div>
+        <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", marginBottom: "4px" }}>Clasificación</div>
         <div style={{ display: "flex", gap: "4px" }}>
           {["A", "B", "C"].map((c) => (
-            <button key={c} onClick={() => toggleClass(c)}
+            <button key={c} type="button" onClick={() => toggleClass(c)} aria-pressed={value.classifications.includes(c)}
               className={`filter-chip ${value.classifications.includes(c) ? "active" : ""}`}>
               {c}
             </button>

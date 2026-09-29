@@ -25,7 +25,7 @@ export function MerchandiserMarkersLayer({ merchandisers }: { merchandisers: Map
           <Popup>
             <strong>{m.name}</strong><br />
             {m.status === "active" ? "Activo ahora" : "Desconectado"}
-            {m.lastSeen && <><br /><span style={{ color: "#64748b", fontSize: "12px" }}>Última señal {formatAgo(m.lastSeen)}</span></>}
+            {m.lastSeen && <><br /><span style={{ color: "#64748b", fontSize: "var(--text-xs)" }}>Última señal {formatAgo(m.lastSeen)}</span></>}
           </Popup>
         </Marker>
       ))}

@@ -100,7 +100,7 @@ function TareasPageInner() {
     <>
       {/* Header */}
       <div>
-        <h1 style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px" }}>
+        <h1 style={{ fontSize: "var(--text-xl)", fontWeight: 600, letterSpacing: "var(--tracking-tight)" }}>
           Tareas
         </h1>
         <p className="text-muted text-sm" style={{ marginTop: "4px" }}>
@@ -137,25 +137,25 @@ function TareasPageInner() {
       </div>
 
       {!loading && !error && (hasActiveFilters(filter) || filter.status !== DEFAULT_TASK_FILTER.status) && (
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", color: "var(--text-secondary)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
           <span>{describeTaskFilter(filter, options, filtered.length)}</span>
           <button className="filter-chip" onClick={() => setFilter(DEFAULT_TASK_FILTER)}>Quitar filtros</button>
         </div>
       )}
 
       {assigneesError && (
-        <div className="card" style={{ padding: "10px 12px", fontSize: "13px", color: "var(--text-muted)" }}>
+        <div className="card" style={{ padding: "10px 12px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
           No se pudieron cargar los vendedores; el filtro por vendedor está deshabilitado.
         </div>
       )}
 
       {linkedMissing && (
-        <div className="card" style={{ padding: "10px 12px", fontSize: "13px", color: "var(--text-muted)" }}>
+        <div className="card" style={{ padding: "10px 12px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
           La tarea enlazada no está disponible.
         </div>
       )}
       {linkedHidden && (
-        <div className="card" style={{ padding: "10px 12px", fontSize: "13px", color: "var(--text-muted)" }}>
+        <div className="card" style={{ padding: "10px 12px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
           La tarea enlazada está oculta por los filtros activos.{" "}
           <button className="filter-chip" onClick={() => setFilter({ ...DEFAULT_TASK_FILTER, status: "all" })}>Limpiar filtros</button>
         </div>
@@ -206,10 +206,10 @@ function TareasPageInner() {
                 {/* Row 1: title/store (el estado ya lo dicen el badge y el borde) */}
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
+                    <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
                       {task.title ? taskTitleLabel(task.title) : taskTypeLabel(task.task_type)}
                     </div>
-                    <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "1px" }}>
+                    <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: "1px" }}>
                       {[task.client_name, task.store_name, task.created_by_name].filter(Boolean).join(" · ") || "—"}
                     </div>
                   </div>
@@ -230,7 +230,7 @@ function TareasPageInner() {
                   style={{
                     display: "flex",
                     gap: "10px",
-                    fontSize: "11px",
+                    fontSize: "var(--text-2xs)",
                     color: "var(--text-muted)",
                     alignItems: "center",
                   }}
@@ -264,7 +264,7 @@ function TareasPageInner() {
                   >
                     <p
                       style={{
-                        fontSize: "13px",
+                        fontSize: "var(--text-sm)",
                         color: "var(--text-secondary)",
                         lineHeight: 1.6,
                         marginBottom: "14px",

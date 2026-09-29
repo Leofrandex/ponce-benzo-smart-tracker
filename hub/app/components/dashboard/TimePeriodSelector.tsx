@@ -58,6 +58,8 @@ export default function TimePeriodSelector({ desde, hasta, onChange }: TimePerio
       {PRESETS.map((p) => (
         <button
           key={p.dias}
+          type="button"
+          aria-pressed={activo === p.dias}
           onClick={() => onChange(...rangoDeDias(p.dias))}
           className={`filter-chip${activo === p.dias ? " active" : ""}`}
         >

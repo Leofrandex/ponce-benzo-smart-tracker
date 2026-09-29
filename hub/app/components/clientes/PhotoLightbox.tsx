@@ -26,7 +26,7 @@ export function PhotoLightbox({ urls, startIndex, onClose }: { urls: string[]; s
       {urls.length > 1 && (
         <button onClick={(e) => { e.stopPropagation(); setI((p) => (p + 1) % urls.length); }} style={{ position: "absolute", right: 16, background: "transparent", border: "none", cursor: "pointer", color: "white" }}><ChevronRight size={36} /></button>
       )}
-      <div style={{ position: "absolute", bottom: 20, color: "white", fontSize: "13px" }}>{i + 1} / {urls.length}</div>
+      <div style={{ position: "absolute", bottom: 20, color: "white", fontSize: "var(--text-sm)" }}>{i + 1} / {urls.length}</div>
     </div>
   );
 }

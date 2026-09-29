@@ -31,7 +31,7 @@ export function TaskVisitDetail({ visitId }: { visitId: string }) {
 
   return (
     <div style={{ background: "var(--danger-bg)", borderRadius: "var(--radius-sm)", padding: "12px", marginBottom: "14px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 700, marginBottom: "8px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--text-xs)", fontWeight: 600, marginBottom: "8px" }}>
         <AlertTriangle size={13} color="var(--danger)" />
         Anomalía reportada
         <span style={{ marginLeft: "auto", fontWeight: 400, color: "var(--text-muted)" }}>
@@ -59,12 +59,12 @@ export function TaskVisitDetail({ visitId }: { visitId: string }) {
       )}
 
       {detail.supervisor_name && (
-        <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px" }}>
+        <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginBottom: "8px" }}>
           Supervisor presente: <strong>{detail.supervisor_name}</strong>
         </p>
       )}
 
-      <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: detail.photo_urls.length > 0 ? "10px" : "6px" }}>
+      <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: detail.photo_urls.length > 0 ? "10px" : "6px" }}>
         {detail.observations || "Sin observaciones."}
       </p>
 

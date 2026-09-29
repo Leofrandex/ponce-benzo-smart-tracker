@@ -3,45 +3,51 @@
 import { useState } from "react";
 import { User, Phone, Mail, Star, Pencil, Plus } from "lucide-react";
 import type { Contact } from "@/app/lib/types";
+import SectionError from "@/app/components/ui/SectionError";
 import { ContactFormModal, type ContactFormValue } from "./ContactFormModal";
 
 interface ContactListProps {
   storeId: string;
-  contacts: Contact[];
-  onCreate: (value: ContactFormValue) => Promise<void>;
-  onUpdate: (contactId: string, value: ContactFormValue) => Promise<void>;
-  onDelete: (contactId: string) => Promise<void>;
+  contacts: Contact[] | null; // null = todavía cargando
+  error?: string | null;
+  onRetry?: () => void;
+  onCreate: (value: ContactFormValue) => Promise<{ error?: string }>;
+  onUpdate: (contactId: string, value: ContactFormValue) => Promise<{ error?: string }>;
+  onDelete: (contactId: string) => Promise<{ error?: string }>;
 }
 
-export function ContactList({ storeId: _storeId, contacts, onCreate, onUpdate, onDelete }: ContactListProps) {
+export function ContactList({ storeId: _storeId, contacts, error, onRetry, onCreate, onUpdate, onDelete }: ContactListProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Contact | null>(null);
-  const items = contacts; // controlado por el padre
+  const items = contacts ?? []; // controlado por el padre
 
   function openCreate() { setEditing(null); setModalOpen(true); }
   function openEdit(contact: Contact) { setEditing(contact); setModalOpen(true); }
 
-  async function handleSave(value: ContactFormValue) {
-    if (editing) await onUpdate(editing.contact_id, value);
-    else await onCreate(value);
-    setModalOpen(false);
+  // El modal se cierra solo si la operación salió bien (lo decide ContactFormModal).
+  function handleSave(value: ContactFormValue) {
+    return editing ? onUpdate(editing.contact_id, value) : onCreate(value);
   }
-  async function handleDelete() {
-    if (!editing) return;
-    await onDelete(editing.contact_id);
-    setModalOpen(false);
+  function handleDelete() {
+    return editing ? onDelete(editing.contact_id) : Promise.resolve({});
   }
 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-        <div className="section-title">Contactos ({items.length})</div>
+        <div className="section-title">Contactos{contacts ? ` (${items.length})` : ""}</div>
         <button type="button" onClick={openCreate} className="filter-chip" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
           <Plus size={12} /> Agregar
         </button>
       </div>
-      {items.length === 0 ? (
-        <div className="card" style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>Sin contactos registrados.</div>
+      {error ? (
+        <div className="card" style={{ padding: "4px 14px" }}>
+          <SectionError what="los contactos" detail={error} onRetry={onRetry} compact />
+        </div>
+      ) : contacts === null ? (
+        <div className="card" style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>Cargando contactos…</div>
+      ) : items.length === 0 ? (
+        <div className="card" style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>Sin contactos registrados.</div>
       ) : (
         <div className="card" style={{ padding: "4px 14px", height: "175px", overflowY: "auto" }}>
           {items.map((c, idx) => (
@@ -55,10 +61,10 @@ export function ContactList({ storeId: _storeId, contacts, onCreate, onUpdate, o
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>{c.full_name}</span>
+                    <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: "var(--text-primary)" }}>{c.full_name}</span>
                     {c.is_primary && <Star size={12} color="var(--warning)" fill="var(--warning)" />}
                   </div>
-                  <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{c.role_title ?? "—"}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{c.role_title ?? "—"}</div>
                 </div>
                 <button
                   type="button"
@@ -74,7 +80,7 @@ export function ContactList({ storeId: _storeId, contacts, onCreate, onUpdate, o
                   <Pencil size={12} />
                 </button>
               </div>
-              <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", fontSize: "12px" }}>
+              <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", fontSize: "var(--text-xs)" }}>
                 {c.phone && <a href={`tel:${c.phone}`} style={{ display: "flex", alignItems: "center", gap: "4px", color: "var(--accent)", textDecoration: "none" }}><Phone size={12} /> {c.phone}</a>}
                 {c.email && <a href={`mailto:${c.email}`} style={{ display: "flex", alignItems: "center", gap: "4px", color: "var(--accent)", textDecoration: "none" }}><Mail size={12} /> {c.email}</a>}
               </div>

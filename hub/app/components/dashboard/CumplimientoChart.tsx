@@ -6,8 +6,10 @@ import type { BarRectangleItem } from "recharts";
 import type { CumplimientoRow } from "@/app/lib/queries/dashboard";
 import { ChartLinkTick } from "./ChartLinkTick";
 import { linkMercaderista } from "@/app/lib/queries/dashboardLinks";
+import SectionError from "@/app/components/ui/SectionError";
 
-interface Props { rows: CumplimientoRow[]; desde: string; hasta: string }
+// rows === null: todavía cargando (o falló). Nunca se confunde con "sin rutas".
+interface Props { rows: CumplimientoRow[] | null; error?: string | null; onRetry?: () => void; desde: string; hasta: string }
 
 const OK = "#16a34a";
 const MEDIO = "#d97706";
@@ -20,13 +22,15 @@ export function colorCumplimiento(pct: number) {
   return MAL;
 }
 
-export default function CumplimientoChart({ rows, desde, hasta }: Props) {
+export default function CumplimientoChart({ rows, error, onRetry, desde, hasta }: Props) {
   const router = useRouter();
-  if (rows.length === 0) {
+  if (error || !rows || rows.length === 0) {
     return (
       <div className="card" style={{ padding: 16 }}>
-        <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Cumplimiento por mercaderista</h2>
-        <p className="text-muted text-sm">No hay rutas planificadas en este período.</p>
+        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Cumplimiento por mercaderista</h2>
+        {error ? <SectionError what="el cumplimiento" detail={error} onRetry={onRetry} compact />
+          : !rows ? <p className="text-muted text-sm">Cargando…</p>
+          : <p className="text-muted text-sm">No hay rutas planificadas en este período.</p>}
       </div>
     );
   }
@@ -44,7 +48,7 @@ export default function CumplimientoChart({ rows, desde, hasta }: Props) {
 
   return (
     <div className="card" style={{ padding: 16 }}>
-      <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Cumplimiento por mercaderista</h2>
+      <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Cumplimiento por mercaderista</h2>
       <ResponsiveContainer width="100%" height={Math.max(120, data.length * 42)}>
         <BarChart data={data} layout="vertical" margin={{ left: 8, right: 24 }}>
           <XAxis type="number" domain={[0, 100]} unit="%" tick={{ fontSize: 11 }} />

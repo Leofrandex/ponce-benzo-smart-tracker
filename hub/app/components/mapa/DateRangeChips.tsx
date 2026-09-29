@@ -57,11 +57,11 @@ function RangeCalendar({ range, onPick }: { range: DateRange; onPick: (r: DateRa
     <div style={{ width: "252px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
         <button type="button" onClick={() => setViewDate(new Date(year, month - 1, 1))} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px" }}><ChevronLeft size={15} /></button>
-        <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>{MONTHS[month]} {year}</span>
+        <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)" }}>{MONTHS[month]} {year}</span>
         <button type="button" onClick={() => setViewDate(new Date(year, month + 1, 1))} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px" }}><ChevronRight size={15} /></button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px", textAlign: "center" }}>
-        {DOW.map((d, i) => <span key={i} style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-muted)", padding: "4px 0" }}>{d}</span>)}
+        {DOW.map((d, i) => <span key={i} style={{ fontSize: "var(--text-2xs)", fontWeight: 600, color: "var(--text-muted)", padding: "4px 0" }}>{d}</span>)}
         {Array.from({ length: firstDow }).map((_, i) => <span key={`pad-${i}`} />)}
         {Array.from({ length: daysInMonth }).map((_, i) => {
           const day = i + 1;
@@ -71,7 +71,7 @@ function RangeCalendar({ range, onPick }: { range: DateRange; onPick: (r: DateRa
           const inRange = !pendingFrom && iso > range.from && iso < range.to;
           return (
             <button key={day} type="button" onClick={() => clickDay(day)} disabled={disabled} style={{
-              border: "none", padding: "6px 0", fontSize: "11px", fontFamily: "inherit", cursor: disabled ? "default" : "pointer",
+              border: "none", padding: "6px 0", fontSize: "var(--text-2xs)", fontFamily: "inherit", cursor: disabled ? "default" : "pointer",
               borderRadius: "7px", fontWeight: isEdge ? 700 : 500,
               background: isEdge ? "var(--accent)" : inRange ? "var(--accent-glow)" : "transparent",
               color: disabled ? "rgba(140,144,145,0.4)" : isEdge ? "#fff" : inRange ? "var(--accent)" : "var(--text-secondary)",
@@ -79,7 +79,7 @@ function RangeCalendar({ range, onPick }: { range: DateRange; onPick: (r: DateRa
           );
         })}
       </div>
-      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "8px", textAlign: "center" }}>
+      <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)", marginTop: "8px", textAlign: "center" }}>
         {pendingFrom ? "Ahora elegí la fecha final" : "Elegí la fecha inicial"}
       </div>
     </div>
@@ -115,11 +115,13 @@ export function DateRangeChips({ range, onChange }: { range: DateRange; onChange
   return (
     <div ref={rootRef} style={{ position: "relative", display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
       {presets.map(({ key, label }) => (
-        <button key={key} type="button" className={`filter-chip ${preset === key ? "active" : ""}`} onClick={() => pickPreset(key)}>
+        <button key={key} type="button" className={`filter-chip ${preset === key ? "active" : ""}`}
+          aria-pressed={preset === key} onClick={() => pickPreset(key)}>
           {label}
         </button>
       ))}
       <button type="button" className={`filter-chip ${preset === "custom" ? "active" : ""}`}
+        aria-pressed={preset === "custom"} aria-expanded={calOpen}
         onClick={() => { setPreset("custom"); setCalOpen((o) => !o); }}
         style={{ display: "flex", alignItems: "center", gap: "5px" }}>
         <Calendar size={12} />

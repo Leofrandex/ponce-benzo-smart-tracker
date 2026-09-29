@@ -5,9 +5,9 @@ import { Search } from "lucide-react";
 import { Select } from "@/app/components/ui/Select";
 import { VENDEDOR_NINGUNO, type TaskFilterOptions, type TaskFilterValue } from "@/app/lib/queries/taskFilters";
 
-const LABEL_STYLE = { fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" } as const;
+const LABEL_STYLE = { fontSize: "var(--text-2xs)", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" } as const;
 const INPUT_STYLE = {
-  width: "100%", padding: "8px 12px", fontFamily: "inherit", fontSize: "13px", fontWeight: 500,
+  width: "100%", padding: "8px 12px", fontFamily: "inherit", fontSize: "var(--text-sm)", fontWeight: 500,
   color: "var(--text-primary)", background: "var(--bg-elevated)", border: "1px solid var(--border)",
   borderRadius: "var(--radius-sm)", transition: "border-color var(--duration) var(--ease)",
   // Misma altura que los Select: el input date es 2px más alto y desalinea las etiquetas.

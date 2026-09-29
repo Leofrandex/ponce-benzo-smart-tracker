@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { TaskSummary } from "@/app/lib/queries/taskSummary";
 import { AGE_BUCKETS, AGE_BUCKET_LABEL, type TaskFilterValue } from "@/app/lib/queries/taskFilters";
+import Segmented from "@/app/components/ui/Segmented";
 
 type Pick = (patch: Partial<TaskFilterValue>) => void;
 
@@ -18,7 +19,7 @@ const STICKY: React.CSSProperties = { position: "sticky", left: 0, background: "
 
 function Num({ n, onClick, label }: { n: number; onClick: () => void; label: string }) {
   if (n === 0) return <span style={{ ...NUM, display: "block", padding: "6px 8px", color: "var(--text-muted)" }}>—</span>;
-  return <button type="button" style={CELL_BTN} className="summary-cell" onClick={onClick} aria-label={label}>{n}</button>;
+  return <button type="button" style={CELL_BTN} className="summary-cell focus-ring" onClick={onClick} aria-label={label}>{n}</button>;
 }
 
 // Resumen de Tareas. Métrica primaria: total de abiertas (con su reparto por
@@ -31,14 +32,14 @@ export function TaskSummaryPanel({ summary, onPick }: { summary: TaskSummary; on
     <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 1fr) minmax(0, 2.2fr)", gap: "12px" }} className="task-summary">
       {/* Primaria */}
       <div className="card" style={{ padding: "18px", alignSelf: "start" }}>
-        <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 600 }}>Tareas abiertas</div>
-        <button type="button" style={{ all: "unset", cursor: "pointer", fontSize: "40px", fontWeight: 800, letterSpacing: "-1px", fontVariantNumeric: "tabular-nums", lineHeight: 1.1, marginTop: "4px" }}
+        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: 600 }}>Tareas abiertas</div>
+        <button type="button" className="focus-ring" style={{ all: "unset", cursor: "pointer", fontSize: "var(--text-kpi)", fontWeight: 700, letterSpacing: "var(--tracking-tight)", fontVariantNumeric: "tabular-nums", lineHeight: 1.1, marginTop: "4px" }}
           onClick={() => onPick({ status: "open", antiguedad: [] })} aria-label="Ver todas las abiertas">
           {summary.abiertas}
         </button>
         <div style={{ marginTop: "12px", display: "flex", flexDirection: "column" }}>
           {AGE_BUCKETS.map((b) => (
-            <div key={b} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", borderTop: "1px solid var(--border)" }}>
+            <div key={b} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--text-sm)", borderTop: "1px solid var(--border)" }}>
               <span style={{ color: "var(--text-secondary)" }}>{AGE_BUCKET_LABEL[b]}</span>
               <span style={{ minWidth: "48px" }}>
                 <Num n={summary.porAntiguedad[b]} label={`Abiertas ${AGE_BUCKET_LABEL[b]}`}
@@ -54,12 +55,12 @@ export function TaskSummaryPanel({ summary, onPick }: { summary: TaskSummary; on
         <div className="card" style={{ padding: "12px 14px" }}>
           <div className="section-title" style={{ marginBottom: "6px" }}>Por vendedor</div>
           {summary.porVendedor.length === 0 ? (
-            <div style={{ fontSize: "13px", color: "var(--text-muted)", padding: "8px 0" }}>Sin tareas con estos filtros.</div>
+            <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", padding: "8px 0" }}>Sin tareas con estos filtros.</div>
           ) : (
             <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--text-sm)" }}>
               <thead>
-                <tr style={{ color: "var(--text-muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                <tr style={{ color: "var(--text-muted)", fontSize: "var(--text-2xs)", textTransform: "uppercase", letterSpacing: "0.4px" }}>
                   <th style={{ ...TH, ...STICKY, textAlign: "left" }}>Vendedor</th>
                   <th style={TH}>Abiertas</th>
                   {AGE_BUCKETS.map((b) => <th key={b} style={{ ...TH, textTransform: "none" }}>{b === "30+" ? "+30 d" : `${b.replace("-", "–")} d`}</th>)}
@@ -88,21 +89,23 @@ export function TaskSummaryPanel({ summary, onPick }: { summary: TaskSummary; on
         <div className="card" style={{ padding: "12px 14px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
             <div className="section-title">Más quiebres de stock</div>
-            <div style={{ display: "flex", gap: "6px" }}>
-              <button type="button" className={`filter-chip ${modo === "productos" ? "active" : ""}`} onClick={() => setModo("productos")}>Productos</button>
-              <button type="button" className={`filter-chip ${modo === "lineas" ? "active" : ""}`} onClick={() => setModo("lineas")}>Líneas</button>
-            </div>
+            <Segmented
+              ariaLabel="Agrupar quiebres por"
+              value={modo}
+              onChange={setModo}
+              options={[{ value: "productos", label: "Productos" }, { value: "lineas", label: "Líneas" }]}
+            />
           </div>
           {ranking.length === 0 ? (
-            <div style={{ fontSize: "13px", color: "var(--text-muted)", padding: "8px 0" }}>
+            <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", padding: "8px 0" }}>
               Ninguna tarea de sin stock con productos marcados en estos filtros.
             </div>
           ) : (
             <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
               {ranking.map((r) => (
                 <li key={r.key} style={{ borderTop: "1px solid var(--border)" }}>
-                  <button type="button" className="summary-cell"
-                    style={{ all: "unset", cursor: "pointer", display: "flex", justifyContent: "space-between", width: "100%", padding: "6px 8px", fontSize: "13px", boxSizing: "border-box" }}
+                  <button type="button" className="summary-cell focus-ring"
+                    style={{ all: "unset", cursor: "pointer", display: "flex", justifyContent: "space-between", width: "100%", padding: "6px 8px", fontSize: "var(--text-sm)", boxSizing: "border-box" }}
                     onClick={() => onPick(modo === "productos"
                       ? { producto: r.key, anomalia: "sin_stock", status: "all", antiguedad: [] }
                       : { linea: r.key, anomalia: "sin_stock", status: "all", antiguedad: [] })}>
@@ -118,7 +121,9 @@ export function TaskSummaryPanel({ summary, onPick }: { summary: TaskSummary; on
 
       <style>{`
         .task-summary tbody td { border-top: 1px solid var(--border); }
-        .summary-cell:hover, .summary-cell:focus-visible { background: var(--bg-elevated); outline: none; }
+        .summary-cell:hover, .summary-cell:focus-visible { background: var(--bg-elevated); }
+        /* Anillo hacia adentro: la tabla tiene overflow-x y un anillo exterior se recortaría. */
+        .summary-cell.focus-ring:focus-visible { outline-offset: -2px !important; }
         @media (max-width: 720px) { .task-summary { grid-template-columns: 1fr !important; } }
       `}</style>
     </div>

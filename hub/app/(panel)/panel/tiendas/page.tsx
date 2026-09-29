@@ -13,6 +13,7 @@ import { deriveClientRows } from "@/app/lib/queries/derive";
 import { filtrarTiendas, parseTiendasParams, serializeTiendasParams, type ClientesFilterValue } from "@/app/lib/queries/storeFilters";
 import { ClientesFilters } from "@/app/components/clientes/ClientesFilters";
 import { ClientesTable } from "@/app/components/clientes/ClientesTable";
+import SectionError from "@/app/components/ui/SectionError";
 
 export default function TiendasPage() {
   return (
@@ -65,11 +66,26 @@ function TiendasInner() {
     setParams(f, lastPushed.current);
   }
 
-  const { data: stores, loading: loadingStores, error } = useSupabaseQuery(fetchStores, []);
-  const { data: tasks } = useSupabaseQuery(fetchTasks, []);
-  const { data: clients } = useSupabaseQuery(fetchClients, []);
-  const { data: visits } = useSupabaseQuery(fetchUltimasVisitas, []);
-  const { data: rawAssignees } = useSupabaseQuery(fetchTaskAssignees, []);
+  const { data: stores, loading: loadingStores, error, refetch: refetchStores } = useSupabaseQuery(fetchStores, []);
+  const qTasks = useSupabaseQuery(fetchTasks, []);
+  const qClients = useSupabaseQuery(fetchClients, []);
+  const qVisits = useSupabaseQuery(fetchUltimasVisitas, []);
+  const qAssignees = useSupabaseQuery(fetchTaskAssignees, []);
+  const { data: tasks } = qTasks;
+  const { data: clients } = qClients;
+  const { data: visits } = qVisits;
+  const { data: rawAssignees } = qAssignees;
+
+  // Si pendientes o última visita no cargaron, la tabla diría "Sin pendientes" /
+  // "Sin visitas": se avisa arriba qué falta, con Reintentar solo de lo fallido.
+  const fallidas: { what: string; q: { error: string | null; refetch: () => Promise<void> } }[] = [
+    { what: "las tareas", q: qTasks },
+    { what: "las visitas", q: qVisits },
+    { what: "los clientes", q: qClients },
+    { what: "los vendedores", q: qAssignees },
+  ].filter((f) => f.q.error);
+  // Mientras llegan tareas y visitas, las columnas saldrían en falso vacío.
+  const cargandoTabla = loadingStores || (!tasks && !qTasks.error) || (!visits && !qVisits.error);
 
   const assignees = useMemo(() => rawAssignees ?? [], [rawAssignees]);
 
@@ -90,14 +106,14 @@ function TiendasInner() {
   );
 
   if (error) {
-    return <div className="empty-state"><div className="empty-title">Error al cargar clientes</div><div className="empty-desc">{error}</div></div>;
+    return <SectionError what="las tiendas" detail={error} onRetry={refetchStores} />;
   }
 
   return (
     <>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
         <div>
-          <h1 style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px" }}>Tiendas</h1>
+          <h1 style={{ fontSize: "var(--text-xl)", fontWeight: 600, letterSpacing: "var(--tracking-tight)" }}>Tiendas</h1>
           <p className="text-muted text-sm" style={{ marginTop: "4px" }}>
             {loadingStores ? "Cargando…" : `${rows.length} de ${(stores ?? []).length} tiendas`}
           </p>
@@ -118,7 +134,17 @@ function TiendasInner() {
       </div>
 
       <ClientesFilters value={filters} onChange={handleFiltersChange} clients={clients ?? []} stores={stores ?? []} vendedores={vendedores} />
-      <ClientesTable rows={rows} loading={loadingStores} />
+      {fallidas.length > 0 && (
+        <div className="card" style={{ padding: "4px 16px" }}>
+          <SectionError
+            what={fallidas.map((f) => f.what).join(", ").replace(/, ([^,]*)$/, " y $1")}
+            detail={fallidas.map((f) => f.q.error).join(" · ")}
+            onRetry={() => { for (const f of fallidas) f.q.refetch(); }}
+            compact
+          />
+        </div>
+      )}
+      <ClientesTable rows={rows} loading={cargandoTabla} />
     </>
   );
 }

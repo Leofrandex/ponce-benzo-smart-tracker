@@ -15,9 +15,13 @@ import type { AnomaliaRow } from "@/app/lib/queries/dashboard";
 import { anomalyLabel } from "@/app/lib/queries/visitDetail";
 import { ChartLinkTick } from "./ChartLinkTick";
 import { linkTareasAnomalias } from "@/app/lib/queries/dashboardLinks";
+import SectionError from "@/app/components/ui/SectionError";
 
 interface Props {
-  rows: AnomaliaRow[];
+  // null: todavía cargando (o falló). Nunca se confunde con "sin incidencias".
+  rows: AnomaliaRow[] | null;
+  error?: string | null;
+  onRetry?: () => void;
   desde: string;
   hasta: string;
 }
@@ -25,11 +29,11 @@ interface Props {
 const DANGER = "#dc2626";
 const MUTED = "#8C9091";
 
-export default function AnomaliasPorTipo({ rows, desde, hasta }: Props) {
+export default function AnomaliasPorTipo({ rows, error, onRetry, desde, hasta }: Props) {
   const router = useRouter();
   // anomalyLabel es el mismo mapa que usa la ficha de visita: los tipos se
   // muestran igual en todo el hub y no hay dos listas que puedan divergir.
-  const data = rows.map((r) => ({
+  const data = (rows ?? []).map((r) => ({
     name: anomalyLabel(r.tipo),
     value: r.n,
     previo: r.n_periodo_anterior,
@@ -40,10 +44,16 @@ export default function AnomaliasPorTipo({ rows, desde, hasta }: Props) {
   return (
     <div className="chart-card">
       <div className="chart-title">Anomalías por tipo</div>
-      <div className="chart-subtitle">{total} incidencia{total !== 1 ? "s" : ""} en el período</div>
+      <div className="chart-subtitle">
+        {rows && !error ? `${total} incidencia${total !== 1 ? "s" : ""} en el período` : "—"}
+      </div>
 
-      {data.length === 0 ? (
-        <div style={{ textAlign: "center", color: MUTED, fontSize: "13px", padding: "24px 0" }}>
+      {error ? (
+        <SectionError what="las anomalías" detail={error} onRetry={onRetry} compact />
+      ) : !rows ? (
+        <div style={{ textAlign: "center", color: MUTED, fontSize: "var(--text-sm)", padding: "24px 0" }}>Cargando…</div>
+      ) : data.length === 0 ? (
+        <div style={{ textAlign: "center", color: MUTED, fontSize: "var(--text-sm)", padding: "24px 0" }}>
           Sin incidencias en este período
         </div>
       ) : (

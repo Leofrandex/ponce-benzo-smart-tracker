@@ -41,15 +41,24 @@ export function RestocksPanel({ rows, loading, canRegister, currentUserId, isAdm
             const fecha = new Date(r.restock_date + "T00:00:00").toLocaleDateString("es-VE", { day: "numeric", month: "short", year: "numeric" });
             return (
               <div key={r.restock_id} className="contactos-table-row" style={{ gridTemplateColumns: COLUMNS, borderTop: idx === 0 ? "none" : "1px solid var(--border)", cursor: "default" }}>
-                <div style={{ fontSize: "13px", color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>{fecha}</div>
-                <div style={{ minWidth: 0 }}>
-                  <div title={productos || undefined} style={{ ...TRUNC, fontSize: "13px", color: productos ? "var(--text-primary)" : "var(--text-muted)" }}>
-                    {productos || "Sin productos"}
+                <div className="contactos-cell-desktop" style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>{fecha}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "10px", minWidth: 0 }}>
+                    <div title={productos || undefined} style={{ ...TRUNC, flex: 1, fontSize: "var(--text-sm)", color: productos ? "var(--text-primary)" : "var(--text-muted)" }}>
+                      {productos || "Sin productos"}
+                    </div>
+                    {/* Solo en teléfono: la fecha pasa a la derecha de la primera línea. */}
+                    <span className="contactos-mobile-sub" style={{ flexShrink: 0, fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>{fecha}</span>
                   </div>
-                  {r.note && <div title={r.note} style={{ ...TRUNC, fontSize: "12px", color: "var(--text-muted)" }}>{r.note}</div>}
+                  <div className="contactos-mobile-sub">
+                    <span style={TRUNC}>{ORIGEN_LABEL[r.source]} · {r.autor ?? "Sin autor"}</span>
+                  </div>
+                  {r.note && <div title={r.note} style={{ ...TRUNC, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{r.note}</div>}
                 </div>
-                <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{ORIGEN_LABEL[r.source]}</div>
-                <div style={{ ...TRUNC, fontSize: "12px", color: r.autor ? "var(--text-secondary)" : "var(--text-muted)" }}>{r.autor ?? "—"}</div>
+                <div className="contactos-cell-desktop" style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)" }}>{ORIGEN_LABEL[r.source]}</div>
+                <div className="contactos-cell-desktop" style={{ fontSize: "var(--text-xs)", color: r.autor ? "var(--text-secondary)" : "var(--text-muted)" }}>
+                  <span style={TRUNC}>{r.autor ?? "—"}</span>
+                </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
                   {puedeBorrar(r) && (
                     <button

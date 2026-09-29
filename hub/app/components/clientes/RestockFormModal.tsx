@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
@@ -8,12 +8,14 @@ import { fetchCatalog, filterCatalog } from "@/app/lib/queries/products";
 import { validarFechaReposicion } from "@/app/lib/queries/restocks";
 import { hoyCaracas } from "@/app/lib/queries/taskFilters";
 import { registrarReposicion } from "@/app/lib/mutations/restocks";
+import SectionError from "@/app/components/ui/SectionError";
+import { DiscardChangesBar } from "./StoreFormModal";
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
+function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", margin: "10px 0 4px" }}>
+    <label htmlFor={htmlFor} style={{ display: "block", fontSize: "var(--text-2xs)", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", margin: "10px 0 4px" }}>
       {children}
-    </div>
+    </label>
   );
 }
 
@@ -21,27 +23,47 @@ export function RestockFormModal({ open, storeId, onClose, onSaved }: {
   open: boolean; storeId: string; onClose: () => void; onSaved: () => void;
 }) {
   const hoy = hoyCaracas();
-  const { data: catalog } = useSupabaseQuery(fetchCatalog, []);
+  const { data: catalog, error: catalogError, refetch: refetchCatalog } = useSupabaseQuery(fetchCatalog, []);
   const [fecha, setFecha] = useState(hoy);
   const [productos, setProductos] = useState<string[]>([]);
   const [q, setQ] = useState("");
   const [nota, setNota] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [fechaInicial, setFechaInicial] = useState(hoy);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const fechaId = useId();
+  const buscarId = useId();
+  const notaId = useId();
 
   // Cada apertura empieza limpia.
   useEffect(() => {
-    if (open) { setFecha(hoyCaracas()); setProductos([]); setQ(""); setNota(""); setError(null); setSaving(false); }
+    if (open) {
+      const h = hoyCaracas();
+      setFecha(h); setFechaInicial(h); setProductos([]); setQ(""); setNota(""); setError(null); setSaving(false); setConfirmDiscard(false);
+    }
   }, [open]);
+
+  // La búsqueda no cuenta como cambio: perderla no cuesta nada.
+  const dirty = fecha !== fechaInicial || productos.length > 0 || nota.trim() !== "";
+
+  // Fondo y Esc: si hay cambios, piden confirmar en vez de cerrar.
+  function requestClose() {
+    if (saving) return;
+    if (dirty) setConfirmDiscard(true);
+    else onClose();
+  }
 
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      if (confirmDiscard) setConfirmDiscard(false);
+      else requestClose();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  });
 
   const activos = useMemo(() => (catalog ?? []).filter((p) => p.active), [catalog]);
   const visibles = useMemo(() => filterCatalog(activos, q, false), [activos, q]);
@@ -63,7 +85,7 @@ export function RestockFormModal({ open, storeId, onClose, onSaved }: {
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          onClick={onClose}
+          onClick={requestClose}
           style={{
             position: "fixed", inset: 0, zIndex: 300,
             background: "rgba(10, 14, 26, 0.45)", backdropFilter: "blur(2px)",
@@ -81,7 +103,7 @@ export function RestockFormModal({ open, storeId, onClose, onSaved }: {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2px" }}>
-              <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+              <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: "var(--text-primary)" }}>
                 Registrar reposición
               </div>
               <button onClick={onClose} aria-label="Cerrar" style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px" }}>
@@ -89,67 +111,80 @@ export function RestockFormModal({ open, storeId, onClose, onSaved }: {
               </button>
             </div>
 
-            <FieldLabel>Fecha</FieldLabel>
+            <FieldLabel htmlFor={fechaId}>Fecha</FieldLabel>
             <input
+              id={fechaId}
               type="date"
               className="form-input"
               value={fecha}
               max={hoy}
               onChange={(e) => setFecha(e.target.value)}
-              style={{ padding: "9px 12px", fontSize: "13px" }}
+              style={{ padding: "9px 12px", fontSize: "var(--text-sm)" }}
             />
 
-            <FieldLabel>Productos repuestos (opcional)</FieldLabel>
+            <FieldLabel htmlFor={buscarId}>Productos repuestos (opcional)</FieldLabel>
             <input
+              id={buscarId}
               className="form-input"
               value={q}
               placeholder="Buscar por nombre, SKU o marca"
               onChange={(e) => setQ(e.target.value)}
-              style={{ padding: "9px 12px", fontSize: "13px" }}
+              style={{ padding: "9px 12px", fontSize: "var(--text-sm)" }}
             />
             <div style={{ maxHeight: "240px", overflowY: "auto", marginTop: "6px", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }}>
-              {visibles.length === 0 ? (
-                <div style={{ padding: "12px", fontSize: "12px", color: "var(--text-muted)" }}>Sin resultados.</div>
+              {catalogError ? (
+                <div style={{ padding: "0 12px" }}>
+                  <SectionError what="el catálogo" detail={catalogError} onRetry={refetchCatalog} compact />
+                </div>
+              ) : catalog === null ? (
+                <div style={{ padding: "12px", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Cargando catálogo…</div>
+              ) : visibles.length === 0 ? (
+                <div style={{ padding: "12px", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Sin resultados.</div>
               ) : (
                 visibles.map((p) => (
                   <label
                     key={p.product_id}
-                    style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", fontSize: "13px", color: "var(--text-primary)", borderBottom: "1px solid var(--border)", cursor: "pointer" }}
+                    style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", fontSize: "var(--text-sm)", color: "var(--text-primary)", borderBottom: "1px solid var(--border)", cursor: "pointer" }}
                   >
                     <input type="checkbox" checked={productos.includes(p.product_id)} onChange={() => toggle(p.product_id)} style={{ flexShrink: 0 }} />
                     <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={p.name}>{p.name}</span>
-                    {p.brand && <span style={{ flexShrink: 0, fontSize: "11px", color: "var(--text-muted)" }}>{p.brand}</span>}
+                    {p.brand && <span style={{ flexShrink: 0, fontSize: "var(--text-2xs)", color: "var(--text-muted)" }}>{p.brand}</span>}
                   </label>
                 ))
               )}
             </div>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px", fontVariantNumeric: "tabular-nums" }}>
+            <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: "4px", fontVariantNumeric: "tabular-nums" }}>
               {productos.length} seleccionado{productos.length === 1 ? "" : "s"}
             </div>
 
-            <FieldLabel>Nota (opcional)</FieldLabel>
+            <FieldLabel htmlFor={notaId}>Nota (opcional)</FieldLabel>
             <textarea
+              id={notaId}
               className="form-input"
               rows={2}
               value={nota}
               onChange={(e) => setNota(e.target.value)}
-              style={{ padding: "9px 12px", fontSize: "13px", resize: "vertical" }}
+              style={{ padding: "9px 12px", fontSize: "var(--text-sm)", resize: "vertical" }}
             />
 
             {error && (
-              <div style={{ fontSize: "12px", color: "var(--danger)", marginTop: "10px" }}>{error}</div>
+              <div role="alert" style={{ fontSize: "var(--text-xs)", color: "var(--danger)", marginTop: "10px" }}>{error}</div>
             )}
 
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "18px" }}>
-              <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
-                <button type="button" onClick={onClose} className="btn btn-secondary btn-sm" style={{ width: "auto" }}>
-                  Cancelar
-                </button>
-                <button type="button" onClick={guardar} disabled={saving} className="btn btn-primary btn-sm" style={{ width: "auto" }}>
-                  {saving ? "Guardando…" : "Guardar"}
-                </button>
+            {confirmDiscard ? (
+              <DiscardChangesBar onKeep={() => setConfirmDiscard(false)} onDiscard={onClose} />
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "18px" }}>
+                <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
+                  <button type="button" onClick={onClose} disabled={saving} className="btn btn-secondary btn-sm" style={{ width: "auto" }}>
+                    Cancelar
+                  </button>
+                  <button type="button" onClick={guardar} disabled={saving} className="btn btn-primary btn-sm" style={{ width: "auto" }}>
+                    {saving ? "Guardando…" : "Guardar"}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </motion.div>
         </motion.div>
       )}

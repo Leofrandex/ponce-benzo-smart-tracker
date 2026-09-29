@@ -57,7 +57,7 @@ function ClientesInner() {
   return (
     <>
       <div>
-        <h1 style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px" }}>Clientes</h1>
+        <h1 style={{ fontSize: "var(--text-xl)", fontWeight: 600, letterSpacing: "var(--tracking-tight)" }}>Clientes</h1>
         <p className="text-muted text-sm" style={{ marginTop: "4px" }}>{loading ? "Cargando…" : hasFilters ? `${rows.length} de ${(clients ?? []).length} cadenas` : `${rows.length} cadenas`}</p>
       </div>
       <div className="card" style={{ padding: "12px", display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "flex-end" }}>
@@ -91,10 +91,10 @@ function ClientesInner() {
               style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", textDecoration: "none", color: "inherit",
                 borderTop: idx === 0 ? "none" : "1px solid var(--border)" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={c.name}>{c.name}</div>
+                <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={c.name}>{c.name}</div>
                 <div className="text-muted text-sm">{c.business_channel ? (CHANNEL_LABELS[c.business_channel] ?? c.business_channel) : "—"}</div>
               </div>
-              <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums", textAlign: "right", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums", textAlign: "right", whiteSpace: "nowrap" }}>
                 {c.store_count} {c.store_count === 1 ? "sucursal" : "sucursales"}
               </span>
               <ChevronRight size={15} color="var(--text-muted)" />

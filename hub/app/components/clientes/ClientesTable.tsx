@@ -53,25 +53,35 @@ export function ClientesTable({ rows, loading = false }: { rows: ClientRow[]; lo
               borderTop: idx === 0 ? "none" : "1px solid var(--border)",
               opacity: r.active ? 1 : 0.6,
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
-                <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: r.active ? "var(--success)" : "var(--text-muted)" }} />
-                <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.name}>{r.name}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: r.active ? "var(--success)" : "var(--text-muted)" }} />
+                  <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.name}>{r.name}</span>
+                </div>
+                {/* Solo en teléfono: el header está oculto, así que la fecha lleva su etiqueta. */}
+                <div className="contactos-mobile-sub" style={{ paddingLeft: "15px" }}>
+                  {[
+                    r.business_channel ? (CHANNEL_LABELS[r.business_channel] ?? r.business_channel) : null,
+                    r.classification ? `Clase ${r.classification}` : null,
+                    r.last_visit_date ? `Visita ${fechaCaracas(r.last_visit_date)}` : "Sin visitas",
+                  ].filter(Boolean).join(" · ")}
+                </div>
               </div>
-              <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+              <div className="contactos-cell-desktop" style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)" }}>
                 {r.business_channel ? (CHANNEL_LABELS[r.business_channel] ?? r.business_channel) : <span style={{ color: "var(--text-muted)" }}>—</span>}
               </div>
-              <div>
+              <div className="contactos-cell-desktop">
                 {r.classification ? (
                   <span className="badge" style={{ background: "transparent", border: `1px solid ${CLASS_COLORS[r.classification]}`, color: CLASS_COLORS[r.classification] }}>{r.classification}</span>
                 ) : <span style={{ color: "var(--text-muted)" }}>—</span>}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0, whiteSpace: "nowrap" }}>
                 {r.pending_tasks > 0 && <AlertTriangle size={12} color="var(--warning)" />}
-                <span style={{ fontSize: "12px", color: r.pending_tasks > 0 ? "var(--warning)" : "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                <span style={{ fontSize: "var(--text-xs)", color: r.pending_tasks > 0 ? "var(--warning)" : "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
                   {r.pending_tasks > 0 ? `${r.pending_tasks} pendiente${r.pending_tasks === 1 ? "" : "s"}` : "Sin pendientes"}
                 </span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px", fontSize: "12px", fontVariantNumeric: "tabular-nums" }}>
+              <div className="contactos-cell-desktop" style={{ justifyContent: "flex-end", gap: "6px", fontSize: "var(--text-xs)", fontVariantNumeric: "tabular-nums" }}>
                 {r.last_visit_date && visita ? (
                   <>
                     <span role="img" aria-label={visita.label} title={visita.label}
@@ -80,7 +90,7 @@ export function ClientesTable({ rows, loading = false }: { rows: ClientRow[]; lo
                   </>
                 ) : <span style={{ color: "var(--text-muted)" }}>Sin visitas</span>}
               </div>
-              <div style={{ display: "flex", alignItems: "center", paddingLeft: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", paddingLeft: "8px", alignSelf: "center" }}>
                 <ChevronRight size={15} color="var(--text-muted)" />
               </div>
             </div>

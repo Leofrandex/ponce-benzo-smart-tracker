@@ -10,13 +10,13 @@ const CHANNEL_LABELS: Record<string, string> = {
   autoservicio: "Autoservicio", mayorista: "Mayorista", otro: "Otro",
 };
 
-const LABEL: React.CSSProperties = { fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "2px" };
+const LABEL: React.CSSProperties = { fontSize: "var(--text-2xs)", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "2px" };
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ padding: "9px 0", borderBottom: "1px solid var(--border)" }}>
       <div style={LABEL}>{label}</div>
-      <div style={{ fontSize: "13px", color: value === "—" ? "var(--text-muted)" : "var(--text-primary)" }}>{value}</div>
+      <div style={{ fontSize: "var(--text-sm)", color: value === "—" ? "var(--text-muted)" : "var(--text-primary)" }}>{value}</div>
     </div>
   );
 }
@@ -37,11 +37,11 @@ export function ClientInfoPanel({ store, lastRestock, onEdit }: { store: Store; 
         {/* Métrica primaria: días desde la última reposición. */}
         <div style={{ padding: "14px 0 12px", borderBottom: "1px solid var(--border)" }}>
           <div style={LABEL}>Última reposición</div>
-          <div style={{ fontSize: "24px", fontWeight: 700, letterSpacing: "-0.4px", lineHeight: 1.2, fontVariantNumeric: "tabular-nums", color: lastRestock ? "var(--text-primary)" : "var(--text-muted)" }}>
+          <div style={{ fontSize: "var(--text-xl)", fontWeight: 600, letterSpacing: "var(--tracking-tight)", lineHeight: 1.2, fontVariantNumeric: "tabular-nums", color: lastRestock ? "var(--text-primary)" : "var(--text-muted)" }}>
             {lastRestock ? haceTexto(diasEntre(lastRestock, hoyCaracas())) : "Sin registro"}
           </div>
           {lastRestock && (
-            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
+            <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: "2px" }}>
               {new Date(lastRestock + "T00:00:00").toLocaleDateString("es-VE", { day: "numeric", month: "long", year: "numeric" })}
             </div>
           )}
@@ -52,7 +52,7 @@ export function ClientInfoPanel({ store, lastRestock, onEdit }: { store: Store; 
         <Row label="Clasificación" value={store.classification ?? "—"} />
         <div style={{ padding: "9px 0 12px" }}>
           <div style={LABEL}>Coordenadas GPS</div>
-          <div style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "monospace", fontVariantNumeric: "tabular-nums" }}>{store.master_lat.toFixed(4)}, {store.master_lng.toFixed(4)}</div>
+          <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontFamily: "monospace", fontVariantNumeric: "tabular-nums" }}>{store.master_lat.toFixed(4)}, {store.master_lng.toFixed(4)}</div>
         </div>
       </div>
     </div>

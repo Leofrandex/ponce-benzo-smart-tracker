@@ -28,10 +28,7 @@ export function ChartLinkTick({
       }}
     >
       <text
-        x={x} y={y} dx={dx} dy={dy} textAnchor={anchor} fontSize={11} fill="var(--text-primary)"
-        // Subrayado en reposo: dentro de un grafico es la unica pista de que la
-        // etiqueta navega. Hover/foco los da .dash-link, igual que el resto.
-        style={{ textDecoration: "underline" }}
+        x={x} y={y} dx={dx} dy={dy} textAnchor={anchor} fontSize={11} fontWeight={500} fill="var(--text-secondary)"
       >
         {label}
       </text>
