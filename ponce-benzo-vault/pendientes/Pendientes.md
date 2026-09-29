@@ -19,7 +19,8 @@ Este documento almacena las preguntas por resolver, datos necesarios por parte d
 > Informe completo en `.smart-ux/auditoria.md` (raíz del repo): 77 hallazgos (16 alta, 34 media, 27 baja), método solo código, commit `1cb9bbf`. Se aplica con `/smart-ux:aplicar`.
 
 - [x] Altas aplicadas el 2026-09-29 (15 de 16, ver [[logs/Log-2026-09-29|Log 2026-09-29]]). Queda **SX-016** (perfil móvil con cifras fijas en 0), un decide que el usuario dejó sin tocar.
-- [ ] Revisar el hub en pantalla (altas y tipografía [[decisiones/ADR-010-Tipografia-Hub|ADR-010]]), y después hacer commit y deploy. La app móvil **no se toca**: sus cambios quedaron en `.smart-ux/mobile-altas-2026-09-29.patch`. BUG-030 sigue presente en la app.
+- [x] Hub publicado el 29-sep (altas y tipografía [[decisiones/ADR-010-Tipografia-Hub|ADR-010]]).
+- [ ] Revisarlo en pantalla (escritorio y teléfono): "Más", filtros del mapa, errores con Reintentar, tipografía. La app móvil **no se toca**: sus cambios quedaron en `.smart-ux/mobile-altas-2026-09-29.patch`. BUG-030 sigue presente en la app.
 - [ ] Siguiente: `/smart-ux:aplicar media` (34 hallazgos). La lista "Nuevos (sin auditar)" está al final del informe.
 - [ ] 13 hallazgos **decide** esperan respuesta de negocio (métrica del perfil móvil, umbrales de rojo, clase A/B/C, presets de fecha, cerrar sesión con datos pendientes…).
 - [ ] Bug colateral: `DateRangeChips` calcula "Últimos 7 días" en UTC y cuenta 8 días.
