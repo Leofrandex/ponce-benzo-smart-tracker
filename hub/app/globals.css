@@ -57,6 +57,10 @@
   --text-xl:    28px;
   --text-kpi:   40px;
   --tracking-tight: -0.02em;
+
+  /* Skeleton: gris neutro con un brillo que barre de izquierda a derecha */
+  --skeleton-base:  #e4e7ee;
+  --skeleton-shine: #f1f3f7;
 }
 
 /* ============================================================
@@ -810,6 +814,56 @@ button, input, select, textarea {
   font-size: var(--text-xs);
   color: var(--warning);
   font-weight: 600;
+}
+
+/* ============================================================
+   SKELETON (carga)
+   Reserva la forma del contenido mientras llegan los datos: el layout no
+   salta cuando aparecen y nunca se muestran ceros falsos.
+   ============================================================ */
+.skeleton {
+  display: block;
+  background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-shine) 50%, var(--skeleton-base) 75%);
+  background-size: 200% 100%;
+  border-radius: 6px;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+.skeleton-pill { border-radius: 999px; }
+.skeleton-circle { border-radius: 50%; flex-shrink: 0; }
+
+/* Varias piezas del mismo bloque brillan a la vez (una sola ola, no ruido). */
+@keyframes skeleton-shimmer {
+  from { background-position: 150% 0; }
+  to   { background-position: -50% 0; }
+}
+
+.skeleton-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.skeleton-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px -16px;
+}
+
+/* Entra con un fundido corto: en cargas rápidas no se nota el cambio brusco. */
+.skeleton-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: skeleton-in 180ms var(--ease) both;
+}
+@keyframes skeleton-in { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+  .skeleton-screen { animation: none; }
 }
 
 /* ============================================================

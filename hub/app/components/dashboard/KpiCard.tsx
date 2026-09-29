@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Info } from "lucide-react";
 import { kpiDef, type KpiId } from "@/app/lib/dashboard-kpis";
 import "./dashboard.css";
+import { Skeleton } from "@/app/components/ui/Skeleton";
 
 interface Props {
   kpi: KpiId;
@@ -23,11 +24,13 @@ interface Props {
   primaria?: boolean;
   // Contexto extra que solo la primaria tiene sitio para mostrar.
   children?: React.ReactNode;
+  // Mientras llega el dato: skeleton en vez de un valor (nunca un "0" falso).
+  cargando?: boolean;
 }
 
 const COLOR = { normal: undefined, peligro: "var(--danger)", exito: "var(--success)" };
 
-export default function KpiCard({ kpi, valor, detalle, tono = "normal", etiqueta, href, detalleHref, primaria, children }: Props) {
+export default function KpiCard({ kpi, valor, detalle, tono = "normal", etiqueta, href, detalleHref, primaria, children, cargando }: Props) {
   const def = kpiDef(kpi);
   const rotulo = etiqueta ?? def.etiqueta;
   // Un solo estado sirve a los tres gestos: hover en escritorio, tap en tactil
@@ -38,7 +41,9 @@ export default function KpiCard({ kpi, valor, detalle, tono = "normal", etiqueta
   const cuerpo = (
     <>
       <div className="kpi-label">{rotulo}</div>
-      <div className="kpi-valor" style={{ color: COLOR[tono] }}>{valor}</div>
+      {cargando
+        ? <Skeleton h={primaria ? 40 : 24} w={primaria ? 130 : 64} style={{ margin: "4px 0" }} />
+        : <div className="kpi-valor" style={{ color: COLOR[tono] }}>{valor}</div>}
     </>
   );
 
@@ -95,6 +100,7 @@ export default function KpiCard({ kpi, valor, detalle, tono = "normal", etiqueta
       )}
 
       {href ? <Link href={href} className="dash-link" style={{ display: "block" }}>{cuerpo}</Link> : <div>{cuerpo}</div>}
+      {cargando && primaria && <Skeleton h={10} w="55%" pill />}
       {detalle && (detalleHref ? (
         <Link href={detalleHref} className="dash-link kpi-detalle" style={{ color: tono === "peligro" ? "var(--danger)" : undefined }}>{detalle}</Link>
       ) : (

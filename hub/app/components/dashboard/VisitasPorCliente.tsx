@@ -7,6 +7,7 @@ import type { VisitasClienteRow } from "@/app/lib/queries/dashboard";
 import { ChartLinkTick } from "./ChartLinkTick";
 import { linkCadena } from "@/app/lib/queries/dashboardLinks";
 import SectionError from "@/app/components/ui/SectionError";
+import { Skeleton } from "@/app/components/ui/Skeleton";
 
 // rows === null: todavía cargando (o falló). Nunca se confunde con "sin visitas".
 interface Props { rows: VisitasClienteRow[] | null; error?: string | null; onRetry?: () => void }
@@ -21,7 +22,7 @@ export default function VisitasPorCliente({ rows, error, onRetry }: Props) {
       <div className="card" style={{ padding: 16 }}>
         <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Visitas por cadena</h2>
         {error ? <SectionError what="las visitas por cadena" detail={error} onRetry={onRetry} compact />
-          : !rows ? <p className="text-muted text-sm">Cargando…</p>
+          : !rows ? <Skeleton h={180} style={{ marginTop: 8 }} />
           : <p className="text-muted text-sm">Sin visitas en este periodo.</p>}
       </div>
     );

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Building2, ChevronRight, AlertTriangle } from "lucide-react";
 import type { ClientRow } from "@/app/lib/queries/derive";
 import { fechaCaracas } from "@/app/lib/queries/taskFilters";
+import { SkeletonTable } from "@/app/components/ui/Skeleton";
 
 export const CHANNEL_LABELS: Record<string, string> = {
   drogueria: "Droguería", farmacia: "Farmacia", supermercado: "Supermercado",
@@ -23,7 +24,7 @@ const COLUMNS = "2fr 1fr 0.6fr 1fr 1fr auto";
 
 export function ClientesTable({ rows, loading = false }: { rows: ClientRow[]; loading?: boolean }) {
   if (loading) {
-    return <div className="empty-state"><div className="empty-desc">Cargando tiendas…</div></div>;
+    return <div role="status" aria-live="polite"><span className="sr-only">Cargando tiendas…</span><SkeletonTable rows={9} cols={5} /></div>;
   }
   if (rows.length === 0) {
     return (

@@ -5,6 +5,7 @@ import "./dashboard.css";
 import type { CumpleanosRow } from "@/app/lib/queries/dashboard";
 import { linkTienda } from "@/app/lib/queries/dashboardLinks";
 import SectionError from "@/app/components/ui/SectionError";
+import { SkeletonList } from "@/app/components/ui/Skeleton";
 
 // rows === null: todavía cargando (o falló). Nunca se confunde con "ninguno".
 interface Props { rows: CumpleanosRow[] | null; error?: string | null; onRetry?: () => void }
@@ -26,7 +27,7 @@ export default function Cumpleanos({ rows, error, onRetry }: Props) {
       {error ? (
         <SectionError what="los cumpleaños" detail={error} onRetry={onRetry} compact />
       ) : !rows ? (
-        <p className="text-muted text-sm">Cargando…</p>
+        <SkeletonList rows={3} />
       ) : rows.length === 0 ? (
         <p className="text-muted text-sm">Ninguno en los próximos días.</p>
       ) : (

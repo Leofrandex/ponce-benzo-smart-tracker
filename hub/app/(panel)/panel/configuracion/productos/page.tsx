@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchCatalog, filterCatalog, lineSuggestions, normalizeLine, type CatalogProduct } from "@/app/lib/queries/products";
 import { updateProduct } from "@/app/lib/mutations/products";
+import { ConfigTableSkeleton } from "@/app/components/ui/Skeleton";
 
 // `field` dice qué disparó el guardado, para mostrar el aviso junto a ese control.
 type Feedback = { field: "line" | "active"; kind: "saving" | "saved" | "error"; msg?: string };
@@ -12,7 +13,7 @@ type Feedback = { field: "line" | "active"; kind: "saving" | "saved" | "error"; 
 const SAVED_MS = 2500;
 
 export default function ProductosPage() {
-  const { data, loading, error, refetch } = useSupabaseQuery(fetchCatalog, []);
+  const { data, loading, error, refetch } = useSupabaseQuery(fetchCatalog, [], "catalog");
   const products = useMemo(() => data ?? [], [data]);
   const lines = useMemo(() => lineSuggestions(products), [products]);
   const [q, setQ] = useState("");
@@ -57,7 +58,7 @@ export default function ProductosPage() {
   }
 
   if (error) return <div className="empty-state"><div className="empty-title">Error al cargar</div><div className="empty-desc">{error}</div></div>;
-  if (loading && !data) return <div className="empty-state"><div className="empty-title">Cargando productos…</div></div>;
+  if (loading && !data) return <ConfigTableSkeleton label="Cargando productos…" />;
 
   return (
     <>

@@ -7,6 +7,7 @@ import type { CumplimientoRow } from "@/app/lib/queries/dashboard";
 import { ChartLinkTick } from "./ChartLinkTick";
 import { linkMercaderista } from "@/app/lib/queries/dashboardLinks";
 import SectionError from "@/app/components/ui/SectionError";
+import { Skeleton } from "@/app/components/ui/Skeleton";
 
 // rows === null: todavía cargando (o falló). Nunca se confunde con "sin rutas".
 interface Props { rows: CumplimientoRow[] | null; error?: string | null; onRetry?: () => void; desde: string; hasta: string }
@@ -29,7 +30,7 @@ export default function CumplimientoChart({ rows, error, onRetry, desde, hasta }
       <div className="card" style={{ padding: 16 }}>
         <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Cumplimiento por mercaderista</h2>
         {error ? <SectionError what="el cumplimiento" detail={error} onRetry={onRetry} compact />
-          : !rows ? <p className="text-muted text-sm">Cargando…</p>
+          : !rows ? <Skeleton h={200} style={{ marginTop: 8 }} />
           : <p className="text-muted text-sm">No hay rutas planificadas en este período.</p>}
       </div>
     );

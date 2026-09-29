@@ -6,6 +6,7 @@ import { AlertTriangle } from "lucide-react";
 import type { TiendaSinVisitaRow } from "@/app/lib/queries/dashboard";
 import { linkTienda } from "@/app/lib/queries/dashboardLinks";
 import SectionError from "@/app/components/ui/SectionError";
+import { SkeletonList } from "@/app/components/ui/Skeleton";
 
 // rows === null: todavía cargando (o falló). Nunca se confunde con "ninguna tienda".
 interface Props { rows: TiendaSinVisitaRow[] | null; error?: string | null; onRetry?: () => void; dias: number }
@@ -20,7 +21,7 @@ export default function TiendasSinVisita({ rows, error, onRetry, dias }: Props) 
       {error ? (
         <SectionError what="las tiendas sin visita" detail={error} onRetry={onRetry} compact />
       ) : !rows ? (
-        <p className="text-muted text-sm">Cargando…</p>
+        <SkeletonList rows={5} />
       ) : rows.length === 0 ? (
         <p className="text-muted text-sm">Ninguna tienda lleva demasiado tiempo sin visita. </p>
       ) : (

@@ -5,6 +5,7 @@ import { User, Phone, Mail, Star, Pencil, Plus } from "lucide-react";
 import type { Contact } from "@/app/lib/types";
 import SectionError from "@/app/components/ui/SectionError";
 import { ContactFormModal, type ContactFormValue } from "./ContactFormModal";
+import { SkeletonList } from "@/app/components/ui/Skeleton";
 
 interface ContactListProps {
   storeId: string;
@@ -45,7 +46,7 @@ export function ContactList({ storeId: _storeId, contacts, error, onRetry, onCre
           <SectionError what="los contactos" detail={error} onRetry={onRetry} compact />
         </div>
       ) : contacts === null ? (
-        <div className="card" style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>Cargando contactos…</div>
+        <div className="card" style={{ padding: "4px 16px" }}><SkeletonList rows={3} /></div>
       ) : items.length === 0 ? (
         <div className="card" style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>Sin contactos registrados.</div>
       ) : (

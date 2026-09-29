@@ -22,6 +22,7 @@ import ClientesSinVendedor from "@/app/components/dashboard/ClientesSinVendedor"
 import VisitasPorCliente from "@/app/components/dashboard/VisitasPorCliente";
 import TasksProgress from "@/app/components/dashboard/TasksProgress";
 import SectionError from "@/app/components/ui/SectionError";
+import { DashboardSkeleton } from "@/app/components/ui/Skeleton";
 
 const DIAS_ABANDONO = 15;
 
@@ -49,20 +50,21 @@ function PanelInner() {
 
   // Cada sección lee su propio `error`: un fallo se muestra con Reintentar en
   // esa sección, nunca como "0" o "sin datos".
-  const qResumen    = useSupabaseQuery(() => fetchResumen(desde, hasta), [desde, hasta]);
-  const qCumpl      = useSupabaseQuery(() => fetchCumplimiento(desde, hasta), [desde, hasta]);
-  const qPorCliente = useSupabaseQuery(() => fetchVisitasPorCliente(desde, hasta), [desde, hasta]);
-  const qAnomalias  = useSupabaseQuery(() => fetchAnomalias(desde, hasta), [desde, hasta]);
-  const qSinVisita  = useSupabaseQuery(() => fetchTiendasSinVisita(DIAS_ABANDONO), [DIAS_ABANDONO]);
-  const qCriticas   = useSupabaseQuery(() => fetchTiendasCriticas(desde, hasta, 8), [desde, hasta]);
-  const qBacklog    = useSupabaseQuery(() => fetchBacklogTareas(), []);
-  const qCumples    = useSupabaseQuery(() => fetchCumpleanos(7), []);
-  const qHuerfanos  = useSupabaseQuery(() => fetchClientesSinVendedor(), []);
-  const qResolucion = useSupabaseQuery(() => fetchTiempoResolucion(desde, hasta), [desde, hasta]);
+  const qResumen    = useSupabaseQuery(() => fetchResumen(desde, hasta), [desde, hasta], "dash:resumen");
+  const qCumpl      = useSupabaseQuery(() => fetchCumplimiento(desde, hasta), [desde, hasta], "cumplimiento");
+  const qPorCliente = useSupabaseQuery(() => fetchVisitasPorCliente(desde, hasta), [desde, hasta], "dash:porCliente");
+  const qAnomalias  = useSupabaseQuery(() => fetchAnomalias(desde, hasta), [desde, hasta], "dash:anomalias");
+  const qSinVisita  = useSupabaseQuery(() => fetchTiendasSinVisita(DIAS_ABANDONO), [DIAS_ABANDONO], "dash:sinVisita");
+  const qCriticas   = useSupabaseQuery(() => fetchTiendasCriticas(desde, hasta, 8), [desde, hasta], "dash:criticas");
+  const qBacklog    = useSupabaseQuery(() => fetchBacklogTareas(), [], "dash:backlog");
+  const qCumples    = useSupabaseQuery(() => fetchCumpleanos(7), [], "dash:cumples");
+  const qHuerfanos  = useSupabaseQuery(() => fetchClientesSinVendedor(), [], "dash:huerfanos");
+  const qResolucion = useSupabaseQuery(() => fetchTiempoResolucion(desde, hasta), [desde, hasta], "dash:resolucion");
 
   // null mientras carga o si falló: los KPI muestran "—" sin color, no "0%" en rojo.
   const r = qResumen.error ? null : qResumen.data;
   const SIN_DATO = "—";
+  const cargandoResumen = !qResumen.data && !qResumen.error;
 
   return (
     <>
@@ -85,6 +87,7 @@ function PanelInner() {
         <KpiCard
           kpi="cumplimiento"
           primaria
+          cargando={cargandoResumen}
           valor={r ? `${r.pct_cumplimiento}%` : SIN_DATO}
           detalle={r ? `${r.hechas} de ${r.planificadas} visitas planificadas` : undefined}
           href={linkMercaderistas(desde, hasta)}
@@ -103,11 +106,13 @@ function PanelInner() {
         </KpiCard>
         <KpiCard
           kpi="visitas"
+          cargando={cargandoResumen}
           valor={r ? String(r.visitas) : SIN_DATO}
           href={linkMercaderistas(desde, hasta)}
         />
         <KpiCard
           kpi="anomalias"
+          cargando={cargandoResumen}
           valor={r ? `${r.tasa_anomalias}%` : SIN_DATO}
           detalle={r ? `${r.anomalias} de ${r.visitas} visitas` : undefined}
           tono={r && r.tasa_anomalias > 0 ? "peligro" : "normal"}
@@ -115,6 +120,7 @@ function PanelInner() {
         />
         <KpiCard
           kpi="tareas"
+          cargando={cargandoResumen}
           valor={r ? String(r.tareas_abiertas) : SIN_DATO}
           detalle={r && r.tareas_viejas > 0 ? `${r.tareas_viejas} con +15 días` : undefined}
           tono={r && r.tareas_viejas > 0 ? "peligro" : "normal"}
@@ -155,5 +161,5 @@ function PanelInner() {
 }
 
 export default function PanelPage() {
-  return <Suspense fallback={<div className="empty-state"><div className="empty-title">Cargando…</div></div>}><PanelInner /></Suspense>;
+  return <Suspense fallback={<DashboardSkeleton />}><PanelInner /></Suspense>;
 }

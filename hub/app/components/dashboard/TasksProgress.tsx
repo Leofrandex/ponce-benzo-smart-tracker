@@ -5,6 +5,7 @@ import "./dashboard.css";
 import type { BacklogRow, TiempoResolucion } from "@/app/lib/queries/dashboard";
 import { linkTareasTramo } from "@/app/lib/queries/dashboardLinks";
 import SectionError from "@/app/components/ui/SectionError";
+import { SkeletonList } from "@/app/components/ui/Skeleton";
 
 interface Props {
   // null: todavía cargando (o falló). Nunca se confunde con "no hay tareas".
@@ -44,7 +45,7 @@ export default function TasksProgress({ rows, error, onRetry, resolucion, resolu
       {error ? (
         <SectionError what="las tareas abiertas" detail={error} onRetry={onRetry} compact />
       ) : !rows ? (
-        <p className="text-muted text-sm">Cargando…</p>
+        <SkeletonList rows={4} />
       ) : total === 0 ? (
         <p className="text-muted text-sm">No hay tareas abiertas.</p>
       ) : (

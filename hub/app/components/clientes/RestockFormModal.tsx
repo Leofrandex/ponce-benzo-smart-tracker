@@ -23,7 +23,7 @@ export function RestockFormModal({ open, storeId, onClose, onSaved }: {
   open: boolean; storeId: string; onClose: () => void; onSaved: () => void;
 }) {
   const hoy = hoyCaracas();
-  const { data: catalog, error: catalogError, refetch: refetchCatalog } = useSupabaseQuery(fetchCatalog, []);
+  const { data: catalog, error: catalogError, refetch: refetchCatalog } = useSupabaseQuery(fetchCatalog, [], "catalog");
   const [fecha, setFecha] = useState(hoy);
   const [productos, setProductos] = useState<string[]>([]);
   const [q, setQ] = useState("");

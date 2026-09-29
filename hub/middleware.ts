@@ -2,10 +2,10 @@ import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/app/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
-  const { response, user } = await updateSession(request);
+  const { response, authed } = await updateSession(request);
 
   // Proteger /panel/*: sin sesión -> al login.
-  if (request.nextUrl.pathname.startsWith("/panel") && !user) {
+  if (request.nextUrl.pathname.startsWith("/panel") && !authed) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);

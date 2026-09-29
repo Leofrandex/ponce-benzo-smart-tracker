@@ -16,6 +16,7 @@ import { anomalyLabel } from "@/app/lib/queries/visitDetail";
 import { ChartLinkTick } from "./ChartLinkTick";
 import { linkTareasAnomalias } from "@/app/lib/queries/dashboardLinks";
 import SectionError from "@/app/components/ui/SectionError";
+import { Skeleton, SkeletonList } from "@/app/components/ui/Skeleton";
 
 interface Props {
   // null: todavía cargando (o falló). Nunca se confunde con "sin incidencias".
@@ -45,13 +46,13 @@ export default function AnomaliasPorTipo({ rows, error, onRetry, desde, hasta }:
     <div className="chart-card">
       <div className="chart-title">Anomalías por tipo</div>
       <div className="chart-subtitle">
-        {rows && !error ? `${total} incidencia${total !== 1 ? "s" : ""} en el período` : "—"}
+        {rows && !error ? `${total} incidencia${total !== 1 ? "s" : ""} en el período` : !error ? <Skeleton h={9} w={140} pill /> : "—"}
       </div>
 
       {error ? (
         <SectionError what="las anomalías" detail={error} onRetry={onRetry} compact />
       ) : !rows ? (
-        <div style={{ textAlign: "center", color: MUTED, fontSize: "var(--text-sm)", padding: "24px 0" }}>Cargando…</div>
+        <SkeletonList rows={4} />
       ) : data.length === 0 ? (
         <div style={{ textAlign: "center", color: MUTED, fontSize: "var(--text-sm)", padding: "24px 0" }}>
           Sin incidencias en este período

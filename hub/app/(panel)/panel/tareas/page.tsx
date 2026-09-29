@@ -23,6 +23,7 @@ import { TaskFilters } from "@/app/components/tareas/TaskFilters";
 import { TaskSummaryPanel } from "@/app/components/tareas/TaskSummary";
 import { TaskVisitDetail } from "@/app/components/tareas/TaskVisitDetail";
 import { TaskResolutionNote } from "@/app/components/tareas/TaskResolutionNote";
+import { SkeletonTaskList, TareasSkeleton } from "@/app/components/ui/Skeleton";
 
 type TaskStatus = "open" | "resolved";
 
@@ -52,9 +53,9 @@ function relativeTime(iso: string): string {
 }
 
 function TareasPageInner() {
-  const { data: rawTasks, loading, error, refetch } = useSupabaseQuery(fetchFullTasks, []);
+  const { data: rawTasks, loading, error, refetch } = useSupabaseQuery(fetchFullTasks, [], "tasks:full");
   const tasks = useMemo(() => rawTasks ?? [], [rawTasks]);
-  const { data: rawAssignees, loading: assigneesLoading, error: assigneesError } = useSupabaseQuery(fetchTaskAssignees, []);
+  const { data: rawAssignees, loading: assigneesLoading, error: assigneesError } = useSupabaseQuery(fetchTaskAssignees, [], "assignees");
   const assignees = useMemo(() => rawAssignees ?? [], [rawAssignees]);
   const vendedorDisabled = assigneesLoading || !!assigneesError;
   const [filter, setFilter] = useTaskFilterUrl();
@@ -171,8 +172,9 @@ function TareasPageInner() {
       )}
 
       {loading && (
-        <div className="empty-state">
-          <div className="empty-title">Cargando tareas…</div>
+        <div role="status" aria-live="polite">
+          <span className="sr-only">Cargando tareas…</span>
+          <SkeletonTaskList />
         </div>
       )}
 
@@ -297,7 +299,7 @@ function TareasPageInner() {
 
 export default function TareasPage() {
   return (
-    <Suspense fallback={<div className="empty-state"><div className="empty-title">Cargando tareas…</div></div>}>
+    <Suspense fallback={<TareasSkeleton />}>
       <TareasPageInner />
     </Suspense>
   );

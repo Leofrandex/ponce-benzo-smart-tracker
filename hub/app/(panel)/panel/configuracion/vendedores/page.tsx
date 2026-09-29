@@ -6,6 +6,7 @@ import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { buildVendorRows, fetchVendorAssignmentData, vendorOptions, FILTRO_SIN_VENDEDOR, type VendorAssignRow } from "@/app/lib/queries/config";
 import { saveClientVendors } from "@/app/lib/mutations/assignments";
 import { MultiSelect } from "@/app/components/ui/MultiSelect";
+import { ConfigTableSkeleton } from "@/app/components/ui/Skeleton";
 
 type RowState = { draft: string[]; saving: boolean; error: string | null; saved: boolean };
 
@@ -16,7 +17,7 @@ function sameSet(a: string[], b: string[]) {
 }
 
 function VendedoresInner() {
-  const { data, loading, error, refetch } = useSupabaseQuery(fetchVendorAssignmentData, []);
+  const { data, loading, error, refetch } = useSupabaseQuery(fetchVendorAssignmentData, [], "config:vendedores");
   const rows = useMemo(() => (data ? buildVendorRows(data.clients, data.assignments, data.users) : []), [data]);
   const options = useMemo(() => (data ? vendorOptions(data.users, rows) : []), [data, rows]);
   const [state, setState] = useState<Record<string, RowState>>({});
@@ -62,7 +63,7 @@ function VendedoresInner() {
   }
 
   if (error) return <div className="empty-state"><div className="empty-title">Error al cargar</div><div className="empty-desc">{error}</div></div>;
-  if (loading && !data) return <div className="empty-state"><div className="empty-title">Cargando cadenas…</div></div>;
+  if (loading && !data) return <ConfigTableSkeleton label="Cargando cadenas…" />;
 
   return (
     <>
@@ -125,7 +126,7 @@ function VendedoresInner() {
 
 export default function VendedoresPage() {
   return (
-    <Suspense fallback={<div className="empty-state"><div className="empty-title">Cargando…</div></div>}>
+    <Suspense fallback={<ConfigTableSkeleton />}>
       <VendedoresInner />
     </Suspense>
   );

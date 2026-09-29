@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/app/lib/auth-context";
 import { canConfigure } from "@/app/lib/roles";
+import { ConfigSkeleton } from "@/app/components/ui/Skeleton";
 
 const TABS = [
   { href: "/panel/configuracion/vendedores", label: "Vendedores por cadena" },
@@ -24,7 +25,7 @@ export default function ConfiguracionLayout({ children }: { children: React.Reac
   // Mientras carga el perfil, o si no es admin, no se monta la página hija:
   // así tampoco dispara consultas.
   if (loading || !allowed) {
-    return <div className="empty-state"><div className="empty-title">Cargando…</div></div>;
+    return <ConfigSkeleton />;
   }
 
   return (

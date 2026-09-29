@@ -5,6 +5,7 @@ import "./dashboard.css";
 import type { TiendaCriticaRow } from "@/app/lib/queries/dashboard";
 import { linkTienda } from "@/app/lib/queries/dashboardLinks";
 import SectionError from "@/app/components/ui/SectionError";
+import { SkeletonList } from "@/app/components/ui/Skeleton";
 
 // rows === null: todavía cargando (o falló). Nunca se confunde con "sin anomalías".
 interface Props { rows: TiendaCriticaRow[] | null; error?: string | null; onRetry?: () => void }
@@ -16,7 +17,7 @@ export default function TiendasCriticas({ rows, error, onRetry }: Props) {
       {error ? (
         <SectionError what="las tiendas con anomalías" detail={error} onRetry={onRetry} compact />
       ) : !rows ? (
-        <p className="text-muted text-sm">Cargando…</p>
+        <SkeletonList rows={5} />
       ) : rows.length === 0 ? (
         <p className="text-muted text-sm">Sin anomalías reportadas en este período.</p>
       ) : (

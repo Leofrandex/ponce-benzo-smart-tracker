@@ -13,6 +13,7 @@ import {
 } from "@/app/lib/queries/clientFilters";
 import { Select } from "@/app/components/ui/Select";
 import { CHANNEL_LABELS } from "@/app/components/clientes/ClientesTable";
+import { ClientesSkeleton, Skeleton, SkeletonList } from "@/app/components/ui/Skeleton";
 
 function ClientesInner() {
   const sp = useSearchParams();
@@ -21,9 +22,9 @@ function ClientesInner() {
   const qs = sp.toString();
   const filters = useMemo(() => parseClientesParams(new URLSearchParams(qs)), [qs]);
 
-  const { data: clients, loading, error } = useSupabaseQuery(fetchClients, []);
-  const { data: storeGeo } = useSupabaseQuery(fetchStoreGeo, []);
-  const { data: rawAssignees } = useSupabaseQuery(fetchTaskAssignees, []);
+  const { data: clients, loading, error } = useSupabaseQuery(fetchClients, [], "clients");
+  const { data: storeGeo } = useSupabaseQuery(fetchStoreGeo, [], "stores:geo");
+  const { data: rawAssignees } = useSupabaseQuery(fetchTaskAssignees, [], "assignees");
   const assignees = useMemo(() => rawAssignees ?? [], [rawAssignees]);
 
   const setFilters = (f: ClientesFiltro) => {
@@ -58,7 +59,7 @@ function ClientesInner() {
     <>
       <div>
         <h1 style={{ fontSize: "var(--text-xl)", fontWeight: 600, letterSpacing: "var(--tracking-tight)" }}>Clientes</h1>
-        <p className="text-muted text-sm" style={{ marginTop: "4px" }}>{loading ? "Cargando…" : hasFilters ? `${rows.length} de ${(clients ?? []).length} cadenas` : `${rows.length} cadenas`}</p>
+        {loading ? <Skeleton h={10} w={120} pill style={{ marginTop: 8 }} /> : <p className="text-muted text-sm" style={{ marginTop: "4px" }}>{hasFilters ? `${rows.length} de ${(clients ?? []).length} cadenas` : `${rows.length} cadenas`}</p>}
       </div>
       <div className="card" style={{ padding: "12px", display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "flex-end" }}>
         <Select label="Estado" value={filters.estado}
@@ -78,7 +79,12 @@ function ClientesInner() {
           </button>
         )}
       </div>
-      {!loading && rows.length === 0 ? (
+      {loading ? (
+        <div className="card" role="status" aria-live="polite" style={{ padding: "4px 16px" }}>
+          <span className="sr-only">Cargando clientes…</span>
+          <SkeletonList rows={8} />
+        </div>
+      ) : rows.length === 0 ? (
         <div className="empty-state">
           <div className="empty-title">Sin cadenas</div>
           <div className="empty-desc">Ninguna cadena coincide con los filtros.</div>
@@ -108,7 +114,7 @@ function ClientesInner() {
 
 export default function ClientesPage() {
   return (
-    <Suspense fallback={<div className="empty-state"><div className="empty-title">Cargando…</div></div>}>
+    <Suspense fallback={<ClientesSkeleton />}>
       <ClientesInner />
     </Suspense>
   );

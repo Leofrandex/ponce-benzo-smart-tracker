@@ -16,6 +16,7 @@ import { parsePeriodo, serializePeriodo } from "@/app/lib/queries/period";
 import { ActivityFeed } from "@/app/components/clientes/ActivityFeed";
 import TimePeriodSelector, { rangoDeDias } from "@/app/components/dashboard/TimePeriodSelector";
 import SectionError from "@/app/components/ui/SectionError";
+import { DetailSkeleton, Skeleton, SkeletonCard, SkeletonList, SkeletonScreen } from "@/app/components/ui/Skeleton";
 
 const COLOR: Record<Resultado, string> = {
   completada: "var(--success)", anomalia: "var(--danger)", cubierta: "var(--accent)",
@@ -38,14 +39,14 @@ function PerfilInner() {
   const { desde, hasta } = parsePeriodo(new URLSearchParams(sp.toString()), rangoDeDias(7));
   const setPeriodo = (d: string, h: string) => router.replace(`${pathname}?${serializePeriodo(d, h)}`, { scroll: false });
 
-  const { data: detalle, loading, error, refetch } = useSupabaseQuery(() => fetchDetalle(id, desde, hasta), [id, desde, hasta]);
+  const { data: detalle, loading, error, refetch } = useSupabaseQuery(() => fetchDetalle(id, desde, hasta), [id, desde, hasta], "merch:detalle");
   // Jornadas y reportes leen su error: si fallan se dice, no "Sin jornadas".
-  const qJornadas = useSupabaseQuery(() => fetchJornadas(id, desde, hasta), [id, desde, hasta]);
-  const qReports = useSupabaseQuery(() => fetchUserReports(id, desde, hasta), [id, desde, hasta]);
+  const qJornadas = useSupabaseQuery(() => fetchJornadas(id, desde, hasta), [id, desde, hasta], "merch:jornadas");
+  const qReports = useSupabaseQuery(() => fetchUserReports(id, desde, hasta), [id, desde, hasta], "merch:reports");
   const { data: jornadas } = qJornadas;
   const { data: reports } = qReports;
-  const { data: userName } = useSupabaseQuery(() => fetchUserName(id), [id]);
-  const { data: versiones } = useSupabaseQuery(fetchVersiones, []);
+  const { data: userName } = useSupabaseQuery(() => fetchUserName(id), [id], "merch:name");
+  const { data: versiones } = useSupabaseQuery(fetchVersiones, [], "app:versiones");
   const [abierto, setAbierto] = useState<string | null>(null);
 
   const resumen = useMemo(() => summarizeDetalle(detalle ?? []), [detalle]);
@@ -72,7 +73,18 @@ function PerfilInner() {
       </div>
 
       {error && <SectionError what="el detalle del periodo" detail={error} onRetry={refetch} />}
-      {loading && !detalle && <div className="empty-state"><div className="empty-title">Cargando…</div></div>}
+      {loading && !detalle && (
+        <SkeletonScreen label="Cargando el detalle del periodo…">
+          <SkeletonCard>
+            <Skeleton h={10} w={150} pill />
+            <Skeleton h={40} w={120} />
+            <div style={{ display: "flex", gap: 28, flexWrap: "wrap" }}>
+              {[0, 1, 2, 3].map((i) => <Skeleton key={i} h={24} w={80} />)}
+            </div>
+          </SkeletonCard>
+          <SkeletonCard><Skeleton h={12} w={110} pill /><SkeletonList rows={5} /></SkeletonCard>
+        </SkeletonScreen>
+      )}
 
       {detalle && (
         <>
@@ -160,7 +172,7 @@ function PerfilInner() {
           <div className="card" style={{ padding: "12px 14px" }}>
             <div className="section-title" style={{ marginBottom: "6px" }}>Jornadas</div>
             {qJornadas.error ? <SectionError what="las jornadas" detail={qJornadas.error} onRetry={qJornadas.refetch} compact />
-              : !jornadas ? <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>Cargando…</div>
+              : !jornadas ? <SkeletonList rows={3} />
               : jornadas.length === 0 ? <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>Sin jornadas en el periodo.</div> : (
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--text-sm)" }}>
                 <tbody>
@@ -183,7 +195,7 @@ function PerfilInner() {
           ) : reports ? (
             <ActivityFeed reports={reports} tasks={[]} showTasks={false} />
           ) : (
-            <div className="card" style={{ padding: "12px 14px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>Cargando reportes…</div>
+            <SkeletonCard><Skeleton h={12} w={110} pill /><SkeletonList rows={4} /></SkeletonCard>
           )}
         </>
       )}
@@ -192,5 +204,5 @@ function PerfilInner() {
 }
 
 export default function PerfilMercaderistaPage() {
-  return <Suspense fallback={<div className="empty-state"><div className="empty-title">Cargando…</div></div>}><PerfilInner /></Suspense>;
+  return <Suspense fallback={<DetailSkeleton back="Mercaderistas" label="Cargando el perfil…" />}><PerfilInner /></Suspense>;
 }

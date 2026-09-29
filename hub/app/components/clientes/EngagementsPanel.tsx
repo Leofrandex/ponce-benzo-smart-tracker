@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MessageSquare, Check, Clock, Plus } from "lucide-react";
 import type { ContactEngagement } from "@/app/lib/types";
 import SectionError from "@/app/components/ui/SectionError";
+import { SkeletonList } from "@/app/components/ui/Skeleton";
 
 type ComposerType = "note" | "todo";
 
@@ -48,7 +49,7 @@ export function EngagementsPanel({ engagements, error, onRetry, onCreate, onTogg
           {error ? (
             <SectionError what="las notas" detail={error} onRetry={onRetry} compact />
           ) : engagements === null ? (
-            <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", textAlign: "center", padding: "12px" }}>Cargando…</div>
+            <SkeletonList rows={4} />
           ) : items.length === 0 ? (
             <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", textAlign: "center", padding: "12px" }}>Sin registros. Agregá la primera nota abajo.</div>
           ) : items.map((e) => (

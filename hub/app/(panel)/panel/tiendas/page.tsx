@@ -14,10 +14,11 @@ import { filtrarTiendas, parseTiendasParams, serializeTiendasParams, type Client
 import { ClientesFilters } from "@/app/components/clientes/ClientesFilters";
 import { ClientesTable } from "@/app/components/clientes/ClientesTable";
 import SectionError from "@/app/components/ui/SectionError";
+import { Skeleton, TiendasSkeleton } from "@/app/components/ui/Skeleton";
 
 export default function TiendasPage() {
   return (
-    <Suspense fallback={<div className="empty-state"><div className="empty-title">Cargando…</div></div>}>
+    <Suspense fallback={<TiendasSkeleton />}>
       <TiendasInner />
     </Suspense>
   );
@@ -66,11 +67,11 @@ function TiendasInner() {
     setParams(f, lastPushed.current);
   }
 
-  const { data: stores, loading: loadingStores, error, refetch: refetchStores } = useSupabaseQuery(fetchStores, []);
-  const qTasks = useSupabaseQuery(fetchTasks, []);
-  const qClients = useSupabaseQuery(fetchClients, []);
-  const qVisits = useSupabaseQuery(fetchUltimasVisitas, []);
-  const qAssignees = useSupabaseQuery(fetchTaskAssignees, []);
+  const { data: stores, loading: loadingStores, error, refetch: refetchStores } = useSupabaseQuery(fetchStores, [], "stores");
+  const qTasks = useSupabaseQuery(fetchTasks, [], "tasks:byStore");
+  const qClients = useSupabaseQuery(fetchClients, [], "clients");
+  const qVisits = useSupabaseQuery(fetchUltimasVisitas, [], "visits:last");
+  const qAssignees = useSupabaseQuery(fetchTaskAssignees, [], "assignees");
   const { data: tasks } = qTasks;
   const { data: clients } = qClients;
   const { data: visits } = qVisits;
@@ -114,9 +115,9 @@ function TiendasInner() {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
         <div>
           <h1 style={{ fontSize: "var(--text-xl)", fontWeight: 600, letterSpacing: "var(--tracking-tight)" }}>Tiendas</h1>
-          <p className="text-muted text-sm" style={{ marginTop: "4px" }}>
-            {loadingStores ? "Cargando…" : `${rows.length} de ${(stores ?? []).length} tiendas`}
-          </p>
+          {loadingStores
+            ? <Skeleton h={10} w={140} pill style={{ marginTop: 8 }} />
+            : <p className="text-muted text-sm" style={{ marginTop: "4px" }}>{`${rows.length} de ${(stores ?? []).length} tiendas`}</p>}
         </div>
         <button
           type="button"

@@ -10,6 +10,7 @@ import { fetchResumenesDetalle } from "@/app/lib/queries/merchandisers";
 import { estadoVersion, fetchVersiones } from "@/app/lib/queries/appVersion";
 import { parsePeriodo, serializePeriodo } from "@/app/lib/queries/period";
 import TimePeriodSelector, { rangoDeDias } from "@/app/components/dashboard/TimePeriodSelector";
+import { MercaderistasSkeleton, SkeletonTable } from "@/app/components/ui/Skeleton";
 
 // Mismas bandas que CumplimientoChart del dashboard: el color marca solo la excepción.
 const tono = (pct: number) => (pct < 70 ? "var(--danger)" : pct < 90 ? "var(--warning)" : undefined);
@@ -21,8 +22,8 @@ function MercaderistasInner() {
   const { desde, hasta } = parsePeriodo(new URLSearchParams(sp.toString()), rangoDeDias(7));
   const setPeriodo = (d: string, h: string) => router.replace(`${pathname}?${serializePeriodo(d, h)}`, { scroll: false });
 
-  const { data: cumpl, loading, error } = useSupabaseQuery(() => fetchCumplimiento(desde, hasta), [desde, hasta]);
-  const { data: roster } = useSupabaseQuery(fetchMerchandisers, []);
+  const { data: cumpl, loading, error } = useSupabaseQuery(() => fetchCumplimiento(desde, hasta), [desde, hasta], "cumplimiento");
+  const { data: roster } = useSupabaseQuery(fetchMerchandisers, [], "merch:roster");
 
   // ids de todo el roster + quien aparezca en el cumplimiento (p. ej. supervisores).
   const ids = useMemo(() => {
@@ -31,8 +32,8 @@ function MercaderistasInner() {
   }, [roster, cumpl]);
   const idsKey = ids.join(",");
 
-  const { data: anom } = useSupabaseQuery(() => fetchResumenesDetalle(ids, desde, hasta), [idsKey, desde, hasta]);
-  const { data: versiones } = useSupabaseQuery(fetchVersiones, []);
+  const { data: anom } = useSupabaseQuery(() => fetchResumenesDetalle(ids, desde, hasta), [idsKey, desde, hasta], "merch:resumenes");
+  const { data: versiones } = useSupabaseQuery(fetchVersiones, [], "app:versiones");
 
   // Todos los del roster, aunque no tengan rutas en el periodo; luego quien
   // aparezca en el cumplimiento sin estar en el roster (p. ej. supervisores).
@@ -58,7 +59,7 @@ function MercaderistasInner() {
       </div>
 
       {error && <div className="empty-state"><div className="empty-title">Error al cargar</div><div className="empty-desc">{error}</div></div>}
-      {loading && !cumpl && <div className="empty-state"><div className="empty-title">Cargando…</div></div>}
+      {loading && !cumpl && <div role="status" aria-live="polite"><span className="sr-only">Cargando…</span><SkeletonTable rows={8} cols={5} /></div>}
 
       {cumpl && (
         <div className="card" style={{ padding: 0, overflowX: "auto" }}>
@@ -109,5 +110,5 @@ function MercaderistasInner() {
 }
 
 export default function MercaderistasPage() {
-  return <Suspense fallback={<div className="empty-state"><div className="empty-title">Cargando…</div></div>}><MercaderistasInner /></Suspense>;
+  return <Suspense fallback={<MercaderistasSkeleton />}><MercaderistasInner /></Suspense>;
 }

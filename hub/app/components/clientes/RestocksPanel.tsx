@@ -2,6 +2,7 @@
 
 import { Package, Plus, Trash2 } from "lucide-react";
 import { ORIGEN_LABEL, type RestockRow } from "@/app/lib/queries/restocks";
+import { SkeletonList } from "@/app/components/ui/Skeleton";
 
 const COLUMNS = "1fr 2fr 0.8fr 1fr 32px";
 const TRUNC: React.CSSProperties = { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
@@ -24,7 +25,7 @@ export function RestocksPanel({ rows, loading, canRegister, currentUserId, isAdm
       )}
 
       {loading ? (
-        <div className="empty-state"><div className="empty-desc">Cargando reposiciones…</div></div>
+        <SkeletonList rows={3} />
       ) : rows.length === 0 ? (
         <div className="empty-state">
           <Package size={44} style={{ opacity: 0.2 }} />

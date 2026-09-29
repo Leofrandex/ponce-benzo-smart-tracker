@@ -17,6 +17,7 @@ import {
   type MapFilterValue, type TiendaMapa,
 } from "@/app/lib/queries/mapFilters";
 import type { MapMerchandiser } from "@/app/lib/map-data";
+import { MapaSkeleton, Skeleton, SkeletonCard, SkeletonList } from "@/app/components/ui/Skeleton";
 
 const MapLiveView = dynamic(() => import("@/app/components/mapa/MapLiveView"), {
   ssr: false,
@@ -85,9 +86,9 @@ function MapaInner() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // --- Real data from Supabase ---
-  const { data: stores } = useSupabaseQuery(fetchStores, []);
-  const { data: roster } = useSupabaseQuery(fetchMerchandisers, []);
-  const { data: rawAssignees } = useSupabaseQuery(fetchTaskAssignees, []);
+  const { data: stores } = useSupabaseQuery(fetchStores, [], "stores");
+  const { data: roster } = useSupabaseQuery(fetchMerchandisers, [], "merch:roster");
+  const { data: rawAssignees } = useSupabaseQuery(fetchTaskAssignees, [], "assignees");
   const assignees = useMemo(() => rawAssignees ?? [], [rawAssignees]);
 
   // parseMapParams descarta las tiendas que no conoce: si corre mientras
@@ -200,7 +201,11 @@ function MapaInner() {
         {/* Escritorio: columna fija de filtros. En teléfono (< 768px) la oculta el CSS. */}
         <div className="map-filters-desktop" style={{ display: "flex", minHeight: 0 }}>
           {storesLoaded ? sidebar(false) : (
-            <div style={{ width: 250, flexShrink: 0, fontSize: 13, color: "var(--text-muted)" }}>Cargando filtros…</div>
+            <SkeletonCard style={{ width: 250, flexShrink: 0 }}>
+              <Skeleton h={12} w={100} pill />
+              {[0, 1, 2, 3].map((i) => <Skeleton key={i} h={34} style={{ borderRadius: "var(--radius-sm)" }} />)}
+              <SkeletonList rows={4} />
+            </SkeletonCard>
           )}
         </div>
 
@@ -248,7 +253,7 @@ function MapaInner() {
 
 export default function MapaPage() {
   return (
-    <Suspense fallback={<MapLoading label="Cargando mapa…" />}>
+    <Suspense fallback={<MapaSkeleton />}>
       <MapaInner />
     </Suspense>
   );

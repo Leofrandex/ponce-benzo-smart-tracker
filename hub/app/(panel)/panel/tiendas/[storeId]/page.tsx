@@ -29,20 +29,21 @@ import { LongTermPlaceholders } from "@/app/components/clientes/LongTermPlacehol
 import { StoreFormModal } from "@/app/components/clientes/StoreFormModal";
 import SectionError from "@/app/components/ui/SectionError";
 import Segmented from "@/app/components/ui/Segmented";
+import { DetailSkeleton } from "@/app/components/ui/Skeleton";
 
 export default function ClienteDetailPage() {
   const { storeId } = useParams<{ storeId: string }>();
   const { profile } = useAuth();
 
   // Cada sección lee su `error`: un fallo de red no se muestra como "vacío".
-  const { data: store, loading, error: storeError, refetch: refetchStore } = useSupabaseQuery(() => fetchStoreById(storeId), [storeId]);
-  const { data: contacts, error: contactsError, refetch: refetchContacts } = useSupabaseQuery(() => fetchContacts(storeId), [storeId]);
-  const { data: engagements, error: engagementsError, refetch: refetchEngagements } = useSupabaseQuery(() => fetchEngagements(storeId), [storeId]);
-  const { data: allTasks, error: tasksError, refetch: refetchTasks } = useSupabaseQuery(fetchFullTasks, []);
+  const { data: store, loading, error: storeError, refetch: refetchStore } = useSupabaseQuery(() => fetchStoreById(storeId), [storeId], "store");
+  const { data: contacts, error: contactsError, refetch: refetchContacts } = useSupabaseQuery(() => fetchContacts(storeId), [storeId], "store:contacts");
+  const { data: engagements, error: engagementsError, refetch: refetchEngagements } = useSupabaseQuery(() => fetchEngagements(storeId), [storeId], "store:engagements");
+  const { data: allTasks, error: tasksError, refetch: refetchTasks } = useSupabaseQuery(fetchFullTasks, [], "tasks:full");
   const tasks = useMemo(() => tasksForStore(allTasks ?? [], storeId), [allTasks, storeId]);
-  const { data: reports, error: reportsError, refetch: refetchReports } = useSupabaseQuery(() => fetchStoreReports(storeId), [storeId]);
-  const { data: competition, error: competitionError, refetch: refetchCompetition } = useSupabaseQuery(() => fetchStoreCompetition(storeId), [storeId]);
-  const { data: restocks, loading: loadingRestocks, error: restocksError, refetch: refetchRestocks } = useSupabaseQuery(() => fetchStoreRestocks(storeId), [storeId]);
+  const { data: reports, error: reportsError, refetch: refetchReports } = useSupabaseQuery(() => fetchStoreReports(storeId), [storeId], "store:reports");
+  const { data: competition, error: competitionError, refetch: refetchCompetition } = useSupabaseQuery(() => fetchStoreCompetition(storeId), [storeId], "store:competition");
+  const { data: restocks, loading: loadingRestocks, error: restocksError, refetch: refetchRestocks } = useSupabaseQuery(() => fetchStoreRestocks(storeId), [storeId], "store:restocks");
   const lastRestock = useMemo(() => ultimaReposicion(restocks ?? []), [restocks]);
 
   const [editOpen, setEditOpen] = useState(false);
@@ -107,7 +108,7 @@ export default function ClienteDetailPage() {
 
   // Solo la primera carga reemplaza la página: al refrescar tras guardar se mantiene lo visible.
   if (loading && !store) {
-    return <div className="empty-state"><div className="empty-title">Cargando…</div></div>;
+    return <DetailSkeleton back="Tiendas" label="Cargando la tienda…" />;
   }
 
   if (!store) {
