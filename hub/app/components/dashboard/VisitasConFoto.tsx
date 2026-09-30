@@ -1,0 +1,90 @@
+"use client";
+
+import Link from "next/link";
+import "./dashboard.css";
+import type { VisitasConFotoRow } from "@/app/lib/queries/dashboard";
+import { linkMercaderista } from "@/app/lib/queries/dashboardLinks";
+import { colorCumplimiento } from "./CumplimientoChart";
+import SectionError from "@/app/components/ui/SectionError";
+import { Skeleton, SkeletonList } from "@/app/components/ui/Skeleton";
+
+interface Props {
+  // null: todavía cargando (o falló). Nunca se confunde con "0 visitas".
+  rows: VisitasConFotoRow[] | null;
+  error?: string | null;
+  onRetry?: () => void;
+  desde: string;
+  hasta: string;
+  /** 'YYYY-MM-DD' local de hoy: si el período lo incluye, se avisa del sync. */
+  hoy: string;
+}
+
+const pct = (con: number, total: number) => (total === 0 ? 0 : Math.round((100 * con) / total));
+
+export default function VisitasConFoto({ rows, error, onRetry, desde, hasta, hoy }: Props) {
+  const visitas = (rows ?? []).reduce((s, r) => s + r.visitas, 0);
+  const conFoto = (rows ?? []).reduce((s, r) => s + r.con_foto, 0);
+  const total = pct(conFoto, visitas);
+
+  return (
+    <div className="chart-card">
+      <div className="chart-title">Visitas con foto</div>
+      <div className="chart-subtitle">
+        {rows && !error ? (
+          visitas === 0 ? "Sin visitas en el período" : `${conFoto} de ${visitas} visitas con evidencia`
+        ) : !error ? <Skeleton h={9} w={140} pill /> : "—"}
+      </div>
+
+      {error ? (
+        <SectionError what="las visitas con foto" detail={error} onRetry={onRetry} compact />
+      ) : !rows ? (
+        <SkeletonList rows={4} />
+      ) : visitas === 0 ? null : (
+        <>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+            <span className="dash-num" style={{ fontSize: 28, fontWeight: 600, color: colorCumplimiento(total) }}>
+              {total}%
+            </span>
+            {visitas - conFoto > 0 && (
+              <span className="text-muted" style={{ fontSize: 12 }}>
+                {visitas - conFoto} sin foto
+              </span>
+            )}
+          </div>
+          <div className="progress-track" aria-hidden="true" style={{ marginBottom: 12 }}>
+            <div className="progress-fill" style={{ width: `${total}%`, background: colorCumplimiento(total) }} />
+          </div>
+
+          {/* La función ya ordena: primero quien más visitas sin foto acumula. */}
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {rows.map((r) => {
+              const sin = r.visitas - r.con_foto;
+              return (
+                <li key={r.user_id} style={{ display: "flex", justifyContent: "space-between",
+                                             gap: 12, padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
+                  <Link href={linkMercaderista(r.user_id, desde, hasta)} className="dash-link" style={{ fontSize: 13 }}>
+                    {r.full_name}
+                  </Link>
+                  <span className="dash-num" style={{ fontSize: 12 }}>
+                    {sin > 0 ? (
+                      <strong style={{ color: "var(--danger)" }}>{sin} sin foto</strong>
+                    ) : (
+                      <span className="text-muted">Todas con foto</span>
+                    )}
+                    <span className="text-muted">{" · "}{pct(r.con_foto, r.visitas)}% de {r.visitas}</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+
+          {hasta >= hoy && (
+            <p className="text-muted" style={{ fontSize: 11, marginTop: 8 }}>
+              Las visitas de hoy pueden estar terminando de subir sus fotos.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

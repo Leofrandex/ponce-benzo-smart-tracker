@@ -1247,6 +1247,31 @@ as $$
     and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()));
 $$;
 
+-- Visitas con y sin foto por autor (tarjeta del dashboard, 2026-09-30).
+-- Excluye omitidas. Ver tools/migraciones/2026-09-30-dashboard-visitas-con-foto.sql.
+create or replace function public.fn_dash_visitas_con_foto(p_desde date, p_hasta date)
+returns table(user_id uuid, full_name text, visitas bigint, con_foto bigint)
+language sql
+stable
+set search_path to ''
+as $function$
+  select v.user_id,
+         u.full_name,
+         count(*)::bigint,
+         count(*) filter (where coalesce(cardinality(v.photo_urls), 0) > 0)::bigint
+  from public.visits v
+  join public.stores s on s.store_id = v.store_id
+  join public.users  u on u.id       = v.user_id
+  where public.fn_fecha_local(v.check_in_time) between p_desde and p_hasta
+    and v.status <> 'skipped'
+    and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
+  group by 1, 2
+  -- Primero quien más visitas sin foto acumula: es a quien hay que llamar.
+  order by count(*) - count(*) filter (where coalesce(cardinality(v.photo_urls), 0) > 0) desc, 3 desc;
+$function$;
+
+grant execute on function public.fn_dash_visitas_con_foto(date, date) to authenticated;
+
 -- Auxiliar: construye la fecha de un cumpleanos en un anio dado, sin reventar
 -- en anios no bisiestos cuando el nacimiento fue un 29 de febrero.
 -- make_date(y,2,29) lanza "date field value out of range" en anios normales;

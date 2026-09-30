@@ -7,16 +7,17 @@ import { useAuth } from "@/app/lib/auth-context";
 import {
   fetchResumen, fetchCumplimiento, fetchVisitasPorCliente, fetchAnomalias,
   fetchTiendasSinVisita, fetchTiendasCriticas, fetchBacklogTareas,
-  fetchCumpleanos, fetchClientesSinVendedor, fetchTiempoResolucion,
+  fetchCumpleanos, fetchClientesSinVendedor, fetchTiempoResolucion, fetchVisitasConFoto,
 } from "@/app/lib/queries/dashboard";
 import { parsePeriodo, serializePeriodo } from "@/app/lib/queries/period";
 import { linkMercaderistas, linkTareasAnomalias, linkTareasAbiertas, linkTareasViejas } from "@/app/lib/queries/dashboardLinks";
-import TimePeriodSelector, { rangoDeDias } from "@/app/components/dashboard/TimePeriodSelector";
+import TimePeriodSelector, { iso, rangoDeDias } from "@/app/components/dashboard/TimePeriodSelector";
 import KpiCard from "@/app/components/dashboard/KpiCard";
 import CumplimientoChart, { colorCumplimiento } from "@/app/components/dashboard/CumplimientoChart";
 import AnomaliasPorTipo from "@/app/components/dashboard/AnomaliasPorTipo";
 import TiendasSinVisita from "@/app/components/dashboard/TiendasSinVisita";
 import TiendasCriticas from "@/app/components/dashboard/TiendasCriticas";
+import VisitasConFoto from "@/app/components/dashboard/VisitasConFoto";
 import Cumpleanos from "@/app/components/dashboard/Cumpleanos";
 import ClientesSinVendedor from "@/app/components/dashboard/ClientesSinVendedor";
 import VisitasPorCliente from "@/app/components/dashboard/VisitasPorCliente";
@@ -60,6 +61,7 @@ function PanelInner() {
   const qCumples    = useSupabaseQuery(() => fetchCumpleanos(7), [], "dash:cumples");
   const qHuerfanos  = useSupabaseQuery(() => fetchClientesSinVendedor(), [], "dash:huerfanos");
   const qResolucion = useSupabaseQuery(() => fetchTiempoResolucion(desde, hasta), [desde, hasta], "dash:resolucion");
+  const qFotos      = useSupabaseQuery(() => fetchVisitasConFoto(desde, hasta), [desde, hasta], "dash:fotos");
 
   // null mientras carga o si falló: los KPI muestran "—" sin color, no "0%" en rojo.
   const r = qResumen.error ? null : qResumen.data;
@@ -141,7 +143,13 @@ function PanelInner() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
                     gap: 16, alignItems: "start" }}>
         <VisitasPorCliente rows={qPorCliente.data} error={qPorCliente.error} onRetry={qPorCliente.refetch} />
-        <AnomaliasPorTipo rows={qAnomalias.data} error={qAnomalias.error} onRetry={qAnomalias.refetch} desde={desde} hasta={hasta} />
+        {/* Columna derecha: Anomalías es corta y Visitas por cadena larga; la
+            tarjeta de fotos rellena el hueco debajo de Anomalías. */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <AnomaliasPorTipo rows={qAnomalias.data} error={qAnomalias.error} onRetry={qAnomalias.refetch} desde={desde} hasta={hasta} />
+          <VisitasConFoto rows={qFotos.data} error={qFotos.error} onRetry={qFotos.refetch}
+                          desde={desde} hasta={hasta} hoy={iso(new Date())} />
+        </div>
       </div>
 
       <TiendasCriticas rows={qCriticas.data} error={qCriticas.error} onRetry={qCriticas.refetch} />

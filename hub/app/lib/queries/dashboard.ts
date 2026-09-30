@@ -38,6 +38,8 @@ export interface ClienteSinVendedorRow {
   client_id: string; cliente: string; tiendas_activas: number;
 }
 export interface TiempoResolucion { resueltas: number; horas_promedio: number | null }
+/** Por autor de la visita; excluye las omitidas. */
+export interface VisitasConFotoRow { user_id: string; full_name: string; visitas: number; con_foto: number }
 
 async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T[]> {
   const { data, error } = await getSupabaseBrowser().rpc(fn, args);
@@ -77,6 +79,9 @@ export const fetchCumpleanos = (dias: number) =>
 
 export const fetchClientesSinVendedor = () =>
   rpc<ClienteSinVendedorRow>("fn_dash_clientes_sin_vendedor", {});
+
+export const fetchVisitasConFoto = (desde: string, hasta: string) =>
+  rpc<VisitasConFotoRow>("fn_dash_visitas_con_foto", { p_desde: desde, p_hasta: hasta });
 
 export async function fetchTiempoResolucion(desde: string, hasta: string): Promise<TiempoResolucion> {
   const filas = await rpc<TiempoResolucion>("fn_dash_tiempo_resolucion", { p_desde: desde, p_hasta: hasta });
