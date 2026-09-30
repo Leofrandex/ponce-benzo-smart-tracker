@@ -83,6 +83,10 @@ export const fetchClientesSinVendedor = () =>
 export const fetchVisitasConFoto = (desde: string, hasta: string) =>
   rpc<VisitasConFotoRow>("fn_dash_visitas_con_foto", { p_desde: desde, p_hasta: hasta });
 
+export interface VisitasConFotoDiaRow { dia: string; visitas: number; con_foto: number }
+export const fetchVisitasConFotoDia = (desde: string, hasta: string) =>
+  rpc<VisitasConFotoDiaRow>("fn_dash_visitas_con_foto_dia", { p_desde: desde, p_hasta: hasta });
+
 export async function fetchTiempoResolucion(desde: string, hasta: string): Promise<TiempoResolucion> {
   const filas = await rpc<TiempoResolucion>("fn_dash_tiempo_resolucion", { p_desde: desde, p_hasta: hasta });
   return filas[0] ?? { resueltas: 0, horas_promedio: null };

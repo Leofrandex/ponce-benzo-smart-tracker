@@ -1272,6 +1272,28 @@ $function$;
 
 grant execute on function public.fn_dash_visitas_con_foto(date, date) to authenticated;
 
+-- Serie diaria para la misma tarjeta: muestra si la capacitación de fotos
+-- mueve la aguja día a día. Mismo filtro y alcance que la función anterior.
+create or replace function public.fn_dash_visitas_con_foto_dia(p_desde date, p_hasta date)
+returns table(dia date, visitas bigint, con_foto bigint)
+language sql
+stable
+set search_path to ''
+as $function$
+  select public.fn_fecha_local(v.check_in_time),
+         count(*)::bigint,
+         count(*) filter (where coalesce(cardinality(v.photo_urls), 0) > 0)::bigint
+  from public.visits v
+  join public.stores s on s.store_id = v.store_id
+  where public.fn_fecha_local(v.check_in_time) between p_desde and p_hasta
+    and v.status <> 'skipped'
+    and (public.fn_is_admin() or s.client_id in (select public.fn_my_client_ids()))
+  group by 1
+  order by 1;
+$function$;
+
+grant execute on function public.fn_dash_visitas_con_foto_dia(date, date) to authenticated;
+
 -- Auxiliar: construye la fecha de un cumpleanos en un anio dado, sin reventar
 -- en anios no bisiestos cuando el nacimiento fue un 29 de febrero.
 -- make_date(y,2,29) lanza "date field value out of range" en anios normales;

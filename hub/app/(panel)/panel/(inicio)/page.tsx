@@ -7,7 +7,7 @@ import { useAuth } from "@/app/lib/auth-context";
 import {
   fetchResumen, fetchCumplimiento, fetchVisitasPorCliente, fetchAnomalias,
   fetchTiendasSinVisita, fetchTiendasCriticas, fetchBacklogTareas,
-  fetchCumpleanos, fetchClientesSinVendedor, fetchTiempoResolucion, fetchVisitasConFoto,
+  fetchCumpleanos, fetchClientesSinVendedor, fetchTiempoResolucion, fetchVisitasConFoto, fetchVisitasConFotoDia,
 } from "@/app/lib/queries/dashboard";
 import { parsePeriodo, serializePeriodo } from "@/app/lib/queries/period";
 import { linkMercaderistas, linkTareasAnomalias, linkTareasAbiertas, linkTareasViejas } from "@/app/lib/queries/dashboardLinks";
@@ -62,6 +62,7 @@ function PanelInner() {
   const qHuerfanos  = useSupabaseQuery(() => fetchClientesSinVendedor(), [], "dash:huerfanos");
   const qResolucion = useSupabaseQuery(() => fetchTiempoResolucion(desde, hasta), [desde, hasta], "dash:resolucion");
   const qFotos      = useSupabaseQuery(() => fetchVisitasConFoto(desde, hasta), [desde, hasta], "dash:fotos");
+  const qFotosDia   = useSupabaseQuery(() => fetchVisitasConFotoDia(desde, hasta), [desde, hasta], "dash:fotosDia");
 
   // null mientras carga o si falló: los KPI muestran "—" sin color, no "0%" en rojo.
   const r = qResumen.error ? null : qResumen.data;
@@ -140,14 +141,16 @@ function PanelInner() {
 
       <CumplimientoChart rows={qCumpl.data} error={qCumpl.error} onRetry={qCumpl.refetch} desde={desde} hasta={hasta} />
 
+      {/* stretch: las dos columnas terminan a la misma altura. Visitas por
+          cadena crece con el número de cadenas; la tarjeta de fotos se estira
+          (su gráfico diario absorbe el alto sobrante) para no dejar hueco. */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-                    gap: 16, alignItems: "start" }}>
+                    gap: 16, alignItems: "stretch" }}>
         <VisitasPorCliente rows={qPorCliente.data} error={qPorCliente.error} onRetry={qPorCliente.refetch} />
-        {/* Columna derecha: Anomalías es corta y Visitas por cadena larga; la
-            tarjeta de fotos rellena el hueco debajo de Anomalías. */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, minHeight: 0 }}>
           <AnomaliasPorTipo rows={qAnomalias.data} error={qAnomalias.error} onRetry={qAnomalias.refetch} desde={desde} hasta={hasta} />
           <VisitasConFoto rows={qFotos.data} error={qFotos.error} onRetry={qFotos.refetch}
+                          dias={qFotosDia.data} diasError={qFotosDia.error}
                           desde={desde} hasta={hasta} hoy={iso(new Date())} />
         </div>
       </div>
