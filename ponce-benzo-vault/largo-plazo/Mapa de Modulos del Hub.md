@@ -21,12 +21,12 @@ Un solo login y **una sola base de datos compartida**: clientes, tiendas, contac
 | Módulo | Estado | Qué hace |
 |---|---|---|
 | **Tracker de trade marketing** | En producción | Rutas, visitas, anomalías, tareas, mapa de mercaderistas |
-| **Pipeline de ventas (CRM)** | Por proponer — prioridad | Kanban de negocios, contactos, actividades, pronóstico, métricas por vendedor |
+| **Pipeline de ventas (CRM)** | Propuesta lista (2026-09-30) — [[largo-plazo/Propuesta - Pipeline de Ventas CRM\|propuesta]] · [[arquitectura/Spec - CRM Pipeline de Ventas\|spec]] | Kanban de negocios, contactos, actividades, pronóstico, métricas por vendedor |
 | **Maestro de clientes y tiendas** | Hoy vive dentro del tracker | Cadenas, sucursales, municipio, vendedor asignado, clasificación ABC. Pasa a ser compartido |
 | **Contactos** | Parcial (compradores en el tracker) | Personas por empresa (cargo, correo, teléfono, cumpleaños). Lo usan el tracker y el CRM |
 | **Productos y catálogos** | Parcial | Catálogo P&B y catálogo Corpañal; líneas y marcas; lo usan anomalías, reposiciones y negocios del CRM |
 | **Configuración / Admin** | No existe | Usuarios y permisos por módulo, asignación cliente ↔ vendedor, **propiedades personalizadas** del CRM, etapas del pipeline, catálogos, motivos de pérdida |
-| **Tracking de vendedores** | Pedido por la directiva | Ubicación GPS de los vendedores en la calle; puede reutilizar el motor de ubicación del móvil |
+| **Tracking de vendedores** | Fuera de la propuesta CRM (2026-09-30); diseño listo en el spec §7 | Ubicación GPS de los vendedores en la calle; puede reutilizar el motor de ubicación del móvil |
 | **Compras** | Por descubrir | Pendiente de una reunión con el departamento de Compras, después de cerrar ventas |
 
 ## Dependencias clave

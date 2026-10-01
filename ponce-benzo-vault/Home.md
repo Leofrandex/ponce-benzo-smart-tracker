@@ -41,6 +41,7 @@ Bienvenido al **Segundo Cerebro** del proyecto **Ponzivenzo Smart Tracker**. Est
 > - [[pendientes/Pendientes|Lista de Pendientes]] — Bloqueadores del negocio, preguntas abiertas y tareas técnicas.
 > - [[largo-plazo/Mapa de Modulos del Hub|Mapa de Módulos del Hub]] — Visión del hub de módulos (tracker, pipeline de ventas/CRM, maestros, admin).
 > - [[largo-plazo/Reunion 2026-09-25 - Ajustes Tracker y Pipeline|Reunión 2026-09-25]] — Ajustes al tracker y requisitos del pipeline de ventas.
+> - [[largo-plazo/Propuesta - Pipeline de Ventas CRM|Propuesta Pipeline de Ventas (CRM)]] — Propuesta v01 para Diego (2026-09-30): alcance, cronograma e inversión. Diseño técnico: [[arquitectura/Spec - CRM Pipeline de Ventas|Spec CRM]].
 
 > [!CAUTION]
 > ### 📜 4. Bitácora, Decisiones y Errores
