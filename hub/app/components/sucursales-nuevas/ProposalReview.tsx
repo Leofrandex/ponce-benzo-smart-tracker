@@ -39,7 +39,7 @@ export default function ProposalReview({ proposal, onDone }: { proposal: Proposa
     onDone({ kind: "aprobada", storeId });
   }
 
-  async function rechazar(duplicateOf: string | null, fixGps: boolean, motivo: string) {
+  async function rechazar(duplicateOf: string | null, fixGps: { lat: number; lng: number } | null, motivo: string) {
     setBusy(true); setMsg(null);
     const { error } = await rejectProposal(proposal.proposal_id, motivo, duplicateOf, fixGps);
     setBusy(false);
@@ -76,8 +76,8 @@ export default function ProposalReview({ proposal, onDone }: { proposal: Proposa
           {(qNear.data ?? []).map((s) => (
             <div key={s.store_id} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
               <span className="text-sm" style={{ flex: 1 }}>{s.name} · {Math.round(s.distancia_m)} m</span>
-              <button className="btn btn-secondary" disabled={busy} onClick={() => rechazar(s.store_id, false, `Duplicada: es ${s.name}`)}>Es esta, rechazar</button>
-              <button className="btn btn-secondary" disabled={busy} onClick={() => rechazar(s.store_id, true, `Duplicada: es ${s.name} (GPS corregido)`)}>Es esta y usar este GPS</button>
+              <button className="btn btn-secondary" disabled={busy} onClick={() => { if (window.confirm(`¿Rechazar como duplicada de "${s.name}"?`)) rechazar(s.store_id, null, `Duplicada: es ${s.name}`); }}>Es esta, rechazar</button>
+              <button className="btn btn-secondary" disabled={busy} onClick={() => { if (window.confirm(`¿Rechazar como duplicada y mover la ubicación de "${s.name}" a este punto? Esto cambia la sucursal existente.`)) rechazar(s.store_id, { lat: draft.master_lat, lng: draft.master_lng }, `Duplicada: es ${s.name} (GPS corregido)`); }}>Es esta y usar este GPS</button>
             </div>
           ))}
         </div>
@@ -118,7 +118,7 @@ export default function ProposalReview({ proposal, onDone }: { proposal: Proposa
         ) : (
           <>
             <input className="form-input" style={{ flex: 1, minWidth: 200 }} placeholder="Motivo del rechazo" value={reason} onChange={(e) => setReason(e.target.value)} />
-            <button className="btn btn-secondary" disabled={busy || !reason.trim()} onClick={() => rechazar(null, false, reason)}>Confirmar rechazo</button>
+            <button className="btn btn-secondary" disabled={busy || !reason.trim()} onClick={() => rechazar(null, null, reason)}>Confirmar rechazo</button>
           </>
         )}
       </div>

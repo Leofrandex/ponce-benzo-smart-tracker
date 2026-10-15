@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/Button';
@@ -42,7 +42,7 @@ export function ProfileScreen() {
   const { user, signOut } = useAuth();
   const navigation = useNavigation<ProfileNavProp>();
   const [propuestas, setPropuestas] = useState({ sent: 0, pending: 0 });
-  useEffect(() => { getDb().then(proposalCounts).then(setPropuestas).catch(() => {}); }, []);
+  useFocusEffect(useCallback(() => { getDb().then(proposalCounts).then(setPropuestas).catch(() => {}); }, []));
 
   if (!user) return null;
 

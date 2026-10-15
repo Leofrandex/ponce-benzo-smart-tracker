@@ -53,10 +53,16 @@ export default function SucursalesNuevasPage() {
                 points={rows.map((r) => ({ id: r.proposal_id, lat: r.lat, lng: r.lng, label: r.name, kind: "propuesta" as const }))} />
             </div>
             <table className="cfg-table">
-              <thead><tr><th>Sucursal</th><th>Registró</th><th>Fecha</th><th>Precisión</th></tr></thead>
+              <thead><tr><th>Foto</th><th>Sucursal</th><th>Registró</th><th>Fecha</th><th>Precisión</th></tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.proposal_id} onClick={() => { setSelected(r.proposal_id); setNotice(null); }} style={{ cursor: "pointer", background: r.proposal_id === selected ? "var(--bg-elevated)" : undefined }}>
+                    <td style={{ width: 48 }}>
+                      {r.photo_signed && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={r.photo_signed} alt={`Fachada de ${r.name}`} style={{ width: 40, height: 40, objectFit: "cover", borderRadius: "var(--radius-md)", display: "block" }} />
+                      )}
+                    </td>
                     <td><strong>{r.name}</strong>{r.client_name && <div className="text-muted text-xs">{r.client_name}</div>}
                       {r.reject_reason && <div className="text-muted text-xs">{r.reject_reason}</div>}</td>
                     <td>{r.author_name}</td>

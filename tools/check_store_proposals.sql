@@ -56,7 +56,7 @@ insert into public.store_proposals (proposal_id, user_id, name, lat, lng, captur
 values ('00000000-0000-4000-8000-000000000005', (select id from public.users where role='merchandiser' and active limit 1), 'Dup', 10.123456, -66.654321, now());
 select set_config('request.jwt.claims', json_build_object('sub',(select id from public.users where email='dmori@ponce-benzo.com'),'role','authenticated')::text, true);
 set local role authenticated;
-select public.fn_rechazar_propuesta('00000000-0000-4000-8000-000000000005', 'Duplicada', (select store_id from public.stores where active limit 1), true);
+select public.fn_rechazar_propuesta('00000000-0000-4000-8000-000000000005', 'Duplicada', (select store_id from public.stores where active limit 1), 10.123456, -66.654321);
 select p.status = 'rechazada' and s.master_lat = 10.123456 and s.master_lng = -66.654321 as debe_ser_true
 from public.store_proposals p join public.stores s on s.store_id = p.store_id
 where p.proposal_id = '00000000-0000-4000-8000-000000000005';

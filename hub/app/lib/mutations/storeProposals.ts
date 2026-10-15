@@ -10,10 +10,11 @@ export async function approveProposal(id: string, d: StoreDraft): Promise<{ stor
 }
 
 export async function rejectProposal(
-  id: string, reason: string, duplicateOf: string | null = null, fixGps = false,
+  id: string, reason: string, duplicateOf: string | null = null,
+  fixGps: { lat: number; lng: number } | null = null,
 ): Promise<{ error: string | null }> {
   const { error } = await getSupabaseBrowser().rpc("fn_rechazar_propuesta", {
-    p_proposal_id: id, p_reason: reason, p_duplicate_of: duplicateOf, p_fix_gps: fixGps,
+    p_proposal_id: id, p_reason: reason, p_duplicate_of: duplicateOf, p_fix_lat: fixGps?.lat ?? null, p_fix_lng: fixGps?.lng ?? null,
   });
   return { error: error ? reviewErrorMessage(error.message) : null };
 }

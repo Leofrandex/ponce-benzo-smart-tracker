@@ -97,22 +97,27 @@ begin
 end $$;
 
 -- Rechazar, opcionalmente como duplicada de una tienda existente y corrigiendo su GPS.
+drop function if exists public.fn_rechazar_propuesta(uuid, text, uuid, boolean);
 create or replace function public.fn_rechazar_propuesta(
-  p_proposal_id uuid, p_reason text, p_duplicate_of uuid default null, p_fix_gps boolean default false
+  p_proposal_id uuid, p_reason text, p_duplicate_of uuid default null,
+  p_fix_lat double precision default null, p_fix_lng double precision default null
 ) returns void
 language plpgsql security invoker set search_path = '' as $$
 declare
-  v_status text; v_lat double precision; v_lng double precision;
+  v_status text;
 begin
   if not public.fn_is_admin() then raise exception 'solo_admin'; end if;
   if coalesce(trim(p_reason), '') = '' then raise exception 'motivo_requerido'; end if;
 
-  select status, lat, lng into v_status, v_lat, v_lng from public.store_proposals
+  select status into v_status from public.store_proposals
    where proposal_id = p_proposal_id for update;
   if v_status is distinct from 'pendiente' then raise exception 'propuesta_ya_revisada'; end if;
 
-  if p_duplicate_of is not null and p_fix_gps then
-    update public.stores set master_lat = v_lat, master_lng = v_lng where store_id = p_duplicate_of;
+  if p_duplicate_of is not null and p_fix_lat is not null and p_fix_lng is not null then
+    if p_fix_lat not between -90 and 90 or p_fix_lng not between -180 and 180 then
+      raise exception 'coordenadas_invalidas';
+    end if;
+    update public.stores set master_lat = p_fix_lat, master_lng = p_fix_lng where store_id = p_duplicate_of;
   end if;
 
   update public.store_proposals
@@ -134,5 +139,9 @@ language sql stable security invoker set search_path = '' as $$
 $$;
 
 grant execute on function public.fn_aprobar_propuesta(uuid, jsonb) to authenticated;
-grant execute on function public.fn_rechazar_propuesta(uuid, text, uuid, boolean) to authenticated;
+grant execute on function public.fn_rechazar_propuesta(uuid, text, uuid, double precision, double precision) to authenticated;
 grant execute on function public.fn_tiendas_cercanas(double precision, double precision, double precision) to authenticated;
+
+revoke execute on function public.fn_aprobar_propuesta(uuid, jsonb) from public, anon;
+revoke execute on function public.fn_rechazar_propuesta(uuid, text, uuid, double precision, double precision) from public, anon;
+revoke execute on function public.fn_tiendas_cercanas(double precision, double precision, double precision) from public, anon;

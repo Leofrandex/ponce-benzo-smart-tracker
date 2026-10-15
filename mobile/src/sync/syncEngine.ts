@@ -176,7 +176,9 @@ export async function flush(db: SQLiteDatabase, supabase: SupabaseClient): Promi
     for (const sp of await db.getAllAsync<any>(`SELECT * FROM store_proposals WHERE synced = 0`)) {
       try {
         const { error } = await withDeadline(
-          supabase.from('store_proposals').upsert(toStoreProposalPayload(sp, []), { onConflict: 'proposal_id' }),
+          // DO NOTHING: el payload no cambia al reintentar; si el admin ya revisó la propuesta,
+          // un UPDATE fallaría por RLS y el registro quedaría atascado sin sincronizar.
+          supabase.from('store_proposals').upsert(toStoreProposalPayload(sp, []), { onConflict: 'proposal_id', ignoreDuplicates: true }),
           NET_TIMEOUT_MS, `store_proposal ${sp.proposal_id}`,
         );
         if (error) throw error;

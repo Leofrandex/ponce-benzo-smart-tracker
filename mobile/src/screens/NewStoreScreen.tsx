@@ -36,6 +36,7 @@ export function NewStoreScreen() {
   const [fix, setFix] = useState<Fix | null>(null);
   const [locating, setLocating] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
+  const [permDenied, setPermDenied] = useState(false);
   const [dupChecked, setDupChecked] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -52,11 +53,12 @@ export function NewStoreScreen() {
   const cercanas = useMemo(() => (fix ? nearbyStores(stores, fix.lat, fix.lng) : []), [fix, stores]);
 
   async function capturar() {
-    setGpsError(null); setLocating(true); setDupChecked(false);
+    setGpsError(null); setPermDenied(false); setLocating(true); setDupChecked(false);
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
       if (perm.status !== 'granted') {
         setGpsError('Sin permiso de ubicación. Actívalo en los ajustes del teléfono.');
+        setPermDenied(true);
         return;
       }
       const pos = await withDeadline(
@@ -140,9 +142,10 @@ export function NewStoreScreen() {
           <Text style={styles.warn}>Señal débil: muévete a la entrada o espera unos segundos</Text>
         )}
         {gpsError && (
-          <TouchableOpacity onPress={() => gpsError.startsWith('Sin permiso') && Linking.openSettings()}>
-            <Text style={styles.error}>{gpsError}</Text>
-          </TouchableOpacity>
+          <Text style={styles.error}>{gpsError}</Text>
+        )}
+        {permDenied && (
+          <Button label="Abrir ajustes" variant="secondary" onPress={() => Linking.openSettings()} />
         )}
 
         {mostrarDuplicados && (
