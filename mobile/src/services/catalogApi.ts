@@ -28,3 +28,11 @@ export async function fetchAllStores(): Promise<Store[]> {
     contact_name: null, contact_phone: null, contact_email: null, ...s,
   })) as Store[];
 }
+
+// Cadenas para "cadena o cliente" en el registro de sucursal nueva.
+export async function fetchClientOptions(): Promise<{ client_id: string; name: string }[]> {
+  const { data, error } = await supabase
+    .from('clients').select('client_id, name').eq('active', true).order('name');
+  if (error) throw error;
+  return (data ?? []) as { client_id: string; name: string }[];
+}

@@ -68,6 +68,7 @@ export function AdhocReportScreen() {
         excludeStoreIds={[]}
         onPick={handlePick}
         onClose={() => setPickerOpen(false)}
+        onRegisterNew={(q) => navigation.navigate('NewStore', { initialName: q })}
       />
     </SafeAreaView>
   );

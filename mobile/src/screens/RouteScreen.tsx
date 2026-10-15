@@ -204,6 +204,7 @@ export function RouteScreen() {
           if (store) addStoreToRoute(store);
         }}
         onClose={() => setPickerOpen(false)}
+        onRegisterNew={(q) => navigation.navigate('NewStore', { initialName: q })}
       />
     </SafeAreaView>
   );

@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
 import { CheckInScreen } from '../screens/CheckInScreen';
+import { NewStoreScreen } from '../screens/NewStoreScreen';
 import { DebugLogScreen } from '../screens/DebugLogScreen';
 import { MainTabs } from './MainTabs';
 import type { Store } from '../types';
@@ -12,6 +13,7 @@ export type RootStackParamList = {
   Login: undefined;
   Main: undefined;
   CheckIn: { store: Store };
+  NewStore: { initialName?: string };
   DebugLog: undefined;
 };
 
@@ -34,6 +36,7 @@ export function AppNavigator() {
         <>
           <Stack.Screen name="Main"    component={MainTabs} />
           <Stack.Screen name="CheckIn" component={CheckInScreen} />
+          <Stack.Screen name="NewStore" component={NewStoreScreen} />
           <Stack.Screen name="DebugLog" component={DebugLogScreen} />
         </>
       ) : (

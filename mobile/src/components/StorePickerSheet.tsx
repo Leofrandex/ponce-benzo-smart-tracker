@@ -12,9 +12,10 @@ interface StorePickerSheetProps {
   excludeStoreIds: string[];
   onPick: (storeId: string) => void;
   onClose: () => void;
+  onRegisterNew?: (query: string) => void;
 }
 
-export function StorePickerSheet({ visible, stores, excludeStoreIds, onPick, onClose }: StorePickerSheetProps) {
+export function StorePickerSheet({ visible, stores, excludeStoreIds, onPick, onClose, onRegisterNew }: StorePickerSheetProps) {
   const [query, setQuery] = useState('');
 
   const results = useMemo(() => {
@@ -61,6 +62,16 @@ export function StorePickerSheet({ visible, stores, excludeStoreIds, onPick, onC
             {results.length === 0 && (
               <Text style={styles.empty}>No hay tiendas que coincidan.</Text>
             )}
+            {onRegisterNew && (
+              <TouchableOpacity
+                style={[styles.newRow, results.length === 0 && styles.newRowHighlight]}
+                onPress={() => { const q = query.trim(); onClose(); setQuery(''); onRegisterNew(q); }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="location-outline" size={20} color={colors.accent} />
+                <Text style={styles.newRowText}>¿No está en la lista? Registrar sucursal nueva</Text>
+              </TouchableOpacity>
+            )}
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -97,5 +108,8 @@ const styles = StyleSheet.create({
   rowInfo: { flex: 1 },
   rowName: { fontSize: 14, color: colors.textPrimary, ...fonts.semibold },
   rowAddr: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
+  newRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 4 },
+  newRowHighlight: { backgroundColor: colors.accentLight, borderRadius: radii.sm, paddingHorizontal: 10, marginTop: 4 },
+  newRowText: { fontSize: 14, color: colors.accent, ...fonts.semibold },
   empty: { fontSize: 13, color: colors.textMuted, textAlign: 'center', paddingVertical: 24 },
 });

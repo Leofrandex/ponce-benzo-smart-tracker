@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
 } from 'react-native';
@@ -8,6 +8,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/Button';
 import { colors, radii, fonts } from '../theme';
+import { getDb } from '../store/localStore';
+import { proposalCounts } from '../services/db';
 import { VERSION_STAMP } from '../diagnostics/version';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -39,6 +41,9 @@ type ProfileNavProp = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 export function ProfileScreen() {
   const { user, signOut } = useAuth();
   const navigation = useNavigation<ProfileNavProp>();
+  const [propuestas, setPropuestas] = useState({ sent: 0, pending: 0 });
+  useEffect(() => { getDb().then(proposalCounts).then(setPropuestas).catch(() => {}); }, []);
+
   if (!user) return null;
 
   const initials = getInitials(user.full_name);
@@ -81,6 +86,13 @@ export function ProfileScreen() {
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Estado</Text>
             <Text style={[styles.infoValue, { color: colors.success }]}>Activo</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Sucursales registradas</Text>
+            <Text style={styles.infoValue}>
+              {propuestas.sent} enviadas{propuestas.pending > 0 ? ` · ${propuestas.pending} pendientes` : ''}
+            </Text>
           </View>
         </View>
 
