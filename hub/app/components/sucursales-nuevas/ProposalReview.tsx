@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchNearbyStores, fetchClientOptions } from "@/app/lib/queries/storeProposals";
 import { approveProposal, rejectProposal } from "@/app/lib/mutations/storeProposals";
@@ -16,11 +15,10 @@ const TEXT_FIELDS: Array<[keyof StoreDraft, string]> = [
   ["urbanizacion", "Urbanización"], ["ciudad", "Ciudad"], ["region", "Región"],
 ];
 
-export default function ProposalReview({ proposal, onDone }: { proposal: Proposal; onDone: () => void }) {
+export default function ProposalReview({ proposal, onDone }: { proposal: Proposal; onDone: (result: { kind: "aprobada"; storeId: string | null } | { kind: "rechazada" }) => void }) {
   const [draft, setDraft] = useState<StoreDraft>(() => draftFromProposal(proposal));
-  useEffect(() => setDraft(draftFromProposal(proposal)), [proposal]);
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ kind: "error" | "ok"; text: string; storeId?: string } | null>(null);
+  const [msg, setMsg] = useState<{ text: string } | null>(null);
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
 
@@ -37,17 +35,16 @@ export default function ProposalReview({ proposal, onDone }: { proposal: Proposa
     setBusy(true); setMsg(null);
     const { storeId, error } = await approveProposal(proposal.proposal_id, draft);
     setBusy(false);
-    if (error) { setMsg({ kind: "error", text: error }); return; }
-    setMsg({ kind: "ok", text: "Sucursal creada.", storeId: storeId ?? undefined });
-    onDone();
+    if (error) { setMsg({ text: error }); return; }
+    onDone({ kind: "aprobada", storeId });
   }
 
   async function rechazar(duplicateOf: string | null, fixGps: boolean, motivo: string) {
     setBusy(true); setMsg(null);
     const { error } = await rejectProposal(proposal.proposal_id, motivo, duplicateOf, fixGps);
     setBusy(false);
-    if (error) { setMsg({ kind: "error", text: error }); return; }
-    onDone();
+    if (error) { setMsg({ text: error }); return; }
+    onDone({ kind: "rechazada" });
   }
 
   return (
@@ -111,9 +108,7 @@ export default function ProposalReview({ proposal, onDone }: { proposal: Proposa
       <p className="text-muted text-xs">GPS: {draft.master_lat.toFixed(6)}, {draft.master_lng.toFixed(6)}</p>
 
       {msg && (
-        <p role={msg.kind === "error" ? "alert" : "status"} className="text-sm" style={{ color: msg.kind === "error" ? "#f43f5e" : "var(--success, #16a34a)" }}>
-          {msg.text} {msg.storeId && <Link href={`/panel/tiendas/${msg.storeId}`}>Ver sucursal</Link>}
-        </p>
+        <p role="alert" className="text-sm" style={{ color: "#f43f5e" }}>{msg.text}</p>
       )}
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

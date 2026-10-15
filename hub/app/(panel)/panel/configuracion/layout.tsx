@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/app/lib/auth-context";
 import { canConfigure } from "@/app/lib/roles";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
+import { PROPOSALS_CHANGED_EVENT } from "@/app/lib/storeProposals";
 import { countPendingProposals } from "@/app/lib/queries/storeProposals";
 import { ConfigSkeleton } from "@/app/components/ui/Skeleton";
 
@@ -23,6 +24,12 @@ export default function ConfiguracionLayout({ children }: { children: React.Reac
 
   // Solo cuenta si es admin: la consulta no corre mientras carga el perfil.
   const qPend = useSupabaseQuery(() => (allowed ? countPendingProposals() : Promise.resolve(0)), [allowed, pathname], "prop:count");
+
+  useEffect(() => {
+    const h = () => { qPend.refetch(); };
+    window.addEventListener(PROPOSALS_CHANGED_EVENT, h);
+    return () => window.removeEventListener(PROPOSALS_CHANGED_EVENT, h);
+  }, [qPend]);
 
   useEffect(() => {
     if (!loading && !allowed) router.replace("/panel");

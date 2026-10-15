@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { draftFromProposal, validateStoreDraft, reviewErrorMessage, type Proposal } from "./storeProposals";
+import { draftFromProposal, validateStoreDraft, reviewErrorMessage, notifyProposalsChanged, type Proposal } from "./storeProposals";
 
 const p: Proposal = {
   proposal_id: "p1", name: "  Farmacia X  ", client_id: "c1", client_name: "Locatel", note: null,
@@ -29,4 +29,8 @@ test("reviewErrorMessage: traduce errores del RPC", () => {
   assert.equal(reviewErrorMessage('propuesta_ya_revisada'), "Esta propuesta ya fue revisada");
   assert.equal(reviewErrorMessage('ERROR: solo_admin'), "Solo un administrador puede revisar propuestas.");
   assert.equal(reviewErrorMessage("otro"), "otro");
+});
+
+test("notifyProposalsChanged: no lanza sin window", () => {
+  assert.doesNotThrow(() => notifyProposalsChanged());
 });

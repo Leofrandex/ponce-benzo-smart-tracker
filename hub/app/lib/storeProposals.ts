@@ -46,3 +46,8 @@ export function reviewErrorMessage(raw: string): string {
   const code = Object.keys(ERRORES).find((k) => raw.includes(k));
   return code ? ERRORES[code] : raw;
 }
+
+export const PROPOSALS_CHANGED_EVENT = "store-proposals-changed";
+export function notifyProposalsChanged() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(PROPOSALS_CHANGED_EVENT));
+}
