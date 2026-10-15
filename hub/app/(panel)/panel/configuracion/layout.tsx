@@ -5,11 +5,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/app/lib/auth-context";
 import { canConfigure } from "@/app/lib/roles";
+import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
+import { countPendingProposals } from "@/app/lib/queries/storeProposals";
 import { ConfigSkeleton } from "@/app/components/ui/Skeleton";
 
 const TABS = [
   { href: "/panel/configuracion/vendedores", label: "Vendedores por cadena" },
   { href: "/panel/configuracion/productos",  label: "Productos" },
+  { href: "/panel/configuracion/sucursales-nuevas", label: "Sucursales nuevas" },
 ];
 
 export default function ConfiguracionLayout({ children }: { children: React.ReactNode }) {
@@ -17,6 +20,9 @@ export default function ConfiguracionLayout({ children }: { children: React.Reac
   const router = useRouter();
   const pathname = usePathname();
   const allowed = canConfigure(profile?.role);
+
+  // Solo cuenta si es admin: la consulta no corre mientras carga el perfil.
+  const qPend = useSupabaseQuery(() => (allowed ? countPendingProposals() : Promise.resolve(0)), [allowed, pathname], "prop:count");
 
   useEffect(() => {
     if (!loading && !allowed) router.replace("/panel");
@@ -44,7 +50,7 @@ export default function ConfiguracionLayout({ children }: { children: React.Reac
               color: active ? "var(--text-primary)" : "var(--text-secondary)",
               borderBottom: `2px solid ${active ? "var(--accent)" : "transparent"}`,
             }}>
-              {t.label}
+              {t.label}{t.href.endsWith("sucursales-nuevas") && (qPend.data ?? 0) > 0 ? ` (${qPend.data})` : ""}
             </Link>
           );
         })}
