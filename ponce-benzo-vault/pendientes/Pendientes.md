@@ -127,6 +127,12 @@ Para realizar la migración completa a producción y conectar a los vendedores r
 
 ## ⚙️ Pendientes de Desarrollo Técnico
 
+- [ ] **Sucursales nuevas desde la app (ADR-014, 2026-10-15)** — rama `feat/sucursales-nuevas`, migración escrita y no aplicada.
+  * [ ] Aplicar migración `2026-10-14-sucursales-nuevas.sql` con OK de Sebastián y correr `tools/check_store_proposals.sql`.
+  * [ ] Instalar APK 1.4.0.
+  * [ ] Avisar a los mercaderistas del botón "Registrar sucursal nueva" (prioridad: Maracaibo/Barcelona).
+  * [ ] Avisar a Diego de la pestaña Sucursales nuevas.
+
 - [x] **Carga del Excel de coordenadas del 2026-08-05** ✅ — validado en seco contra Supabase (`tools/ingesta/diffExcelVsDb.ts`) y cargado con `--commit`: **197 sucursales activas**, 470 rutas / 4.193 visitas hasta diciembre, historial preservado. Corrigió de paso el canal de **74 supermercados** mal clasificados como `otro` (typo "Super**n**ercados" en los Excel previos). Ver [[logs/Log-2026-08-05|Log 2026-08-05]].
   * Pendiente: **avisar a los mercaderistas** que recarguen la ruta — 5 tiendas cambiaron de día (FTD TEREPAIMA MAR→VIE, FTD LA CASTELLANA VE VIE→LUN, FTD ZONA FRANCA JUE→MIE, FTD GRACIELA VIE→MAR, RIO LOS NARANJOS MAR→MIE).
   * Pendiente del negocio: coordenadas de las **2 tiendas SABANA GRANDE** (TIO AMMI y MUNDO TOTAL) — siguen siendo las únicas 2 filas incompletas del archivo.
