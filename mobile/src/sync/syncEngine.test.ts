@@ -38,6 +38,8 @@ function fakeDb(tables: Record<string, Row[]>) {
       const syncedVisits = new Set(tables.visits.filter((v) => v.synced === 1).map((v) => v.visit_id));
       return (tables.restock_products ?? []).filter((r) => r.synced === 0 && syncedVisits.has(r.visit_id));
     }
+    if (sql.includes('FROM store_proposals') && sql.includes('photos_synced = 0')) return (tables.store_proposals ?? []).filter((r) => r.synced === 1 && r.photos_synced === 0);
+    if (sql.includes('FROM store_proposals') && sql.includes('synced = 0')) return (tables.store_proposals ?? []).filter((r) => r.synced === 0);
     return [];
   };
   return {
@@ -65,6 +67,8 @@ function fakeDb(tables: Record<string, Row[]>) {
       if (sql.includes('UPDATE visits SET photos_synced=1')) { const r = find(tables.visits, 'visit_id'); if (r) r.photos_synced = 1; }
       if (sql.includes('UPDATE competition_reports SET synced=1')) { const r = find(tables.competition_reports, 'report_id'); if (r) { r.synced = 1; r.photos_synced = args[0]; } }
       if (sql.includes('UPDATE competition_reports SET photos_synced=1')) { const r = find(tables.competition_reports, 'report_id'); if (r) r.photos_synced = 1; }
+      if (sql.includes('UPDATE store_proposals SET synced=1')) { const r = find(tables.store_proposals ?? [], 'proposal_id'); if (r) { r.synced = 1; r.photos_synced = args[0]; } }
+      if (sql.includes('UPDATE store_proposals SET photos_synced=1')) { const r = find(tables.store_proposals ?? [], 'proposal_id'); if (r) r.photos_synced = 1; }
       if (sql.includes('UPDATE location_pings')) { const r = find(tables.location_pings, 'ping_id'); if (r) r.synced = 1; }
       if (sql.includes('UPDATE restock_products SET synced=1')) {
         const r = (tables.restock_products ?? []).find((rp) => rp.visit_id === args[0] && rp.product_id === args[1]);
@@ -122,7 +126,7 @@ const visit = (id: string, over: Row = {}): Row => ({
   anomaly_type: null, skip_reason: null, last_restock_date: null, synced: 0, photos_synced: 0, ...over,
 });
 
-const baseTables = () => ({ sessions: [] as Row[], visits: [] as Row[], competition_reports: [] as Row[], location_pings: [] as Row[], restock_products: [] as Row[] });
+const baseTables = () => ({ sessions: [] as Row[], visits: [] as Row[], competition_reports: [] as Row[], location_pings: [] as Row[], restock_products: [] as Row[], store_proposals: [] as Row[] });
 
 test('flush: visita sin fotos sube y queda synced + photos_synced', async () => {
   const tables = baseTables();
@@ -247,4 +251,40 @@ test('pendingCounts: separa records / photos / pings', async () => {
   tables.location_pings.push({ ping_id: 'p1', session_id: 's1', user_id: 'u1', timestamp: 't', lat: 1, lng: 2, synced: 0 });
   const counts = await pendingCounts(fakeDb(tables));
   assert.deepEqual(counts, { records: 1, photos: 1, pings: 1 });
+});
+
+const proposal = (id: string, over: Row = {}): Row => ({
+  proposal_id: id, user_id: 'u1', name: 'Farmacia X', client_id: null, note: null, photo_uri: null,
+  lat: 10.49, lng: -66.85, accuracy_m: 12, captured_at: '2026-10-14T15:00:00.000Z', synced: 0, photos_synced: 0, ...over,
+});
+
+test('flush: propuesta sin foto sube y queda synced', async () => {
+  const tables = baseTables();
+  tables.store_proposals.push(proposal('p1'));
+  const sb = fakeSupabase();
+  const r = await flush(fakeDb(tables), sb);
+  assert.equal(r.failed, 0);
+  assert.ok(sb.calls.includes('upsert:store_proposals'));
+  assert.equal(tables.store_proposals[0].synced, 1);
+  assert.equal(tables.store_proposals[0].photos_synced, 1);
+});
+
+test('flush: la propuesta sube aunque su foto falle, y la foto queda pendiente', async () => {
+  const tables = baseTables();
+  tables.store_proposals.push(proposal('p1', { photo_uri: '["file://inexistente.jpg"]' }));
+  const r = await flush(fakeDb(tables), fakeSupabase({ failStorage: true }));
+  assert.equal(tables.store_proposals[0].synced, 1);
+  assert.equal(tables.store_proposals[0].photos_synced, 0);
+  assert.ok(r.failed >= 1);
+});
+
+test('flush: si el upsert de la propuesta falla, queda pendiente para reintentar', async () => {
+  const tables = baseTables();
+  tables.store_proposals.push(proposal('p1'));
+  const r1 = await flush(fakeDb(tables), fakeSupabase({ failTables: ['store_proposals'] }));
+  assert.equal(r1.failed, 1);
+  assert.equal(tables.store_proposals[0].synced, 0);
+  const r2 = await flush(fakeDb(tables), fakeSupabase());
+  assert.equal(r2.failed, 0);
+  assert.equal(tables.store_proposals[0].synced, 1);
 });

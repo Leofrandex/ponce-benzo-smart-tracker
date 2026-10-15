@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { toSessionPayload, toPingPayload, toVisitPayload, toCompetitionPayload, toAnomalyProductPayload, toRestockProductPayload } from '../services/sync/payloads';
+import { toSessionPayload, toPingPayload, toVisitPayload, toCompetitionPayload, toAnomalyProductPayload, toRestockProductPayload, toStoreProposalPayload } from '../services/sync/payloads';
 import { uploadPhotos } from '../services/sync/photoUpload';
+import { logEvent } from '../diagnostics/log';
 import { withDeadline } from '../utils/withTimeout';
 
 // Plazo máximo por request. Con señal débil (no cero) un fetch puede colgarse
@@ -170,6 +171,27 @@ export async function flush(db: SQLiteDatabase, supabase: SupabaseClient): Promi
       } catch (e) { failed++; console.warn(`[sync] comp ${c.report_id} FAIL:`, errMsg(e)); }
     }
 
+    // 3b) Sucursales nuevas registradas por el promotor. Igual que las visitas:
+    // el registro sube primero sin fotos y la foto se completa en la fase 5.
+    for (const sp of await db.getAllAsync<any>(`SELECT * FROM store_proposals WHERE synced = 0`)) {
+      try {
+        const { error } = await withDeadline(
+          supabase.from('store_proposals').upsert(toStoreProposalPayload(sp, []), { onConflict: 'proposal_id' }),
+          NET_TIMEOUT_MS, `store_proposal ${sp.proposal_id}`,
+        );
+        if (error) throw error;
+        await db.runAsync(
+          `UPDATE store_proposals SET synced=1, photos_synced=? WHERE proposal_id=?`,
+          photoCount(sp.photo_uri) > 0 ? 0 : 1, sp.proposal_id,
+        );
+        pushed++;
+      } catch (e) {
+        failed++;
+        console.warn(`[sync] store_proposal ${sp.proposal_id} FAIL:`, errMsg(e));
+        await logEvent(db, 'warn', 'store_proposal_sync_fail', `${sp.proposal_id}: ${errMsg(e)}`, sp.user_id);
+      }
+    }
+
     // 4) Pings de GPS (menos críticos que los registros).
     const pr = await flushPings(db, supabase);
     pushed += pr.pushed; failed += pr.failed;
@@ -177,13 +199,14 @@ export async function flush(db: SQLiteDatabase, supabase: SupabaseClient): Promi
     // 5) Fotos de registros ya subidos: se completan aparte y actualizan photo_urls.
     pushed += await flushPendingPhotos(db, supabase, 'visits', 'visit_id', (n) => failed += n);
     pushed += await flushPendingPhotos(db, supabase, 'competition_reports', 'report_id', (n) => failed += n);
+    pushed += await flushPendingPhotos(db, supabase, 'store_proposals', 'proposal_id', (n) => failed += n);
   } finally { isFlushing = false; }
   return { pushed, failed };
 }
 
 async function flushPendingPhotos(
   db: SQLiteDatabase, supabase: SupabaseClient,
-  table: 'visits' | 'competition_reports', idCol: 'visit_id' | 'report_id',
+  table: 'visits' | 'competition_reports' | 'store_proposals', idCol: 'visit_id' | 'report_id' | 'proposal_id',
   addFailed: (n: number) => void,
 ): Promise<number> {
   let pushed = 0;
@@ -222,9 +245,11 @@ export async function pendingCounts(db: SQLiteDatabase): Promise<PendingCounts> 
      + (SELECT COUNT(*) FROM visits WHERE synced=0)
      + (SELECT COUNT(*) FROM visit_anomaly_products WHERE synced=0)
      + (SELECT COUNT(*) FROM restock_products WHERE synced=0)
-     + (SELECT COUNT(*) FROM competition_reports WHERE synced=0) AS records,
+     + (SELECT COUNT(*) FROM competition_reports WHERE synced=0)
+     + (SELECT COUNT(*) FROM store_proposals WHERE synced=0) AS records,
        (SELECT COUNT(*) FROM visits WHERE synced=1 AND photos_synced=0)
-     + (SELECT COUNT(*) FROM competition_reports WHERE synced=1 AND photos_synced=0) AS photos,
+     + (SELECT COUNT(*) FROM competition_reports WHERE synced=1 AND photos_synced=0)
+     + (SELECT COUNT(*) FROM store_proposals WHERE synced=1 AND photos_synced=0) AS photos,
        (SELECT COUNT(*) FROM location_pings p LEFT JOIN sessions s ON s.session_id=p.session_id
          WHERE p.synced=0 AND COALESCE(p.user_id,s.user_id) IS NOT NULL) AS pings`,
   );

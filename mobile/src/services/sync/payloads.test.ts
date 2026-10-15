@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { toSessionPayload, toVisitPayload, toPingPayload, toAnomalyProductPayload } from "./payloads";
+import { toSessionPayload, toVisitPayload, toPingPayload, toAnomalyProductPayload, toStoreProposalPayload } from "./payloads";
 test("toSessionPayload: start_location como {lat,lng}", () => {
   const p = toSessionPayload({ session_id:"s1", user_id:"u1", route_id:"r1", session_start:"t0", session_end:null, start_lat:10.5, start_lng:-66.9, synced:0 });
   assert.deepEqual(p.start_location, { lat:10.5, lng:-66.9 }); assert.equal(p.route_id,"r1"); assert.equal(p.session_end,null);
@@ -57,4 +57,16 @@ test("toSessionPayload: envía app_version y null si falta (jornada de app vieja
   const base = { session_id:"s1", user_id:"u1", route_id:"r1", session_start:"t0", session_end:null, start_lat:10.5, start_lng:-66.9, synced:0 };
   assert.equal(toSessionPayload({ ...base, app_version: "1.3.0" }).app_version, "1.3.0");
   assert.equal(toSessionPayload(base).app_version, null);
+});
+
+test('toStoreProposalPayload: columnas remotas, sin synced ni photo_uri', () => {
+  const p = toStoreProposalPayload({
+    proposal_id: 'p1', user_id: 'u1', name: 'Farmacia X', client_id: null, note: 'frente a la plaza',
+    photo_uri: '["file://a.jpg"]', lat: 10.49, lng: -66.85, accuracy_m: 12,
+    captured_at: '2026-10-14T15:00:00.000Z', synced: 0, photos_synced: 0,
+  }, []);
+  assert.deepEqual(p, {
+    proposal_id: 'p1', user_id: 'u1', name: 'Farmacia X', client_id: null, note: 'frente a la plaza',
+    photo_urls: [], lat: 10.49, lng: -66.85, accuracy_m: 12, captured_at: '2026-10-14T15:00:00.000Z',
+  });
 });

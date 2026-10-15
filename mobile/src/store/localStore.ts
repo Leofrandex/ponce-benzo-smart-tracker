@@ -55,6 +55,11 @@ const CREATE_SQL = `
     synced INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (visit_id, product_id)
   );
+  CREATE TABLE IF NOT EXISTS store_proposals (
+    proposal_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, client_id TEXT,
+    note TEXT, photo_uri TEXT, lat REAL NOT NULL, lng REAL NOT NULL, accuracy_m REAL,
+    captured_at TEXT NOT NULL, synced INTEGER NOT NULL DEFAULT 0, photos_synced INTEGER NOT NULL DEFAULT 0
+  );
   CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
   CREATE TABLE IF NOT EXISTS sync_log (
     log_id TEXT PRIMARY KEY, ts TEXT NOT NULL, level TEXT NOT NULL,

@@ -176,3 +176,29 @@ export async function insertRestockProducts(
     );
   }
 }
+
+// ── Sucursales nuevas (propuestas) ───────────────────────────────────────────
+
+export interface StoreProposalRow {
+  proposal_id: string; user_id: string; name: string; client_id: string | null; note: string | null;
+  photo_uri: string | null; lat: number; lng: number; accuracy_m: number | null; captured_at: string;
+  synced: number; photos_synced: number;
+}
+
+export async function insertStoreProposal(
+  db: SQLiteDatabase, r: Omit<StoreProposalRow, 'synced' | 'photos_synced'>,
+): Promise<void> {
+  await db.runAsync(
+    `INSERT OR REPLACE INTO store_proposals
+      (proposal_id, user_id, name, client_id, note, photo_uri, lat, lng, accuracy_m, captured_at, synced, photos_synced)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)`,
+    r.proposal_id, r.user_id, r.name, r.client_id, r.note, r.photo_uri, r.lat, r.lng, r.accuracy_m, r.captured_at,
+  );
+}
+
+export async function proposalCounts(db: SQLiteDatabase): Promise<{ sent: number; pending: number }> {
+  const row = await db.getFirstAsync<{ sent: number; pending: number }>(
+    `SELECT COALESCE(SUM(synced = 1), 0) AS sent, COALESCE(SUM(synced = 0), 0) AS pending FROM store_proposals`,
+  );
+  return row ?? { sent: 0, pending: 0 };
+}

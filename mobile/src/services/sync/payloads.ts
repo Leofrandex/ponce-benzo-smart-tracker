@@ -1,4 +1,4 @@
-import type { SessionRow, VisitRow, PingRow, CompetitionRawRow, AnomalyProductRow } from "../db";
+import type { SessionRow, VisitRow, PingRow, CompetitionRawRow, AnomalyProductRow, StoreProposalRow } from "../db";
 export function toSessionPayload(r: SessionRow) {
   return { session_id:r.session_id, user_id:r.user_id, route_id:r.route_id, session_start:r.session_start, session_end:r.session_end, start_location:{ lat:r.start_lat ?? 0, lng:r.start_lng ?? 0 }, app_version: r.app_version ?? null };
 }
@@ -42,4 +42,11 @@ export function toAnomalyProductPayload(r: AnomalyProductRow) {
 
 export function toRestockProductPayload(r: { visit_id: string; product_id: string }) {
   return { restock_id: r.visit_id, product_id: r.product_id };
+}
+
+export function toStoreProposalPayload(r: StoreProposalRow, photoUrls: string[]) {
+  return {
+    proposal_id: r.proposal_id, user_id: r.user_id, name: r.name, client_id: r.client_id, note: r.note,
+    photo_urls: photoUrls, lat: r.lat, lng: r.lng, accuracy_m: r.accuracy_m, captured_at: r.captured_at,
+  };
 }
