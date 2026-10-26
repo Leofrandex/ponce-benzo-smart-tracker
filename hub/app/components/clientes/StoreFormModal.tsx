@@ -107,8 +107,8 @@ export function StoreFormModal({ open, store, onClose, onSave }: StoreFormModalP
       urbanizacion: store?.urbanizacion ?? "",
       channel: store?.business_channel ?? "",
       classification: store?.classification ?? "",
-      lat: store ? String(store.master_lat) : DEFAULT_LAT,
-      lng: store ? String(store.master_lng) : DEFAULT_LNG,
+      lat: store ? (store.master_lat == null ? "" : String(store.master_lat)) : DEFAULT_LAT,
+      lng: store ? (store.master_lng == null ? "" : String(store.master_lng)) : DEFAULT_LNG,
       active: store?.active ?? true,
     };
     setName(v.name); setAddress(v.address); setEstado(v.estado); setMunicipio(v.municipio);
@@ -141,10 +141,12 @@ export function StoreFormModal({ open, store, onClose, onSave }: StoreFormModalP
 
   const latNum = Number(lat);
   const lngNum = Number(lng);
-  const coordsValid =
+  // Ambas vacías = tienda sin GPS (se guarda null); si se llena una, se exigen las dos.
+  const coordsEmpty = lat.trim() === "" && lng.trim() === "";
+  const coordsValid = coordsEmpty || (
     lat.trim() !== "" && lng.trim() !== "" &&
     Number.isFinite(latNum) && Number.isFinite(lngNum) &&
-    latNum >= -90 && latNum <= 90 && lngNum >= -180 && lngNum <= 180;
+    latNum >= -90 && latNum <= 90 && lngNum >= -180 && lngNum <= 180);
   const canSave = name.trim().length > 0 && coordsValid;
 
   async function handleSave() {
@@ -177,8 +179,8 @@ export function StoreFormModal({ open, store, onClose, onSave }: StoreFormModalP
       urbanizacion: urbanizacion.trim() || null,
       business_channel: (channel || null) as Store["business_channel"],
       classification: (classification || null) as Store["classification"],
-      master_lat: latNum,
-      master_lng: lngNum,
+      master_lat: coordsEmpty ? null : latNum,
+      master_lng: coordsEmpty ? null : lngNum,
       active,
     });
     setSaving(false);
@@ -256,7 +258,7 @@ export function StoreFormModal({ open, store, onClose, onSave }: StoreFormModalP
             </div>
             {!coordsValid && (
               <div style={{ fontSize: "var(--text-2xs)", color: "var(--danger)", marginTop: "4px" }}>
-                Las coordenadas deben ser números válidos (lat −90 a 90, lng −180 a 180).
+                Las coordenadas deben ser números válidos (lat −90 a 90, lng −180 a 180), o dejar ambas vacías si la tienda no tiene GPS.
               </div>
             )}
 

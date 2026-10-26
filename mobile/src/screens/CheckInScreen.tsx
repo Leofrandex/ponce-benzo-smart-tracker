@@ -148,7 +148,8 @@ export function CheckInScreen() {
   }, [anomalyTypes]);
 
   const locationVerified = useMemo(() => {
-    if (!currentLocation) return null;
+    // Tienda sin GPS: no hay contra que verificar, no se muestra el aviso.
+    if (!currentLocation || store.master_lat == null || store.master_lng == null) return null;
     const dist = haversineMeters(
       currentLocation.lat, currentLocation.lng,
       store.master_lat, store.master_lng,

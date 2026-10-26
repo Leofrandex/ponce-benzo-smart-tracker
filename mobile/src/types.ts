@@ -2,8 +2,9 @@ export interface Store {
   store_id: string;
   name: string;
   address: string | null;
-  master_lat: number;
-  master_lng: number;
+  // null = tienda cargada sin GPS (pendiente de coordenada).
+  master_lat: number | null;
+  master_lng: number | null;
   active: boolean;
   created_at: string;
   contact_name: string | null;

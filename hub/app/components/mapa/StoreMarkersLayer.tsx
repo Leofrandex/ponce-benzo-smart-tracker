@@ -22,8 +22,8 @@ function storeIcon(color: string): L.DivIcon {
 export function StoreMarkersLayer({ stores }: { stores: Store[] }) {
   return (
     <>
-      {stores.map((s) => (
-        <Marker key={s.store_id} position={[s.master_lat, s.master_lng]}
+      {stores.filter((s) => s.master_lat != null && s.master_lng != null).map((s) => (
+        <Marker key={s.store_id} position={[s.master_lat!, s.master_lng!]}
           icon={storeIcon(s.business_channel ? (CHANNEL_COLOR[s.business_channel] ?? CHANNEL_COLOR.otro) : CHANNEL_COLOR.otro)}>
           <Popup>
             <strong>{s.name}</strong><br />

@@ -55,8 +55,8 @@ export default function ClienteDetailPage() {
   const onStoreSave = async (updated: Store): Promise<{ error?: string }> => {
     const patch: Partial<Store> = {
       ...updated,
-      master_lat: Number(updated.master_lat),
-      master_lng: Number(updated.master_lng),
+      master_lat: updated.master_lat == null ? null : Number(updated.master_lat),
+      master_lng: updated.master_lng == null ? null : Number(updated.master_lng),
     };
     const { error } = await updateStore(storeId, patch);
     if (error) return { error };
