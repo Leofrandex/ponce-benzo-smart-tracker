@@ -75,6 +75,7 @@ function MercaderistasInner() {
                 <th className="mz-num" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Hechas / planificadas</th>
                 <th className="mz-num" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Anomalías</th>
                 <th className="mz-num" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>App</th>
+                <th className="mz-num" style={{ padding: "10px 14px" }}><span className="sr-only">Ruta</span></th>
               </tr>
             </thead>
             <tbody>
@@ -98,6 +99,9 @@ function MercaderistasInner() {
                         </span>
                       );
                     })() : <span style={{ color: "var(--text-muted)" }}>–</span>}
+                  </td>
+                  <td className="mz-num" style={{ padding: "10px 14px", textAlign: "right" }}>
+                    <Link href={`/panel/mercaderistas/${f.id}?${qs}&ver=ruta`} style={{ color: "var(--accent)", fontWeight: 600, textDecoration: "none" }}>Ver ruta</Link>
                   </td>
                 </tr>
               ))}

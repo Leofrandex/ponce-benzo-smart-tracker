@@ -15,6 +15,7 @@ import { hoyCaracas } from "@/app/lib/queries/taskFilters";
 import { parsePeriodo, serializePeriodo } from "@/app/lib/queries/period";
 import { ActivityFeed } from "@/app/components/clientes/ActivityFeed";
 import TimePeriodSelector, { rangoDeDias } from "@/app/components/dashboard/TimePeriodSelector";
+import RutaSemanal from "@/app/components/mercaderistas/RutaSemanal";
 import SectionError from "@/app/components/ui/SectionError";
 import { DetailSkeleton, Skeleton, SkeletonCard, SkeletonList, SkeletonScreen } from "@/app/components/ui/Skeleton";
 
@@ -115,6 +116,8 @@ function PerfilInner() {
             )}
             {incluyeHoy && <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: "8px" }}>Hoy no cuenta hasta que termina el día.</div>}
           </div>
+
+          <RutaSemanal userId={id} />
 
           <style>{`
             .mz-dia:hover, .mz-dia:focus-visible, .mz-tiendas tr:hover { background: var(--bg-base); }
