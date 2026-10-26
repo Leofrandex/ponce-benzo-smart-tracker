@@ -71,7 +71,7 @@ export function BottomSheetMultiSelect<T extends string = string>({
             activeOpacity={0.8}
           >
             <Text style={styles.confirmLabel}>
-              {draft.length > 0 ? `Confirmar (${draft.length})` : 'Seleccioná al menos una'}
+              {draft.length > 0 ? `Confirmar (${draft.length})` : 'Selecciona al menos una'}
             </Text>
           </TouchableOpacity>
         </Pressable>

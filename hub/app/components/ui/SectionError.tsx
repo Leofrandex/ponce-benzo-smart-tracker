@@ -21,7 +21,7 @@ export default function SectionError({
       <p style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "var(--text-base)", color: "var(--text-primary)", fontWeight: 600 }}>
         <AlertCircle size={16} color="var(--danger)" aria-hidden /> No pudimos cargar {what}
       </p>
-      <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>Revisá la conexión e intentá de nuevo.</p>
+      <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>Revisa la conexión e intenta de nuevo.</p>
       {onRetry && (
         <button type="button" className="btn btn-secondary btn-sm" onClick={onRetry} style={{ alignSelf: compact ? "flex-start" : "center" }}>
           Reintentar

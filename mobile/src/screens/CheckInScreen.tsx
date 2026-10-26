@@ -232,7 +232,7 @@ export function CheckInScreen() {
 
           {gpsState === 'error' && (
             <Text style={styles.gpsErrorNote}>
-              No se pudo obtener la ubicación. Volvé a la ruta y reiniciá la sesión.
+              No se pudo obtener la ubicación. Vuelve a la ruta y reinicia la sesión.
             </Text>
           )}
         </View>
@@ -296,7 +296,7 @@ export function CheckInScreen() {
               activeOpacity={0.75}
             >
               <Text style={[styles.dropdownText, !skipReason && styles.dropdownPlaceholder]}>
-                {SKIP_REASON_OPTIONS.find((o) => o.value === skipReason)?.label ?? 'Seleccioná un motivo'}
+                {SKIP_REASON_OPTIONS.find((o) => o.value === skipReason)?.label ?? 'Selecciona un motivo'}
               </Text>
               <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
             </TouchableOpacity>
@@ -314,7 +314,7 @@ export function CheckInScreen() {
             >
               <Text style={[styles.dropdownText, anomalyTypes.length === 0 && styles.dropdownPlaceholder]}>
                 {anomalyTypes.length === 0
-                  ? 'Seleccioná el/los tipo(s)'
+                  ? 'Selecciona el/los tipo(s)'
                   : anomalyTypes.length <= 2
                     ? anomalyTypes.map((v) => ANOMALY_TYPE_OPTIONS.find((o) => o.value === v)?.label ?? v).join(', ')
                     : `${anomalyTypes.length} seleccionadas`}
@@ -434,7 +434,7 @@ export function CheckInScreen() {
           <Text style={styles.sectionTitle}>Observaciones</Text>
           <TextInput
             style={styles.textArea}
-            placeholder="Describí novedades, faltantes, anomalías observadas..."
+            placeholder="Describe novedades, faltantes, anomalías observadas..."
             placeholderTextColor={colors.textMuted}
             value={observations}
             onChangeText={setObservations}
@@ -453,10 +453,10 @@ export function CheckInScreen() {
               <Text style={styles.blockingItem}>• Foto requerida para registrar la visita</Text>
             )}
             {selectedStatus === 'skipped' && !skipReason && (
-              <Text style={styles.blockingItem}>• Seleccioná el motivo de omisión</Text>
+              <Text style={styles.blockingItem}>• Selecciona el motivo de omisión</Text>
             )}
             {selectedStatus === 'anomaly' && anomalyTypes.length === 0 && (
-              <Text style={styles.blockingItem}>• Seleccioná al menos un tipo de anomalía</Text>
+              <Text style={styles.blockingItem}>• Selecciona al menos un tipo de anomalía</Text>
             )}
           </View>
         )}

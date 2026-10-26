@@ -18,22 +18,25 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<SyncStatus>('idle');
   const running = useRef(false);
 
-  const refreshCount = useCallback(async () => { setCounts(await pendingCounts(await getDb())); }, []);
+  const userId = user?.id;
+  const refreshCount = useCallback(async () => {
+    setCounts(userId ? await pendingCounts(await getDb(), userId) : ZERO);
+  }, [userId]);
   const flushNow = useCallback(async () => {
-    if (!user || running.current) return;
+    if (!userId || running.current) return;
     running.current = true; setStatus('syncing');
     try {
       const db = await getDb();
       await refreshCount(); // que el banner muestre el conteo real mientras sincroniza
-      const { failed } = await flush(db, supabase);
-      await flushDeviceLogs(db, supabase);
+      const { failed } = await flush(db, supabase, userId);
+      await flushDeviceLogs(db, supabase, userId);
       await refreshCount();
       setStatus(failed > 0 ? 'offline' : 'synced');
     } catch { setStatus('offline'); }
     finally { running.current = false; }
-  }, [user, refreshCount]);
+  }, [userId, refreshCount]);
 
-  useEffect(() => { refreshCount(); if (user) flushNow(); }, [user, flushNow, refreshCount]);
+  useEffect(() => { refreshCount(); if (userId) flushNow(); }, [userId, flushNow, refreshCount]);
   useEffect(() => { const id = setInterval(() => { flushNow(); }, 60_000); return () => clearInterval(id); }, [flushNow]);
 
   // Al volver la app a primer plano, sincronizar de inmediato: el timer de arriba

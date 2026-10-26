@@ -40,8 +40,11 @@ function fakeDb(tables: Record<string, Row[]>) {
     }
     return [];
   };
+  // Filtro por dueño (`... = ?` con userId): la fila es del user_id propio o del de su visita.
+  const owner = (r: Row) => r.user_id ?? tables.visits.find((v) => v.visit_id === r.visit_id)?.user_id;
   return {
-    getAllAsync: async (sql: string) => match(sql),
+    getAllAsync: async (sql: string, ...args: any[]) =>
+      sql.includes('= ?') && args.length ? match(sql).filter((r) => owner(r) === args[0]) : match(sql),
     getFirstAsync: async (sql: string) => {
       if (sql.includes('AS records')) {
         return {
@@ -158,6 +161,26 @@ test('flush: fallo de UNA tabla no frena las demás (visita cae, ping sube)', as
   assert.equal(tables.visits[0].synced, 0, 'la visita queda en cola para reintento');
   assert.equal(tables.location_pings[0].synced, 1, 'el ping subió igual');
   assert.equal(r.failed, 1);
+});
+
+test('REGRESIÓN: con userId solo sube lo de ese usuario (teléfono compartido)', async () => {
+  // Cerrar sesión de un mercaderista y entrar con otra cuenta dejaba su cola en el
+  // teléfono: RLS la rechazaba en cada pasada y el banner no salía de "Sincronizando".
+  const tables = baseTables();
+  tables.sessions.push({ session_id: 's1', user_id: 'u1', synced: 0 });
+  tables.visits.push(visit('v1', { user_id: 'u1' }), visit('v2', { user_id: 'u2', session_id: 's2' }));
+  tables.location_pings.push(
+    { ping_id: 'p1', session_id: 's1', user_id: 'u1', timestamp: 't', lat: 1, lng: 2, synced: 0 },
+    { ping_id: 'p2', session_id: 's2', user_id: 'u2', timestamp: 't', lat: 1, lng: 2, synced: 0 },
+  );
+  const supa = fakeSupabase();
+  const r = await flush(fakeDb(tables), supa, 'u2');
+  assert.equal(r.failed, 0);
+  assert.deepEqual(supa.calls.filter((c: string) => c.startsWith('upsert:')), ['upsert:visits', 'upsert:location_pings']);
+  assert.equal(tables.visits.find((v) => v.visit_id === 'v2')!.synced, 1);
+  assert.equal(tables.visits.find((v) => v.visit_id === 'v1')!.synced, 0, 'lo de u1 espera a su dueño');
+  assert.equal(tables.sessions[0].synced, 0);
+  assert.equal(tables.location_pings[0].synced, 0);
 });
 
 test('flush: fallos de pings SÍ cuentan como failed (antes se tragaban)', async () => {

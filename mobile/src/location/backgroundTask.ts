@@ -16,8 +16,15 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: TaskMan
 
   try {
     const db = await getDb(); // HANDLE COMPARTIDO — clave del throttle confiable
+    // Solo la jornada de quien tiene la sesión abierta en la app: en un teléfono
+    // compartido, la jornada sin cerrar del usuario anterior no debe seguir
+    // sumando puntos a su nombre con el teléfono en manos de otro.
+    const { data: auth } = await supabase.auth.getSession();
+    const uid = auth.session?.user.id;
+    if (!uid) return;
     const open = await db.getFirstAsync<{ session_id: string; user_id: string }>(
-      `SELECT session_id, user_id FROM sessions WHERE session_end IS NULL ORDER BY session_start DESC LIMIT 1`,
+      `SELECT session_id, user_id FROM sessions WHERE session_end IS NULL AND user_id = ? ORDER BY session_start DESC LIMIT 1`,
+      uid,
     );
     if (!open) return;
 
@@ -43,7 +50,7 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: TaskMan
     // el timer JS de SyncContext se suspende con la app en background, así que este
     // callback es la única vía para que el último punto de la ruta suba si el
     // promotor guarda el teléfono al terminar. Todos los requests tienen deadline.
-    await flush(db, supabase);
+    await flush(db, supabase, uid);
   } catch (e) {
     console.warn('[bgTask] failed:', e);
   }

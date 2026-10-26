@@ -51,7 +51,7 @@ export function EngagementsPanel({ engagements, error, onRetry, onCreate, onTogg
           ) : engagements === null ? (
             <SkeletonList rows={4} />
           ) : items.length === 0 ? (
-            <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", textAlign: "center", padding: "12px" }}>Sin registros. Agregá la primera nota abajo.</div>
+            <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", textAlign: "center", padding: "12px" }}>Sin registros. Agrega la primera nota abajo.</div>
           ) : items.map((e) => (
             <div key={e.engagement_id} style={{ display: "flex", gap: "10px", paddingBottom: "10px", borderBottom: "1px solid var(--border)" }}>
               {e.type === "todo" ? (

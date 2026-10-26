@@ -114,7 +114,7 @@ export function VisitHistoryScreen() {
               <Ionicons name="clipboard-outline" size={56} color={colors.bgElevated} />
               <Text style={styles.emptyTitle}>Sin visitas registradas</Text>
               <Text style={styles.emptyDesc}>
-                Aún no registraste visitas hoy.{'\n'}Empezá la ruta desde la pestaña Ruta.
+                Aún no registraste visitas hoy.{'\n'}Empieza la ruta desde la pestaña Ruta.
               </Text>
             </View>
           }

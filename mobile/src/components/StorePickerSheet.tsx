@@ -30,7 +30,7 @@ export function StorePickerSheet({ visible, stores, excludeStoreIds, onPick, onC
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.handle} />
           <Text style={styles.title}>Agregar sucursal a la ruta</Text>
-          <Text style={styles.subtitle}>Elegí una tienda del catálogo para reportarla hoy</Text>
+          <Text style={styles.subtitle}>Elige una tienda del catálogo para reportarla hoy</Text>
 
           <View style={styles.searchBox}>
             <Ionicons name="search" size={16} color={colors.textMuted} />

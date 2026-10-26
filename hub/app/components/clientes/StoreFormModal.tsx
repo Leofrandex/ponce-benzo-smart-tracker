@@ -63,7 +63,7 @@ export function DiscardChangesBar({ onKeep, onDiscard }: { onKeep: () => void; o
       }}
     >
       <span style={{ flex: 1, minWidth: "160px", fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
-        Tenés cambios sin guardar.
+        Tienes cambios sin guardar.
       </span>
       <button type="button" autoFocus onClick={onKeep} className="btn btn-secondary btn-sm" style={{ width: "auto" }}>
         Seguir editando

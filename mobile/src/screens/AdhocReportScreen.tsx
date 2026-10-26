@@ -22,7 +22,7 @@ export function AdhocReportScreen() {
     let alive = true;
     fetchAllStores()
       .then((s) => { if (alive) { setStores(s); setLoading(false); } })
-      .catch(() => { if (alive) { setError('No se pudo cargar el catálogo de sucursales. Revisá tu conexión.'); setLoading(false); } });
+      .catch(() => { if (alive) { setError('No se pudo cargar el catálogo de sucursales. Revisa tu conexión.'); setLoading(false); } });
     return () => { alive = false; };
   }, []);
 
@@ -35,7 +35,7 @@ export function AdhocReportScreen() {
       await startAdhocReport(store);
       navigation.navigate('CheckIn', { store });
     } catch {
-      setError('No se pudo abrir el reporte. Verificá la conexión y el permiso de ubicación.');
+      setError('No se pudo abrir el reporte. Verifica la conexión y el permiso de ubicación.');
     } finally {
       setStarting(false);
     }
@@ -46,7 +46,7 @@ export function AdhocReportScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Reporte suelto</Text>
         <Text style={styles.subtitle}>
-          Reportá cualquier sucursal, esté o no en tu ruta de hoy. El GPS se enciende
+          Reporta cualquier sucursal, esté o no en tu ruta de hoy. El GPS se enciende
           mientras dure el reporte.
         </Text>
       </View>

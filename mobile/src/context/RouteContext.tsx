@@ -319,7 +319,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
 
     // Reporte de competencia opcional: misma tienda, misma operación.
     // Va en try/catch: si algo falla aquí, la visita YA quedó guardada y la
-    // pantalla debe cerrar igual (antes una excepción acá dejaba el registro
+    // pantalla debe cerrar igual (antes una excepción aquí dejaba el registro
     // abierto sin volver al menú).
     if (competitionReport) {
       try {

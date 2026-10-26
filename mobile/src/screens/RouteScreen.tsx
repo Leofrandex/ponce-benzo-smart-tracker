@@ -189,8 +189,8 @@ export function RouteScreen() {
             <Text style={styles.emptyTitle}>Tu ruta está vacía</Text>
             <Text style={styles.emptyText}>
               {routeMode === 'special'
-                ? 'Agregá una o más sucursales para empezar.'
-                : 'No tenés ruta asignada para hoy.'}
+                ? 'Agrega una o más sucursales para empezar.'
+                : 'No tienes ruta asignada para hoy.'}
             </Text>
           </View>
         }

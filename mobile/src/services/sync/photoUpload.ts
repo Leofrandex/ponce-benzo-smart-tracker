@@ -34,7 +34,7 @@ export async function uploadPhotos(
     const path = storagePath(userId, ownerId, i);
     if (existing.has(path)) { paths.push(path); continue; }
     const res = await withDeadline(fetch(uris[i]), timeoutMs, `leer foto ${path}`);
-    const buf = await res.arrayBuffer();
+    const buf = await withDeadline(res.arrayBuffer(), timeoutMs, `leer foto ${path}`);
     const { error } = await withDeadline(
       supabase.storage.from("visit-photos").upload(path, buf, { contentType: "image/jpeg", upsert: true }),
       timeoutMs,

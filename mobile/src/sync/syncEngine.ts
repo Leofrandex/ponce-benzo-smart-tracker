@@ -31,17 +31,25 @@ export function photoCount(photoUri: string | null): number {
 
 type PingRow = { ping_id: string; session_id: string | null; user_id: string | null; timestamp: string; lat: number; lng: number };
 
-export function getUnsyncedPings(db: SQLiteDatabase): Promise<PingRow[]> {
+// Filtro por dueño. RLS solo deja escribir lo propio: en un teléfono compartido
+// (cerrar sesión de un mercaderista y entrar con otra cuenta) la cola del usuario
+// anterior fallaba en cada pasada y dejaba el banner en "Sincronizando…" sin fin.
+// Lo ajeno espera en el teléfono hasta que su dueño vuelva a entrar.
+const ownedBy = (col: string, userId?: string) => (userId ? ` AND ${col} = ?` : '');
+const ownerArgs = (userId?: string): string[] => (userId ? [userId] : []);
+
+export function getUnsyncedPings(db: SQLiteDatabase, userId?: string): Promise<PingRow[]> {
   return db.getAllAsync<PingRow>(
     `SELECT p.ping_id, p.session_id, COALESCE(p.user_id, s.user_id) AS user_id, p.timestamp, p.lat, p.lng
        FROM location_pings p LEFT JOIN sessions s ON s.session_id = p.session_id
-      WHERE p.synced = 0`,
+      WHERE p.synced = 0${ownedBy('COALESCE(p.user_id, s.user_id)', userId)}`,
+    ...ownerArgs(userId),
   );
 }
 
-export async function flushPings(db: SQLiteDatabase, supabase: SupabaseClient): Promise<{ pushed: number; failed: number }> {
+export async function flushPings(db: SQLiteDatabase, supabase: SupabaseClient, userId?: string): Promise<{ pushed: number; failed: number }> {
   let pushed = 0, failed = 0;
-  const pings = (await getUnsyncedPings(db)).filter((p) => p.user_id);
+  const pings = (await getUnsyncedPings(db, userId)).filter((p) => p.user_id);
   for (const p of pings) {
     try {
       const { error } = await withDeadline(
@@ -64,14 +72,15 @@ let isFlushing = false;
  * repuestos → reportes (sin fotos) → pings → fotos.
  * El registro (pequeño, crítico) NUNCA espera por sus fotos (pesadas): sube primero
  * con photo_urls=[] y las fotos se completan en una fase aparte (photos_synced).
+ * Con userId sube solo lo de ese usuario (el de la sesión abierta en la app).
  */
-export async function flush(db: SQLiteDatabase, supabase: SupabaseClient): Promise<{ pushed: number; failed: number }> {
+export async function flush(db: SQLiteDatabase, supabase: SupabaseClient, userId?: string): Promise<{ pushed: number; failed: number }> {
   if (isFlushing) return { pushed: 0, failed: 0 };
   isFlushing = true;
   let pushed = 0, failed = 0;
   try {
     // 1) Sesiones (las visitas referencian session_id).
-    for (const s of await db.getAllAsync<any>(`SELECT * FROM sessions WHERE synced = 0`)) {
+    for (const s of await db.getAllAsync<any>(`SELECT * FROM sessions WHERE synced = 0${ownedBy('user_id', userId)}`, ...ownerArgs(userId))) {
       try {
         const { error } = await withDeadline(
           supabase.from('sessions').upsert(toSessionPayload(s), { onConflict: 'session_id' }),
@@ -84,7 +93,7 @@ export async function flush(db: SQLiteDatabase, supabase: SupabaseClient): Promi
     }
 
     // 2) Registros de visita SIN esperar fotos.
-    for (const v of await db.getAllAsync<any>(`SELECT * FROM visits WHERE synced = 0`)) {
+    for (const v of await db.getAllAsync<any>(`SELECT * FROM visits WHERE synced = 0${ownedBy('user_id', userId)}`, ...ownerArgs(userId))) {
       try {
         const { error } = await withDeadline(
           supabase.from('visits').upsert(toVisitPayload(v, []), { onConflict: 'visit_id' }),
@@ -104,7 +113,8 @@ export async function flush(db: SQLiteDatabase, supabase: SupabaseClient): Promi
     for (const ap of await db.getAllAsync<any>(
       `SELECT ap.* FROM visit_anomaly_products ap
          JOIN visits v ON v.visit_id = ap.visit_id
-        WHERE ap.synced = 0 AND v.synced = 1`,
+        WHERE ap.synced = 0 AND v.synced = 1${ownedBy('v.user_id', userId)}`,
+      ...ownerArgs(userId),
     )) {
       try {
         const { error } = await withDeadline(
@@ -132,7 +142,8 @@ export async function flush(db: SQLiteDatabase, supabase: SupabaseClient): Promi
     for (const rp of await db.getAllAsync<any>(
       `SELECT rp.* FROM restock_products rp
          JOIN visits v ON v.visit_id = rp.visit_id
-        WHERE rp.synced = 0 AND v.synced = 1`,
+        WHERE rp.synced = 0 AND v.synced = 1${ownedBy('v.user_id', userId)}`,
+      ...ownerArgs(userId),
     )) {
       try {
         const { error } = await withDeadline(
@@ -155,7 +166,7 @@ export async function flush(db: SQLiteDatabase, supabase: SupabaseClient): Promi
     }
 
     // 3) Reportes de competencia, mismo esquema.
-    for (const c of await db.getAllAsync<any>(`SELECT * FROM competition_reports WHERE synced = 0`)) {
+    for (const c of await db.getAllAsync<any>(`SELECT * FROM competition_reports WHERE synced = 0${ownedBy('user_id', userId)}`, ...ownerArgs(userId))) {
       try {
         const { error } = await withDeadline(
           supabase.from('competition_reports').upsert(toCompetitionPayload(c, []), { onConflict: 'report_id' }),
@@ -171,12 +182,12 @@ export async function flush(db: SQLiteDatabase, supabase: SupabaseClient): Promi
     }
 
     // 4) Pings de GPS (menos críticos que los registros).
-    const pr = await flushPings(db, supabase);
+    const pr = await flushPings(db, supabase, userId);
     pushed += pr.pushed; failed += pr.failed;
 
     // 5) Fotos de registros ya subidos: se completan aparte y actualizan photo_urls.
-    pushed += await flushPendingPhotos(db, supabase, 'visits', 'visit_id', (n) => failed += n);
-    pushed += await flushPendingPhotos(db, supabase, 'competition_reports', 'report_id', (n) => failed += n);
+    pushed += await flushPendingPhotos(db, supabase, 'visits', 'visit_id', (n) => failed += n, userId);
+    pushed += await flushPendingPhotos(db, supabase, 'competition_reports', 'report_id', (n) => failed += n, userId);
   } finally { isFlushing = false; }
   return { pushed, failed };
 }
@@ -185,9 +196,12 @@ async function flushPendingPhotos(
   db: SQLiteDatabase, supabase: SupabaseClient,
   table: 'visits' | 'competition_reports', idCol: 'visit_id' | 'report_id',
   addFailed: (n: number) => void,
+  userId?: string,
 ): Promise<number> {
   let pushed = 0;
-  const rows = await db.getAllAsync<any>(`SELECT * FROM ${table} WHERE synced = 1 AND photos_synced = 0`);
+  const rows = await db.getAllAsync<any>(
+    `SELECT * FROM ${table} WHERE synced = 1 AND photos_synced = 0${ownedBy('user_id', userId)}`, ...ownerArgs(userId),
+  );
   for (const r of rows) {
     const id = r[idCol];
     try {
@@ -215,18 +229,22 @@ export interface PendingCounts {
   pings: number;
 }
 
-export async function pendingCounts(db: SQLiteDatabase): Promise<PendingCounts> {
+// Con userId cuenta solo lo de ese usuario: el banner no debe mostrar la cola
+// de otra cuenta que este teléfono no puede subir.
+export async function pendingCounts(db: SQLiteDatabase, userId?: string): Promise<PendingCounts> {
+  const own = (col: string) => (userId ? ` AND ${col} = $u` : '');
   const row = await db.getFirstAsync<PendingCounts>(
     `SELECT
-       (SELECT COUNT(*) FROM sessions WHERE synced=0)
-     + (SELECT COUNT(*) FROM visits WHERE synced=0)
-     + (SELECT COUNT(*) FROM visit_anomaly_products WHERE synced=0)
-     + (SELECT COUNT(*) FROM restock_products WHERE synced=0)
-     + (SELECT COUNT(*) FROM competition_reports WHERE synced=0) AS records,
-       (SELECT COUNT(*) FROM visits WHERE synced=1 AND photos_synced=0)
-     + (SELECT COUNT(*) FROM competition_reports WHERE synced=1 AND photos_synced=0) AS photos,
+       (SELECT COUNT(*) FROM sessions WHERE synced=0${own('user_id')})
+     + (SELECT COUNT(*) FROM visits WHERE synced=0${own('user_id')})
+     + (SELECT COUNT(*) FROM visit_anomaly_products ap JOIN visits v ON v.visit_id=ap.visit_id WHERE ap.synced=0${own('v.user_id')})
+     + (SELECT COUNT(*) FROM restock_products rp JOIN visits v ON v.visit_id=rp.visit_id WHERE rp.synced=0${own('v.user_id')})
+     + (SELECT COUNT(*) FROM competition_reports WHERE synced=0${own('user_id')}) AS records,
+       (SELECT COUNT(*) FROM visits WHERE synced=1 AND photos_synced=0${own('user_id')})
+     + (SELECT COUNT(*) FROM competition_reports WHERE synced=1 AND photos_synced=0${own('user_id')}) AS photos,
        (SELECT COUNT(*) FROM location_pings p LEFT JOIN sessions s ON s.session_id=p.session_id
-         WHERE p.synced=0 AND COALESCE(p.user_id,s.user_id) IS NOT NULL) AS pings`,
+         WHERE p.synced=0 AND COALESCE(p.user_id,s.user_id) IS NOT NULL${own('COALESCE(p.user_id,s.user_id)')}) AS pings`,
+    userId ? { $u: userId } : {},
   );
   return row ?? { records: 0, photos: 0, pings: 0 };
 }
