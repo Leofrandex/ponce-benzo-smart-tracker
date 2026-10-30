@@ -13,6 +13,19 @@ Este documento almacena las preguntas por resolver, datos necesarios por parte d
 
 ---
 
+## 🗺️ Rutas fijas (2026-10-30)
+
+Ver [[decisiones/ADR-017-Rutas-Fijas-Versionadas|ADR-017]] y [[logs/Log-2026-10-30|Log 2026-10-30]].
+
+> [!WARNING]
+> Sin ruta fija, un mercaderista se queda sin ruta desde el 01-01-2027 (las filas del CSV llegan hasta el 31-12-2026).
+
+- [ ] Armar la ruta fija de cada mercaderista activo antes del 31-12-2026 (Jonathan Fernández ya no hace rutas).
+- [ ] Verificar el editor en el navegador como admin (no se hizo: sin credenciales de admin).
+- [ ] Archivar `tools/cargar-rutas-csv.ts` y `revisar-rutas-*.ts` cuando todos tengan ruta fija.
+
+---
+
 ## 🎨 Auditoría UX smart-ux (2026-09-29)
 
 > [!IMPORTANT]
