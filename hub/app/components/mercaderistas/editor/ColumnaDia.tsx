@@ -11,10 +11,10 @@ import AgregarSucursal from "./AgregarSucursal";
 export const idColumna = (w: Weekday) => `dia-${w}`;
 
 // Una columna del tablero: las paradas del día (todas, toquen o no la semana vista).
-export default function ColumnaDia({ weekday, nombre, fechaVista, stops, tiendas, porId, seleccion, resaltada, onAbrir, onAgregar }: {
+export default function ColumnaDia({ weekday, nombre, fechaVista, stops, tiendas, porId, seleccion, bloqueado, resaltada, onAbrir, onAgregar }: {
   weekday: Weekday; nombre: string; fechaVista: string; stops: Parada[];
   tiendas: TiendaBuscable[]; porId: Map<string, TiendaBuscable>;
-  seleccion: string | null; resaltada: boolean;
+  seleccion: string | null; bloqueado: boolean; resaltada: boolean;
   onAbrir: (p: Parada) => void; onAgregar: (storeId: string) => void;
 }) {
   const { setNodeRef } = useDroppable({ id: idColumna(weekday) });
@@ -39,13 +39,14 @@ export default function ColumnaDia({ weekday, nombre, fechaVista, stops, tiendas
               tienda={porId.get(p.store_id)}
               numero={numeros.get(p.store_id) ?? null}
               seleccionada={seleccion === idTarjeta(p)}
+              bloqueado={bloqueado}
               onAbrir={() => onAbrir(p)}
             />
           ))}
           {stops.length === 0 && <li style={{ padding: "8px 4px", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Sin sucursales</li>}
         </ol>
       </SortableContext>
-      <AgregarSucursal dia={nombre} tiendas={tiendas} yaEnDia={yaEnDia} onAgregar={onAgregar} />
+      <AgregarSucursal dia={nombre} tiendas={tiendas} yaEnDia={yaEnDia} bloqueado={bloqueado} onAgregar={onAgregar} />
     </section>
   );
 }

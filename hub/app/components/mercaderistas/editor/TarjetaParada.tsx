@@ -30,10 +30,10 @@ export function CuerpoTarjeta({ parada, tienda, numero }: { parada: Parada; tien
   );
 }
 
-export default function TarjetaParada({ parada, tienda, numero, seleccionada, onAbrir }: {
-  parada: Parada; tienda: TiendaBuscable | undefined; numero: number | null; seleccionada: boolean; onAbrir: () => void;
+export default function TarjetaParada({ parada, tienda, numero, seleccionada, bloqueado, onAbrir }: {
+  parada: Parada; tienda: TiendaBuscable | undefined; numero: number | null; seleccionada: boolean; bloqueado: boolean; onAbrir: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: idTarjeta(parada) });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: idTarjeta(parada), disabled: bloqueado });
   const off = numero === null;
   return (
     <li

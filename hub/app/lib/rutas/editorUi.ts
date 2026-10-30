@@ -1,7 +1,7 @@
 import { normalizeText } from "../queries/taskFilters";
 import { sumarDias } from "../queries/rutas";
 import type { TiendaBuscable } from "../queries/rutaPlan";
-import { aplicarDiff, diffPlan, type Parada, type Version } from "./plan";
+import { aplicarDiff, diffPlan, versionVigente, type Parada, type Version } from "./plan";
 
 // Piezas puras del editor de ruta fija (formato, búsqueda y armado del guardado).
 
@@ -30,6 +30,26 @@ export function buscarTiendas(tiendas: TiendaBuscable[], q: string, yaEnDia: Set
     .filter((t) => [t.name, t.client_name, t.zona].some((x) => normalizeText(x).includes(n)))
     .slice(0, max);
 }
+
+// El editor arranca desde la versión vigente en la fecha "aplica desde".
+export function baseParaFecha(versiones: Version[], fecha: string): Parada[] {
+  return versionVigente(versiones, fecha)?.stops ?? [];
+}
+
+export type AvisoFecha = { tipo: "reemplaza" | "rige-antes"; fecha: string } | null;
+
+// Cambios armados sobre la ruta vigente en `fechaBase` y movidos a `fecha`: ¿queda una versión
+// programada en medio? Igual a `fecha` → guardar la reemplaza; antes de `fecha` → rige antes.
+export function avisoFecha(versiones: Version[], fechaBase: string, fecha: string): AvisoFecha {
+  let ultima: string | null = null;
+  for (const v of versiones) {
+    if (v.effective_from > fechaBase && v.effective_from <= fecha && (!ultima || v.effective_from > ultima)) ultima = v.effective_from;
+  }
+  return ultima ? { tipo: ultima === fecha ? "reemplaza" : "rige-antes", fecha: ultima } : null;
+}
+
+// Rechazo del guardado porque otra persona guardó antes (ver fn_guardar_ruta).
+export const esConflictoVersion = (mensaje: string) => mensaje.startsWith("La ruta cambió mientras la editabas");
 
 // La versión editada, y si se pide, el mismo cambio aplicado a cada versión futura.
 export function armarVersionesAGuardar(

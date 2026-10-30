@@ -11,9 +11,9 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { lunesDe, sumarDias } from "@/app/lib/queries/rutas";
 import { guardarRuta, ultimaVersionVista, type TiendaBuscable } from "@/app/lib/queries/rutaPlan";
-import { paradasDelDia, versionesFuturas, versionVigente, type Parada, type Version, type Weekday } from "@/app/lib/rutas/plan";
-import { contarCambios, iniciarEditor, reducir, stopsDelDia } from "@/app/lib/rutas/editorState";
-import { armarVersionesAGuardar, fechaCorta, rangoSemana } from "@/app/lib/rutas/editorUi";
+import { paradasDelDia, versionesFuturas, type Parada, type Version, type Weekday } from "@/app/lib/rutas/plan";
+import { contarCambios, iniciarEditor, reducir, stopsDelDia, type Accion, type EditorState } from "@/app/lib/rutas/editorState";
+import { armarVersionesAGuardar, avisoFecha, baseParaFecha, esConflictoVersion, fechaCorta, rangoSemana } from "@/app/lib/rutas/editorUi";
 import ColumnaDia from "./ColumnaDia";
 import { CuerpoTarjeta, idTarjeta } from "./TarjetaParada";
 import PanelParada from "./PanelParada";
@@ -34,12 +34,18 @@ const diaDe = (id: UniqueIdentifier): Weekday => {
 };
 const tiendaDe = (id: UniqueIdentifier) => { const s = String(id); return s.slice(s.indexOf("|") + 1); };
 
-export default function EditorRuta({ userId, nombre, versiones, tiendas, manana }: {
-  userId: string; nombre: string; versiones: Version[]; tiendas: TiendaBuscable[]; manana: string;
+// "reiniciar" vuelve a tomar la base de la versión vigente en una fecha (sin cambios pendientes).
+type AccionEditor = Accion | { tipo: "reiniciar"; base: Parada[]; fecha: string };
+const reducirEditor = (s: EditorState, a: AccionEditor): EditorState => (a.tipo === "reiniciar" ? iniciarEditor(a.base, a.fecha) : reducir(s, a));
+
+export default function EditorRuta({ userId, nombre, versiones, tiendas, manana, onRecargar }: {
+  userId: string; nombre: string; versiones: Version[]; tiendas: TiendaBuscable[]; manana: string; onRecargar: () => Promise<void>;
 }) {
   const router = useRouter();
-  const [s, dispatch] = useReducer(reducir, undefined, () => iniciarEditor(versionVigente(versiones, manana)?.stops ?? [], manana));
+  const [s, dispatch] = useReducer(reducirEditor, undefined, () => iniciarEditor(baseParaFecha(versiones, manana), manana));
+  const [fechaBase, setFechaBase] = useState(manana); // fecha cuya versión vigente es s.base
   const [semana, setSemana] = useState(() => lunesDe(manana));
+  const [recargando, setRecargando] = useState(false);
   const [sel, setSel] = useState<string | null>(null);
   const [arrastrada, setArrastrada] = useState<string | null>(null);
   const [overDia, setOverDia] = useState<Weekday | null>(null);
@@ -52,6 +58,23 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, manana 
   const futuras = useMemo(() => versionesFuturas(versiones, s.effectiveFrom), [versiones, s.effectiveFrom]);
   const cambios = contarCambios(s);
   const perfil = `/panel/mercaderistas/${userId}`;
+  const aviso = cambios > 0 ? avisoFecha(versiones, fechaBase, s.effectiveFrom) : null;
+  const conflicto = error !== null && esConflictoVersion(error);
+
+  const reiniciar = (fecha: string) => {
+    dispatch({ tipo: "reiniciar", base: baseParaFecha(versiones, fecha), fecha });
+    setFechaBase(fecha); setSel(null);
+  };
+  const cambiarFecha = (v: string) => {
+    if (cambios === 0) reiniciar(v);
+    else dispatch({ tipo: "fecha", effectiveFrom: v });
+    setSemana(lunesDe(v));
+  };
+  const recargar = async () => {
+    if (cambios > 0 && !window.confirm("Se perderán los cambios sin guardar. ¿Recargar la ruta?")) return;
+    setRecargando(true);
+    try { await onRecargar(); } finally { setRecargando(false); }
+  };
 
   useEffect(() => {
     if (cambios === 0) return;
@@ -94,7 +117,7 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, manana 
   };
 
   async function guardar(aplicarAFuturas: boolean) {
-    setConfirmar(false); setGuardando(true); setError(null);
+    setConfirmar(false); setSel(null); setGuardando(true); setError(null);
     try {
       await guardarRuta(userId, armarVersionesAGuardar(s.base, s.stops, s.effectiveFrom, futuras, aplicarAFuturas), ultimaVersionVista(versiones));
       saliendo.current = true;
@@ -126,15 +149,21 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, manana 
               className="form-input"
               min={manana}
               value={s.effectiveFrom}
+              disabled={guardando}
               onChange={(e) => {
                 const v = e.target.value;
-                if (!YMD.test(v) || v < manana) return;
-                dispatch({ tipo: "fecha", effectiveFrom: v });
-                setSemana(lunesDe(v));
+                if (YMD.test(v) && v >= manana) cambiarFecha(v);
               }}
               style={{ width: "auto", padding: "5px 8px", fontSize: "var(--text-sm)", borderColor: "var(--border-accent)" }}
             />
           </label>
+          {aviso && (
+            <span role="status" style={{ flexBasis: "100%", order: 1, color: "var(--warning)", fontWeight: 600 }}>
+              {aviso.tipo === "reemplaza"
+                ? `Tus cambios se armaron sobre la ruta vigente antes del ${fechaCorta(aviso.fecha)}. Si guardas con esta fecha, reemplazarán el cambio programado.`
+                : `Ojo: hay un cambio programado desde el ${fechaCorta(aviso.fecha)} que rige antes de esta fecha.`}
+            </span>
+          )}
           <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             Viendo la semana
             <button type="button" className="filter-chip" aria-label="Semana anterior" disabled={semana <= lunesDe(s.effectiveFrom)} onClick={() => setSemana(sumarDias(semana, -7))}><ChevronLeft size={14} /></button>
@@ -146,7 +175,7 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, manana 
           <div className="ed-aviso">Hay un cambio programado desde el {fechaCorta(futuras[0].effective_from)}</div>
         )}
 
-        <div className="ed-board-wrap">
+        <div className="ed-board-wrap" aria-busy={guardando} style={guardando ? { pointerEvents: "none", opacity: 0.6 } : undefined}>
           <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={() => { setArrastrada(null); setOverDia(null); }}>
             <div className="ed-board">
               {DIAS.map(({ w, nombre: dia }) => (
@@ -159,8 +188,9 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, manana 
                   tiendas={tiendas}
                   porId={porId}
                   seleccion={sel}
+                  bloqueado={guardando}
                   resaltada={overDia === w && enArrastre?.weekday !== w}
-                  onAbrir={(p) => setSel(idTarjeta(p))}
+                  onAbrir={(p) => { if (!guardando) setSel(idTarjeta(p)); }}
                   onAgregar={(store_id) => dispatch({ tipo: "agregar", weekday: w, store_id })}
                 />
               ))}
@@ -192,9 +222,19 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, manana 
           <span style={{ marginRight: "auto", color: cambios ? "var(--text-secondary)" : "var(--text-muted)" }}>
             {cambios === 0 ? "Sin cambios" : cambios === 1 ? "1 cambio sin guardar" : `${cambios} cambios sin guardar`}
           </span>
-          {error && <span role="alert" style={{ color: "var(--danger)", fontWeight: 600, flexBasis: "100%", order: -1 }}>{error}</span>}
-          <button type="button" className="btn btn-secondary btn-sm" disabled={cambios === 0 || guardando} onClick={() => { dispatch({ tipo: "descartar" }); setSel(null); setError(null); }}>Descartar</button>
-          <button type="button" className="btn btn-primary btn-sm" disabled={cambios === 0 || guardando} onClick={() => (futuras.length > 0 ? setConfirmar(true) : guardar(false))}>
+          {error && (
+            <span role="alert" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", color: "var(--danger)", fontWeight: 600, flexBasis: "100%", order: -1 }}>
+              {error}
+              {conflicto && (
+                <button type="button" className="btn btn-secondary btn-sm" disabled={recargando} onClick={recargar}>
+                  {recargando ? "Recargando…" : "Recargar"}
+                </button>
+              )}
+            </span>
+          )}
+          {/* Descartar vuelve a la versión vigente en la fecha elegida. */}
+          <button type="button" className="btn btn-secondary btn-sm" disabled={cambios === 0 || guardando} onClick={() => { reiniciar(s.effectiveFrom); if (!conflicto) setError(null); }}>Descartar</button>
+          <button type="button" className="btn btn-primary btn-sm" disabled={cambios === 0 || guardando || conflicto} onClick={() => (futuras.length > 0 ? setConfirmar(true) : guardar(false))}>
             {guardando ? "Guardando…" : "Guardar cambios"}
           </button>
         </div>

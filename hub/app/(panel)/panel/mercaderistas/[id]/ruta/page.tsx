@@ -34,6 +34,12 @@ function Cargador({ id }: { id: string }) {
   const qTiendas = useSupabaseQuery(fetchTiendasBuscables, []);
   const { data: nombre } = useSupabaseQuery(() => fetchUserName(id), [id], "merch:name");
   const [manana] = useState(() => sumarDias(hoyCaracas(), 1));
+  // Tras un conflicto de versión: datos frescos y el editor se vuelve a montar desde cero.
+  const [generacion, setGeneracion] = useState(0);
+  const recargar = async () => {
+    await Promise.all([qVersiones.refetch(), qTiendas.refetch()]);
+    setGeneracion((g) => g + 1);
+  };
 
   const error = qVersiones.error ?? qTiendas.error;
   if (error) {
@@ -52,5 +58,5 @@ function Cargador({ id }: { id: string }) {
       </SkeletonScreen>
     );
   }
-  return <EditorRuta userId={id} nombre={nombre ?? "Mercaderista"} versiones={qVersiones.data} tiendas={qTiendas.data} manana={manana} />;
+  return <EditorRuta key={generacion} onRecargar={recargar} userId={id} nombre={nombre ?? "Mercaderista"} versiones={qVersiones.data} tiendas={qTiendas.data} manana={manana} />;
 }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { armarVersionesAGuardar, buscarTiendas, fechaCorta, rangoSemana } from "./editorUi";
+import { armarVersionesAGuardar, avisoFecha, baseParaFecha, buscarTiendas, esConflictoVersion, fechaCorta, rangoSemana } from "./editorUi";
 import type { Parada, Version } from "./plan";
 
 const p = (weekday: Parada["weekday"], position: number, store_id: string, every_n_weeks: Parada["every_n_weeks"] = 1, anchor_monday = "2026-11-16"): Parada =>
@@ -47,4 +47,28 @@ test("armarVersionesAGuardar aplica el diff a las futuras", () => {
   assert.deepEqual(ids(2), ["a"]);
   assert.deepEqual(ids(3), ["z"]); // lo propio de la futura se conserva
   assert.equal(segunda.stops.find((s) => s.store_id === "a")!.every_n_weeks, 2);
+});
+
+const v = (effective_from: string, stops: Parada[]): Version => ({ plan_id: effective_from, effective_from, created_at: "t", stops });
+
+test("baseParaFecha: la versión vigente en la fecha elegida", () => {
+  const nov = [p(1, 1, "a")];
+  const dic = [p(2, 1, "b")];
+  const vs = [v("2026-11-16", nov), v("2026-12-01", dic)];
+  assert.deepEqual(baseParaFecha(vs, "2026-12-01"), dic);
+  assert.deepEqual(baseParaFecha(vs, "2026-11-20"), nov);
+  assert.deepEqual(baseParaFecha(vs, "2026-11-10"), []);
+});
+
+test("avisoFecha: versión programada entre la base y la nueva fecha", () => {
+  const vs = [v("2026-11-16", []), v("2026-12-01", [])];
+  assert.equal(avisoFecha(vs, "2026-11-20", "2026-11-27"), null);
+  assert.deepEqual(avisoFecha(vs, "2026-11-20", "2026-12-01"), { tipo: "reemplaza", fecha: "2026-12-01" });
+  assert.deepEqual(avisoFecha(vs, "2026-11-20", "2026-12-08"), { tipo: "rige-antes", fecha: "2026-12-01" });
+  assert.equal(avisoFecha(vs, "2026-12-01", "2026-12-08"), null); // la base ya es esa versión
+});
+
+test("esConflictoVersion", () => {
+  assert.ok(esConflictoVersion("La ruta cambió mientras la editabas. Recarga para ver la versión actual."));
+  assert.ok(!esConflictoVersion("Hay sucursales inactivas en la ruta."));
 });

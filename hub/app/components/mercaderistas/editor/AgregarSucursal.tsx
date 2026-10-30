@@ -7,8 +7,8 @@ import { buscarTiendas } from "@/app/lib/rutas/editorUi";
 
 // Pie de cada columna: busca sucursales activas que no estén ya en ese día.
 // Queda abierto tras agregar, para cargar varias seguidas.
-export default function AgregarSucursal({ dia, tiendas, yaEnDia, onAgregar }: {
-  dia: string; tiendas: TiendaBuscable[]; yaEnDia: Set<string>; onAgregar: (storeId: string) => void;
+export default function AgregarSucursal({ dia, tiendas, yaEnDia, bloqueado, onAgregar }: {
+  dia: string; tiendas: TiendaBuscable[]; yaEnDia: Set<string>; bloqueado: boolean; onAgregar: (storeId: string) => void;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [q, setQ] = useState("");
@@ -17,7 +17,7 @@ export default function AgregarSucursal({ dia, tiendas, yaEnDia, onAgregar }: {
 
   if (!abierto) {
     return (
-      <button type="button" className="ed-add" onClick={() => setAbierto(true)}>
+      <button type="button" className="ed-add" disabled={bloqueado} onClick={() => setAbierto(true)}>
         <Plus size={13} aria-hidden /> Agregar sucursal
       </button>
     );
@@ -28,6 +28,7 @@ export default function AgregarSucursal({ dia, tiendas, yaEnDia, onAgregar }: {
       <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
         <input
           autoFocus
+          disabled={bloqueado}
           className="form-input"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -46,7 +47,7 @@ export default function AgregarSucursal({ dia, tiendas, yaEnDia, onAgregar }: {
             <li style={{ padding: "8px", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Sin resultados</li>
           ) : resultados.map((t) => (
             <li key={t.store_id}>
-              <button type="button" className="ed-result" onClick={() => { onAgregar(t.store_id); setQ(""); }}>
+              <button type="button" className="ed-result" disabled={bloqueado} onClick={() => { onAgregar(t.store_id); setQ(""); }}>
                 <span style={{ display: "block", fontWeight: 600 }}>{t.name}</span>
                 <span style={{ display: "block", fontSize: "var(--text-2xs)", color: "var(--text-muted)" }}>
                   {[t.client_name, t.zona].filter(Boolean).join(" · ")}
