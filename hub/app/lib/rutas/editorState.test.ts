@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { contarCambios, iniciarEditor, reducir, stopsDelDia, type Accion, type EditorState } from "./editorState";
-import type { Parada, Weekday } from "./plan";
+import { opcionesSemana, type Parada, type Weekday } from "./plan";
 
 const run = (s: EditorState, ...as: Accion[]) => as.reduce(reducir, s);
 const ids = (s: EditorState, w: Weekday) => stopsDelDia(s, w).map((x) => x.store_id);
@@ -88,4 +88,33 @@ test("descartar vuelve a base", () => {
   const t = reducir(s, { tipo: "descartar" });
   assert.deepEqual(t.stops, t.base);
   assert.equal(contarCambios(t), 0);
+});
+
+test("fecha sin ediciones no genera cambios", () => {
+  const base: Parada[] = [
+    { weekday: 1, position: 1, store_id: "a", every_n_weeks: 1, anchor_monday: "2026-11-16" },
+    { weekday: 2, position: 1, store_id: "b", every_n_weeks: 2, anchor_monday: "2026-11-16" },
+  ];
+  const s = reducir(iniciarEditor(base, "2026-11-16"), { tipo: "fecha", effectiveFrom: "2026-11-30" });
+  assert.equal(contarCambios(s), 0);
+  assert.equal(s.base[0].anchor_monday, "2026-11-30");
+});
+
+test("fecha conserva las ediciones reales", () => {
+  const base: Parada[] = [{ weekday: 1, position: 1, store_id: "a", every_n_weeks: 1, anchor_monday: "2026-11-16" }];
+  const s = run(iniciarEditor(base, "2026-11-16"), add(1, "c"), { tipo: "fecha", effectiveFrom: "2026-11-30" });
+  assert.equal(contarCambios(s), 1);
+  assert.equal(stopsDelDia(s, 1)[1].anchor_monday, "2026-11-30");
+});
+
+test("descartar tras fecha y ediciones deja estado consistente", () => {
+  const base: Parada[] = [{ weekday: 1, position: 1, store_id: "a", every_n_weeks: 2, anchor_monday: "2026-11-16" }];
+  const s = run(iniciarEditor(base, "2026-11-16"), { tipo: "fecha", effectiveFrom: "2026-12-07" }, add(3, "x"), { tipo: "descartar" });
+  assert.equal(contarCambios(s), 0);
+  assert.ok(s.stops.every((p) => opcionesSemana(s.effectiveFrom, p.every_n_weeks).includes(p.anchor_monday)));
+});
+
+test("semana ignora un ancla fuera de las opciones", () => {
+  const s = run(iniciarEditor([], "2026-11-16"), add(1, "a"), { tipo: "frecuencia", weekday: 1, store_id: "a", n: 2 });
+  assert.deepEqual(reducir(s, { tipo: "semana", weekday: 1, store_id: "a", anchor_monday: "2026-12-07" }), s);
 });

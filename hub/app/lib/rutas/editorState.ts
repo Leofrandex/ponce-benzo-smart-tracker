@@ -67,9 +67,11 @@ export function reducir(s: EditorState, a: Accion): EditorState {
         anchor_monday: p.every_n_weeks > 1 ? normalizarAncla(p.anchor_monday, s.effectiveFrom, a.n) : opcionesSemana(s.effectiveFrom, a.n)[0],
       }));
     case "semana":
-      return actualiza(s, a.weekday, a.store_id, (p) => ({ ...p, anchor_monday: a.anchor_monday }));
+      return actualiza(s, a.weekday, a.store_id, (p) =>
+        opcionesSemana(s.effectiveFrom, p.every_n_weeks).includes(a.anchor_monday) ? { ...p, anchor_monday: a.anchor_monday } : p);
     case "fecha":
-      return { ...s, effectiveFrom: a.effectiveFrom, stops: reanclar(s.stops, a.effectiveFrom) };
+      // base y stops se reanclan igual: cambiar la fecha no es una ediciÃ³n.
+      return { effectiveFrom: a.effectiveFrom, base: reanclar(s.base, a.effectiveFrom), stops: reanclar(s.stops, a.effectiveFrom) };
     case "descartar":
       return { ...s, stops: s.base };
   }
@@ -77,7 +79,7 @@ export function reducir(s: EditorState, a: Accion): EditorState {
 
 export function contarCambios(s: EditorState): number {
   const d = diffPlan(s.base, s.stops);
-  // Un día cuenta como "orden distinto" solo si las tiendas que siguen en él cambiaron de orden entre sí;
+  // Un dÃ­a cuenta como "orden distinto" solo si las tiendas que siguen en Ã©l cambiaron de orden entre sÃ­;
   // las altas y bajas ya se cuentan aparte.
   const reordenados = DIAS.filter((w) => {
     if (!d.orden[w]) return false;
