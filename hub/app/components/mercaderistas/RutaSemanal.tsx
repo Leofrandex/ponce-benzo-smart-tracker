@@ -8,6 +8,8 @@ import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchRutaSemana, lunesDe, sumarDias } from "@/app/lib/queries/rutas";
 import { RESULTADO_LABEL, type Resultado } from "@/app/lib/queries/merchandisers";
 import { hoyCaracas } from "@/app/lib/queries/taskFilters";
+import { useAuth } from "@/app/lib/auth-context";
+import { canConfigure } from "@/app/lib/roles";
 import SectionError from "@/app/components/ui/SectionError";
 import { Skeleton, SkeletonCard, SkeletonList } from "@/app/components/ui/Skeleton";
 
@@ -27,6 +29,7 @@ const rango = (lunes: string) => {
 
 // La semana vive en la URL (?semana=lunes) para que el enlace se pueda compartir.
 export default function RutaSemanal({ userId }: { userId: string }) {
+  const { profile } = useAuth();
   const sp = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -67,6 +70,7 @@ export default function RutaSemanal({ userId }: { userId: string }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", padding: "12px 14px" }}>
         <div className="section-title" style={{ margin: 0 }}>Ruta</div>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          {canConfigure(profile?.role) && <Link href={`/panel/mercaderistas/${userId}/ruta`} style={{ color: "var(--accent)", fontWeight: 600, fontSize: "var(--text-sm)", textDecoration: "none", marginRight: "6px" }}>Editar ruta</Link>}
           {!esEstaSemana && <button type="button" className="filter-chip" onClick={() => irA(null)}>Esta semana</button>}
           <button type="button" className="filter-chip" aria-label="Semana anterior" onClick={() => irA(sumarDias(lunes, -7))}><ChevronLeft size={14} /></button>
           <span style={{ minWidth: "130px", textAlign: "center", fontSize: "var(--text-sm)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{rango(lunes)}</span>
