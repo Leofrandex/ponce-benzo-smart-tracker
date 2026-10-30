@@ -22,6 +22,8 @@ select gen_random_uuid() as u,
        gen_random_uuid() as r_lun,      -- ruta normal preexistente del primer lunes
        gen_random_uuid() as r_mar,      -- ruta del primer martes, con sesión
        date_trunc('week', public.fn_hoy() + 7)::date as lun,
+       (select min(g::date) from generate_series((public.fn_hoy() - 7)::timestamp, (public.fn_hoy() - 1)::timestamp, interval '1 day') g
+        where extract(isodow from g) <= 5) as pasado,  -- dia habil pasado
        st[1] as a, st[2] as b, st[3] as c
 from (select array_agg(store_id order by store_id) as st
       from (select store_id from public.stores where active order by store_id limit 3) x) s;
@@ -43,8 +45,12 @@ insert into public.routes (route_id, user_id, route_date, store_ids, is_special)
 select r_mar, u, lun + 1, array[a], false from _ctx;               -- martes futuro
 insert into public.sessions (user_id, route_id, start_location)
 select u, r_mar, '{}'::jsonb from _ctx;
+insert into public.routes (user_id, route_date, store_ids, is_special)
+select u, lun + 3, array[a], false from _ctx;                      -- jueves futuro sin sesion: se borra
+insert into public.routes (user_id, route_date, store_ids, is_special)
+select u, pasado, array[c], false from _ctx;                       -- dia habil pasado: v0 lo borraria
 
--- v0: pasada y vacía (si no se respetara hoy, borraría la fila de hoy).
+-- v0: pasada y vacía (si no se respetara hoy, borraría la fila de hoy y la del día pasado).
 -- v1: desde el próximo lunes. Lunes: A semanal, B cada 2 (ancla ese lunes), C semanal inactiva.
 -- v2: desde el miércoles de la segunda semana. Lunes vacío, miércoles A.
 insert into public.route_plans (user_id, effective_from)
@@ -100,6 +106,11 @@ union all
 select 'no_toca_hoy_ni_especiales',
        (select store_ids from _r where route_date = lun and is_special) = array[c]
        and (select store_ids from _r where route_date = public.fn_hoy() and not is_special) = array[c]
+       and (select store_ids from _r where route_date = pasado and not is_special) = array[c]
+from _ctx
+union all
+select 'borra_sin_sesion',
+       not exists (select 1 from _r where route_date = lun + 3)
 from _ctx
 union all
 select 'mitad_semana',
