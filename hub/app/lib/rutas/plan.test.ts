@@ -83,7 +83,9 @@ test("diffPlan detecta altas, bajas, cambios y orden", () => {
   assert.deepEqual(d.altas.map((x) => `${x.weekday}${x.store_id}`), ["2b"]);
   assert.deepEqual(d.bajas, [{ weekday: 1, store_id: "b" }]);
   assert.deepEqual(d.cambios.map((x) => [x.weekday, x.store_id, x.every_n_weeks]), [[1, "c", 4]]);
-  assert.deepEqual(d.orden, { 1: ["c", "a"], 2: ["b"], 3: [], 4: [], 5: [] });
+  assert.deepEqual(d.orden[1], ["c", "a"]);
+  assert.deepEqual(d.orden[2], ["b"]);
+  assert.equal(d.orden[3], undefined);
 });
 
 test("aplicarDiff conserva lo propio de la versión futura", () => {
@@ -102,4 +104,14 @@ test("aplicarDiff ignora bajas que la futura ya no tiene", () => {
   const futura = [p(1, "a", 1, A, 1), p(1, "c", 2, A, 2)];
   const out = aplicarDiff(futura, diffPlan(base, editado));
   assert.ok(!out.some((x) => x.weekday === 1 && x.store_id === "b"));
+});
+
+test("aplicarDiff no reordena días que no se tocaron", () => {
+  const b = [p(2, "a", 1, A, 1), p(2, "b", 1, A, 2), p(1, "x", 1, A, 1)];
+  const e = [p(2, "a", 1, A, 1), p(2, "b", 1, A, 2)];
+  const d = diffPlan(b, e);
+  assert.equal(d.orden[2], undefined);
+  const futura = [p(2, "b", 1, A, 1), p(2, "a", 1, A, 2), p(2, "y", 1, A, 3), p(1, "x", 1, A, 1)];
+  const out = aplicarDiff(futura, d);
+  assert.deepEqual(ids(out.filter((s) => s.weekday === 2)), ["b", "a", "y"]);
 });

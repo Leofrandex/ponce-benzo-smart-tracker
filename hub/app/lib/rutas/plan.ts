@@ -11,7 +11,7 @@ export type DiffPlan = {
   altas: Parada[];
   bajas: { weekday: Weekday; store_id: string }[];
   cambios: Parada[];
-  orden: Record<Weekday, string[]>;
+  orden: Partial<Record<Weekday, string[]>>; // solo días cuyo orden cambió
 };
 
 const DIAS: Weekday[] = [1, 2, 3, 4, 5];
@@ -78,8 +78,13 @@ export function diffPlan(base: Parada[], editado: Parada[]): DiffPlan {
     else if (antes.every_n_weeks !== s.every_n_weeks || antes.anchor_monday !== s.anchor_monday) cambios.push(s);
   }
   const bajas = Array.from(enBase).filter(([k]) => !enEditado.has(k)).map(([, s]) => ({ weekday: s.weekday, store_id: s.store_id }));
-  const orden = { 1: [], 2: [], 3: [], 4: [], 5: [] } as Record<Weekday, string[]>;
-  for (const s of [...editado].sort((a, b) => a.position - b.position)) orden[s.weekday].push(s.store_id);
+  const secuencia = (ps: Parada[], w: Weekday) =>
+    ps.filter((s) => s.weekday === w).sort((a, b) => a.position - b.position).map((s) => s.store_id);
+  const orden: Partial<Record<Weekday, string[]>> = {};
+  for (const w of DIAS) {
+    const nuevo = secuencia(editado, w);
+    if (nuevo.join("|") !== secuencia(base, w).join("|")) orden[w] = nuevo;
+  }
   return { altas, bajas, cambios, orden };
 }
 
@@ -94,8 +99,8 @@ export function aplicarDiff(stops: Parada[], diff: DiffPlan): Parada[] {
       const c = cambios.get(s.store_id);
       dia.set(s.store_id, c ? { ...s, every_n_weeks: c.every_n_weeks, anchor_monday: c.anchor_monday } : s);
     }
-    for (const a of diff.altas.filter((x) => x.weekday === weekday)) dia.set(a.store_id, a);
-    const primeras = diff.orden[weekday].filter((id) => dia.has(id));
+    for (const a of diff.altas.filter((x) => x.weekday === weekday).sort((x, y) => x.position - y.position)) dia.set(a.store_id, a);
+    const primeras = (diff.orden[weekday] ?? []).filter((id) => dia.has(id));
     const orden = [...primeras, ...Array.from(dia.keys()).filter((id) => !primeras.includes(id))];
     orden.forEach((id, i) => out.push({ ...dia.get(id)!, weekday, position: i + 1 }));
   }
