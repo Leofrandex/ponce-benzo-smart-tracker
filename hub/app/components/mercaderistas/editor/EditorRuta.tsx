@@ -9,11 +9,11 @@ import {
   type DragEndEvent, type DragOverEvent, type DragStartEvent, type UniqueIdentifier,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { lunesDe, sumarDias } from "@/app/lib/queries/rutas";
+import { sumarDias } from "@/app/lib/queries/rutas";
 import { guardarRuta, ultimaVersionVista, type TiendaBuscable } from "@/app/lib/queries/rutaPlan";
-import { paradasDelDia, versionesFuturas, type Parada, type Version, type Weekday } from "@/app/lib/rutas/plan";
+import { primerLunesDesde, versionesFuturas, type Parada, type Version, type Weekday } from "@/app/lib/rutas/plan";
 import { contarCambios, iniciarEditor, reducir, stopsDelDia, type Accion, type EditorState } from "@/app/lib/rutas/editorState";
-import { armarVersionesAGuardar, avisoFecha, baseParaFecha, esConflictoVersion, fechaCorta, rangoSemana } from "@/app/lib/rutas/editorUi";
+import { armarVersionesAGuardar, avisoFecha, baseParaFecha, esConflictoVersion, fechaCorta, numerosDelDia, rangoSemana } from "@/app/lib/rutas/editorUi";
 import ColumnaDia from "./ColumnaDia";
 import { CuerpoTarjeta, idTarjeta } from "./TarjetaParada";
 import PanelParada from "./PanelParada";
@@ -25,7 +25,7 @@ const DIAS: { w: Weekday; nombre: string }[] = [
 ];
 const NOMBRE_DIA = Object.fromEntries(DIAS.map((d) => [d.w, d.nombre])) as Record<Weekday, string>;
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
-const SALIR_SIN_GUARDAR = "Hay cambios sin guardar. ¿Salir sin guardarlos?";
+const SALIR_SIN_GUARDAR = "Tienes cambios sin guardar. ¿Salir sin guardar?";
 
 // Ids del tablero: "dia-N" para la columna, "N|store_id" para cada tarjeta.
 const diaDe = (id: UniqueIdentifier): Weekday => {
@@ -44,7 +44,7 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, manana,
   const router = useRouter();
   const [s, dispatch] = useReducer(reducirEditor, undefined, () => iniciarEditor(baseParaFecha(versiones, manana), manana));
   const [fechaBase, setFechaBase] = useState(manana); // fecha cuya versión vigente es s.base
-  const [semana, setSemana] = useState(() => lunesDe(manana));
+  const [semana, setSemana] = useState(() => primerLunesDesde(manana));
   const [recargando, setRecargando] = useState(false);
   const [sel, setSel] = useState<string | null>(null);
   const [arrastrada, setArrastrada] = useState<string | null>(null);
@@ -68,7 +68,7 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, manana,
   const cambiarFecha = (v: string) => {
     if (cambios === 0) reiniciar(v);
     else dispatch({ tipo: "fecha", effectiveFrom: v });
-    setSemana(lunesDe(v));
+    setSemana(primerLunesDesde(v));
   };
   const recargar = async () => {
     if (cambios > 0 && !window.confirm("Se perderán los cambios sin guardar. ¿Recargar la ruta?")) return;
@@ -79,8 +79,21 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, manana,
   useEffect(() => {
     if (cambios === 0) return;
     const onUnload = (e: BeforeUnloadEvent) => { if (!saliendo.current) { e.preventDefault(); e.returnValue = ""; } };
+    // Los <Link> de Next (menú, encabezado, volver) navegan sin recargar: se interceptan en captura.
+    const onClick = (e: MouseEvent) => {
+      if (saliendo.current || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = e.target instanceof Element ? e.target.closest<HTMLAnchorElement>("a[href]") : null;
+      if (!a || (a.target && a.target !== "_self") || a.hasAttribute("download")) return;
+      const url = new URL(a.href, window.location.href);
+      if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return;
+      if (!window.confirm(SALIR_SIN_GUARDAR)) { e.preventDefault(); e.stopPropagation(); }
+    };
     window.addEventListener("beforeunload", onUnload);
-    return () => window.removeEventListener("beforeunload", onUnload);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", onUnload);
+      document.removeEventListener("click", onClick, true);
+    };
   }, [cambios]);
 
   const sensors = useSensors(
@@ -111,17 +124,16 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, manana,
 
   const seleccionada = sel ? s.stops.find((p) => idTarjeta(p) === sel) ?? null : null;
   const enArrastre = arrastrada ? s.stops.find((p) => idTarjeta(p) === arrastrada) ?? null : null;
-  const numeroEnSemana = (p: Parada) => {
-    const i = paradasDelDia(stopsDelDia(s, p.weekday), sumarDias(semana, p.weekday - 1)).findIndex((x) => x.store_id === p.store_id);
-    return i < 0 ? null : i + 1;
-  };
+  const numeroEnSemana = (p: Parada) =>
+    numerosDelDia(stopsDelDia(s, p.weekday), sumarDias(semana, p.weekday - 1), s.effectiveFrom, (id) => porId.get(id)?.active !== false)
+      .get(p.store_id) ?? null;
 
   async function guardar(aplicarAFuturas: boolean) {
     setConfirmar(false); setSel(null); setGuardando(true); setError(null);
     try {
       await guardarRuta(userId, armarVersionesAGuardar(s.base, s.stops, s.effectiveFrom, futuras, aplicarAFuturas), ultimaVersionVista(versiones));
       saliendo.current = true;
-      router.push(`${perfil}?ver=ruta&semana=${lunesDe(s.effectiveFrom)}`);
+      router.push(`${perfil}?ver=ruta&semana=${primerLunesDesde(s.effectiveFrom)}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e)); // mensaje del servidor, tal cual
       setGuardando(false);
@@ -133,7 +145,6 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, manana,
       <style>{ESTILOS_EDITOR}</style>
       <Link
         href={perfil}
-        onClick={(e) => { if (cambios > 0 && !window.confirm(SALIR_SIN_GUARDAR)) e.preventDefault(); }}
         style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--text-sm)", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}
       >
         <ArrowLeft size={15} /> {nombre}
@@ -161,12 +172,14 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, manana,
             <span role="status" style={{ flexBasis: "100%", order: 1, color: "var(--warning)", fontWeight: 600 }}>
               {aviso.tipo === "reemplaza"
                 ? `Tus cambios se armaron sobre la ruta vigente antes del ${fechaCorta(aviso.fecha)}. Si guardas con esta fecha, reemplazarán el cambio programado.`
-                : `Ojo: hay un cambio programado desde el ${fechaCorta(aviso.fecha)} que rige antes de esta fecha.`}
+                : aviso.tipo === "adelanta"
+                  ? `Tus cambios se armaron sobre el cambio programado del ${fechaCorta(aviso.fecha)}. Si guardas con esta fecha, ese contenido empezará a regir antes, desde el ${fechaCorta(s.effectiveFrom)}.`
+                  : `Ojo: hay un cambio programado desde el ${fechaCorta(aviso.fecha)} que rige antes de esta fecha.`}
             </span>
           )}
           <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             Viendo la semana
-            <button type="button" className="filter-chip" aria-label="Semana anterior" disabled={semana <= lunesDe(s.effectiveFrom)} onClick={() => setSemana(sumarDias(semana, -7))}><ChevronLeft size={14} /></button>
+            <button type="button" className="filter-chip" aria-label="Semana anterior" disabled={semana <= primerLunesDesde(s.effectiveFrom)} onClick={() => setSemana(sumarDias(semana, -7))}><ChevronLeft size={14} /></button>
             <span style={{ minWidth: "110px", textAlign: "center", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{rangoSemana(semana)}</span>
             <button type="button" className="filter-chip" aria-label="Semana siguiente" onClick={() => setSemana(sumarDias(semana, 7))}><ChevronRight size={14} /></button>
           </span>
@@ -184,6 +197,7 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, manana,
                   weekday={w}
                   nombre={dia}
                   fechaVista={sumarDias(semana, w - 1)}
+                  desde={s.effectiveFrom}
                   stops={stopsDelDia(s, w)}
                   tiendas={tiendas}
                   porId={porId}
@@ -198,7 +212,7 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, manana,
             <DragOverlay>
               {enArrastre && (
                 <div className="ed-card ed-card-drag">
-                  <CuerpoTarjeta parada={enArrastre} tienda={porId.get(enArrastre.store_id)} numero={numeroEnSemana(enArrastre)} />
+                  <CuerpoTarjeta parada={enArrastre} tienda={porId.get(enArrastre.store_id)} numero={numeroEnSemana(enArrastre)} anterior={sumarDias(semana, enArrastre.weekday - 1) < s.effectiveFrom} />
                 </div>
               )}
             </DragOverlay>
@@ -241,7 +255,7 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, manana,
       </div>
 
       {confirmar && (
-        <ConfirmarFuturas fecha={fechaCorta(futuras[0].effective_from)} onAmbas={() => guardar(true)} onSoloEsta={() => guardar(false)} onCancelar={() => setConfirmar(false)} />
+        <ConfirmarFuturas fecha={fechaCorta(futuras[0].effective_from)} mas={futuras.length - 1} onAmbas={() => guardar(true)} onSoloEsta={() => guardar(false)} onCancelar={() => setConfirmar(false)} />
       )}
     </>
   );

@@ -1,7 +1,7 @@
 import { normalizeText } from "../queries/taskFilters";
 import { sumarDias } from "../queries/rutas";
 import type { TiendaBuscable } from "../queries/rutaPlan";
-import { aplicarDiff, diffPlan, versionVigente, type Parada, type Version } from "./plan";
+import { aplicarDiff, diffPlan, paradasDelDia, versionVigente, type Parada, type Version } from "./plan";
 
 // Piezas puras del editor de ruta fija (formato, búsqueda y armado del guardado).
 
@@ -36,16 +36,28 @@ export function baseParaFecha(versiones: Version[], fecha: string): Parada[] {
   return versionVigente(versiones, fecha)?.stops ?? [];
 }
 
-export type AvisoFecha = { tipo: "reemplaza" | "rige-antes"; fecha: string } | null;
+export type AvisoFecha = { tipo: "reemplaza" | "rige-antes" | "adelanta"; fecha: string } | null;
 
 // Cambios armados sobre la ruta vigente en `fechaBase` y movidos a `fecha`: ¿queda una versión
 // programada en medio? Igual a `fecha` → guardar la reemplaza; antes de `fecha` → rige antes.
+// Fecha anterior a la base y la base es una versión que empieza después de `fecha` → su contenido se adelanta.
 export function avisoFecha(versiones: Version[], fechaBase: string, fecha: string): AvisoFecha {
+  if (fecha < fechaBase) {
+    const desde = versionVigente(versiones, fechaBase)?.effective_from;
+    return desde && desde > fecha ? { tipo: "adelanta", fecha: desde } : null;
+  }
   let ultima: string | null = null;
   for (const v of versiones) {
     if (v.effective_from > fechaBase && v.effective_from <= fecha && (!ultima || v.effective_from > ultima)) ultima = v.effective_from;
   }
   return ultima ? { tipo: ultima === fecha ? "reemplaza" : "rige-antes", fecha: ultima } : null;
+}
+
+// Número de orden de cada parada en `fecha`, como lo materializa el servidor: nada antes de que
+// rija la ruta (`desde`) y sin contar sucursales inactivas.
+export function numerosDelDia(stops: Parada[], fecha: string, desde: string, activa: (storeId: string) => boolean): Map<string, number> {
+  if (fecha < desde) return new Map();
+  return new Map(paradasDelDia(stops, fecha).filter((p) => activa(p.store_id)).map((p, i) => [p.store_id, i + 1]));
 }
 
 // Rechazo del guardado porque otra persona guardó antes (ver fn_guardar_ruta).

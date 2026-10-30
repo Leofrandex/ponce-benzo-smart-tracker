@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  aplicarDiff, diffPlan, normalizarAncla, opcionesSemana, paradasDelDia, proximasVisitas,
+  aplicarDiff, diffPlan, normalizarAncla, opcionesSemana, paradasDelDia, primerLunesDesde, proximasVisitas,
   tocaEnFecha, versionesFuturas, versionVigente,
   type Frecuencia, type Parada, type Version, type Weekday,
 } from "./plan";
@@ -114,4 +114,12 @@ test("aplicarDiff no reordena días que no se tocaron", () => {
   const futura = [p(2, "b", 1, A, 1), p(2, "a", 1, A, 2), p(2, "y", 1, A, 3), p(1, "x", 1, A, 1)];
   const out = aplicarDiff(futura, d);
   assert.deepEqual(ids(out.filter((s) => s.weekday === 2)), ["b", "a", "y"]);
+});
+
+test("primerLunesDesde: su lunes entre semana, el siguiente en fin de semana", () => {
+  assert.equal(primerLunesDesde("2026-11-18"), "2026-11-16"); // miércoles
+  assert.equal(primerLunesDesde("2026-11-16"), "2026-11-16"); // lunes
+  assert.equal(primerLunesDesde("2026-11-20"), "2026-11-16"); // viernes
+  assert.equal(primerLunesDesde("2026-11-21"), "2026-11-23"); // sábado
+  assert.equal(primerLunesDesde("2026-11-22"), "2026-11-23"); // domingo
 });

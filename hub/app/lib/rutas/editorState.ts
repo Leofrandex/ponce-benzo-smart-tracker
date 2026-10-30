@@ -1,5 +1,4 @@
-import { lunesDe } from "../queries/rutas";
-import { diffPlan, normalizarAncla, opcionesSemana, type Frecuencia, type Parada, type Weekday } from "./plan";
+import { diffPlan, normalizarAncla, opcionesSemana, primerLunesDesde, type Frecuencia, type Parada, type Weekday } from "./plan";
 
 export type EditorState = { effectiveFrom: string; base: Parada[]; stops: Parada[] };
 export type Accion =
@@ -20,8 +19,12 @@ function compactar(stops: Parada[]): Parada[] {
   );
 }
 
+// Las semanas elegibles empiezan en la primera semana laboral desde la fecha (sábado/domingo → el lunes siguiente).
+const semanas = (effectiveFrom: string, n: Frecuencia) => opcionesSemana(primerLunesDesde(effectiveFrom), n);
+const ancla = (anchor: string, effectiveFrom: string, n: Frecuencia) => normalizarAncla(anchor, primerLunesDesde(effectiveFrom), n);
+
 const reanclar = (stops: Parada[], effectiveFrom: string) =>
-  stops.map((s) => ({ ...s, anchor_monday: normalizarAncla(s.anchor_monday, effectiveFrom, s.every_n_weeks) }));
+  stops.map((s) => ({ ...s, anchor_monday: ancla(s.anchor_monday, effectiveFrom, s.every_n_weeks) }));
 
 export function iniciarEditor(base: Parada[], effectiveFrom: string): EditorState {
   const b = compactar(reanclar(base, effectiveFrom));
@@ -43,7 +46,7 @@ export function reducir(s: EditorState, a: Accion): EditorState {
       if (s.stops.some((p) => p.weekday === a.weekday && p.store_id === a.store_id)) return s;
       const nueva: Parada = {
         weekday: a.weekday, position: stopsDelDia(s, a.weekday).length + 1, store_id: a.store_id,
-        every_n_weeks: 1, anchor_monday: lunesDe(s.effectiveFrom),
+        every_n_weeks: 1, anchor_monday: primerLunesDesde(s.effectiveFrom),
       };
       return { ...s, stops: compactar([...s.stops, nueva]) };
     }
@@ -64,11 +67,11 @@ export function reducir(s: EditorState, a: Accion): EditorState {
       return actualiza(s, a.weekday, a.store_id, (p) => ({
         ...p,
         every_n_weeks: a.n,
-        anchor_monday: p.every_n_weeks > 1 ? normalizarAncla(p.anchor_monday, s.effectiveFrom, a.n) : opcionesSemana(s.effectiveFrom, a.n)[0],
+        anchor_monday: p.every_n_weeks > 1 ? ancla(p.anchor_monday, s.effectiveFrom, a.n) : semanas(s.effectiveFrom, a.n)[0],
       }));
     case "semana":
       return actualiza(s, a.weekday, a.store_id, (p) =>
-        opcionesSemana(s.effectiveFrom, p.every_n_weeks).includes(a.anchor_monday) ? { ...p, anchor_monday: a.anchor_monday } : p);
+        semanas(s.effectiveFrom, p.every_n_weeks).includes(a.anchor_monday) ? { ...p, anchor_monday: a.anchor_monday } : p);
     case "fecha":
       // base y stops se reanclan igual: cambiar la fecha no es una edición.
       return { effectiveFrom: a.effectiveFrom, base: reanclar(s.base, a.effectiveFrom), stops: reanclar(s.stops, a.effectiveFrom) };

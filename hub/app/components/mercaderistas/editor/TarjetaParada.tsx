@@ -8,8 +8,12 @@ import type { TiendaBuscable } from "@/app/lib/queries/rutaPlan";
 export const idTarjeta = (p: Pick<Parada, "weekday" | "store_id">) => `${p.weekday}|${p.store_id}`;
 
 // Cuerpo visible de la tarjeta; lo reutiliza el overlay de arrastre.
-export function CuerpoTarjeta({ parada, tienda, numero }: { parada: Parada; tienda: TiendaBuscable | undefined; numero: number | null }) {
+// `anterior`: el día visto es previo a la fecha desde la que rige la ruta (atenuada, sin número).
+export function CuerpoTarjeta({ parada, tienda, numero, anterior = false }: {
+  parada: Parada; tienda: TiendaBuscable | undefined; numero: number | null; anterior?: boolean;
+}) {
   const toca = numero !== null;
+  const inactiva = tienda?.active === false;
   return (
     <>
       <GripVertical size={14} aria-hidden style={{ color: "var(--text-muted)", flexShrink: 0, marginTop: "1px" }} />
@@ -17,9 +21,9 @@ export function CuerpoTarjeta({ parada, tienda, numero }: { parada: Parada; tien
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: "block", fontWeight: 600, lineHeight: 1.25, overflowWrap: "anywhere" }}>{tienda?.name ?? parada.store_id}</span>
         <span style={{ display: "block", fontSize: "var(--text-2xs)", color: "var(--text-muted)", marginTop: "2px" }}>
-          {toca ? (tienda?.zona ?? "") : "No toca esta semana"}
+          {toca || anterior || inactiva ? (tienda?.zona ?? "") : "No toca esta semana"}
         </span>
-        {tienda && !tienda.active && (
+        {inactiva && (
           <span style={{ display: "block", fontSize: "var(--text-2xs)", color: "var(--danger)", fontWeight: 600, marginTop: "2px" }}>Sucursal inactiva</span>
         )}
         <span className={`ed-chip${parada.every_n_weeks > 1 ? " ed-chip-n" : ""}`}>
@@ -30,8 +34,8 @@ export function CuerpoTarjeta({ parada, tienda, numero }: { parada: Parada; tien
   );
 }
 
-export default function TarjetaParada({ parada, tienda, numero, seleccionada, bloqueado, onAbrir }: {
-  parada: Parada; tienda: TiendaBuscable | undefined; numero: number | null; seleccionada: boolean; bloqueado: boolean; onAbrir: () => void;
+export default function TarjetaParada({ parada, tienda, numero, anterior, seleccionada, bloqueado, onAbrir }: {
+  parada: Parada; tienda: TiendaBuscable | undefined; numero: number | null; anterior: boolean; seleccionada: boolean; bloqueado: boolean; onAbrir: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: idTarjeta(parada), disabled: bloqueado });
   const off = numero === null;
@@ -53,7 +57,7 @@ export default function TarjetaParada({ parada, tienda, numero, seleccionada, bl
         opacity: isDragging ? 0.35 : undefined,
       }}
     >
-      <CuerpoTarjeta parada={parada} tienda={tienda} numero={numero} />
+      <CuerpoTarjeta parada={parada} tienda={tienda} numero={numero} anterior={anterior} />
     </li>
   );
 }

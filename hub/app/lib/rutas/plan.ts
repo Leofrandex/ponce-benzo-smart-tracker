@@ -36,6 +36,12 @@ export function paradasDelDia(stops: Parada[], ymd: string): Parada[] {
   return stops.filter((s) => tocaEnFecha(s, ymd)).sort((a, b) => a.position - b.position);
 }
 
+// Lunes de la primera semana laboral en que rige `ymd`: su lunes si cae lunes–viernes, si no el siguiente.
+export function primerLunesDesde(ymd: string): string {
+  const lunes = lunesDe(ymd);
+  return weekdayDe(ymd) % 6 === 0 ? sumarDias(lunes, 7) : lunes;
+}
+
 export function opcionesSemana(effectiveFrom: string, n: Frecuencia): string[] {
   const lunes = lunesDe(effectiveFrom);
   return Array.from({ length: n }, (_, i) => sumarDias(lunes, 7 * i));

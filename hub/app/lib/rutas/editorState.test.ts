@@ -118,3 +118,19 @@ test("semana ignora un ancla fuera de las opciones", () => {
   const s = run(iniciarEditor([], "2026-11-16"), add(1, "a"), { tipo: "frecuencia", weekday: 1, store_id: "a", n: 2 });
   assert.deepEqual(reducir(s, { tipo: "semana", weekday: 1, store_id: "a", anchor_monday: "2026-12-07" }), s);
 });
+
+test("fecha en sábado: las semanas elegibles empiezan el lunes siguiente", () => {
+  const s = run(iniciarEditor([], "2026-11-21"), add(1, "a"), { tipo: "frecuencia", weekday: 1, store_id: "a", n: 2 });
+  assert.equal(stopsDelDia(s, 1)[0].anchor_monday, "2026-11-23");
+  // el lunes anterior a la fecha no es opción
+  assert.deepEqual(reducir(s, { tipo: "semana", weekday: 1, store_id: "a", anchor_monday: "2026-11-16" }), s);
+  const s2 = reducir(s, { tipo: "semana", weekday: 1, store_id: "a", anchor_monday: "2026-11-30" });
+  assert.equal(stopsDelDia(s2, 1)[0].anchor_monday, "2026-11-30");
+});
+
+test("cambiar la fecha a un domingo reancla al lunes siguiente", () => {
+  const base: Parada[] = [{ weekday: 2, position: 1, store_id: "a", every_n_weeks: 2, anchor_monday: "2026-11-16" }];
+  const s = run(iniciarEditor(base, "2026-11-16"), { tipo: "fecha", effectiveFrom: "2026-11-29" });
+  assert.equal(s.stops[0].anchor_monday, "2026-11-30"); // misma paridad que el 16 nov
+  assert.equal(contarCambios(s), 0);
+});

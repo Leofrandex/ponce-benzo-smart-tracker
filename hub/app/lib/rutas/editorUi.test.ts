@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { armarVersionesAGuardar, avisoFecha, baseParaFecha, buscarTiendas, esConflictoVersion, fechaCorta, rangoSemana } from "./editorUi";
+import { armarVersionesAGuardar, avisoFecha, baseParaFecha, buscarTiendas, esConflictoVersion, fechaCorta, numerosDelDia, rangoSemana } from "./editorUi";
 import type { Parada, Version } from "./plan";
 
 const p = (weekday: Parada["weekday"], position: number, store_id: string, every_n_weeks: Parada["every_n_weeks"] = 1, anchor_monday = "2026-11-16"): Parada =>
@@ -66,6 +66,28 @@ test("avisoFecha: versión programada entre la base y la nueva fecha", () => {
   assert.deepEqual(avisoFecha(vs, "2026-11-20", "2026-12-01"), { tipo: "reemplaza", fecha: "2026-12-01" });
   assert.deepEqual(avisoFecha(vs, "2026-11-20", "2026-12-08"), { tipo: "rige-antes", fecha: "2026-12-01" });
   assert.equal(avisoFecha(vs, "2026-12-01", "2026-12-08"), null); // la base ya es esa versión
+});
+
+test("avisoFecha: fecha anterior a la base adelanta la versión programada", () => {
+  const vs = [v("2026-11-16", []), v("2026-12-01", [])];
+  // base armada desde el 1 dic (versión G), fecha movida al 20 nov → G empezaría a regir antes
+  assert.deepEqual(avisoFecha(vs, "2026-12-03", "2026-11-20"), { tipo: "adelanta", fecha: "2026-12-01" });
+  assert.deepEqual(avisoFecha(vs, "2026-12-01", "2026-11-30"), { tipo: "adelanta", fecha: "2026-12-01" });
+  // la base sigue siendo la misma versión → sin aviso
+  assert.equal(avisoFecha(vs, "2026-11-27", "2026-11-20"), null);
+  assert.equal(avisoFecha(vs, "2026-12-08", "2026-12-01"), null);
+  // sin versiones o base vacía antes de toda versión
+  assert.equal(avisoFecha([], "2026-12-03", "2026-11-20"), null);
+  assert.equal(avisoFecha(vs, "2026-11-12", "2026-11-10"), null);
+});
+
+test("numerosDelDia: nada antes de que rija, sin contar inactivas", () => {
+  const stops = [p(3, 1, "a"), p(3, 2, "b"), p(3, 3, "c"), p(3, 4, "d", 2)]; // d cada 2 desde el 16 nov
+  const todas = () => true;
+  assert.deepEqual(Array.from(numerosDelDia(stops, "2026-11-18", "2026-11-18", todas)), [["a", 1], ["b", 2], ["c", 3], ["d", 4]]);
+  assert.deepEqual(Array.from(numerosDelDia(stops, "2026-11-25", "2026-11-18", todas)), [["a", 1], ["b", 2], ["c", 3]]);
+  assert.equal(numerosDelDia(stops, "2026-11-18", "2026-11-19", todas).size, 0); // sigue la ruta anterior
+  assert.deepEqual(Array.from(numerosDelDia(stops, "2026-11-18", "2026-11-18", (id) => id !== "b")), [["a", 1], ["c", 2], ["d", 3]]);
 });
 
 test("esConflictoVersion", () => {

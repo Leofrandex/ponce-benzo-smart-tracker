@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { opcionesSemana, proximasVisitas, type Frecuencia, type Parada } from "@/app/lib/rutas/plan";
+import { opcionesSemana, primerLunesDesde, proximasVisitas, type Frecuencia, type Parada } from "@/app/lib/rutas/plan";
 import { fechaCorta } from "@/app/lib/rutas/editorUi";
 
 const FRECUENCIAS: { n: Frecuencia; label: string }[] = [
@@ -44,7 +44,7 @@ export default function PanelParada({ parada, nombreTienda, nombreDia, fecha, on
           <div className="ed-label">¿En qué semana le toca primero?</div>
           <Segmentado
             label="¿En qué semana le toca primero?"
-            opciones={opcionesSemana(fecha, n).map((l) => ({ v: l, label: fechaCorta(l) }))}
+            opciones={opcionesSemana(primerLunesDesde(fecha), n).map((l) => ({ v: l, label: fechaCorta(l) }))}
             valor={parada.anchor_monday}
             onCambio={onSemana}
           />
