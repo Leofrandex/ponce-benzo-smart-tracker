@@ -1,0 +1,208 @@
+"use client";
+
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  DndContext, DragOverlay, KeyboardCode, KeyboardSensor, PointerSensor, closestCorners, useSensor, useSensors,
+  type DragEndEvent, type DragOverEvent, type DragStartEvent, type UniqueIdentifier,
+} from "@dnd-kit/core";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { lunesDe, sumarDias } from "@/app/lib/queries/rutas";
+import { guardarRuta, ultimaVersionVista, type TiendaBuscable } from "@/app/lib/queries/rutaPlan";
+import { paradasDelDia, versionesFuturas, versionVigente, type Parada, type Version, type Weekday } from "@/app/lib/rutas/plan";
+import { contarCambios, iniciarEditor, reducir, stopsDelDia } from "@/app/lib/rutas/editorState";
+import { armarVersionesAGuardar, fechaCorta, rangoSemana } from "@/app/lib/rutas/editorUi";
+import ColumnaDia from "./ColumnaDia";
+import { CuerpoTarjeta, idTarjeta } from "./TarjetaParada";
+import PanelParada from "./PanelParada";
+import ConfirmarFuturas from "./ConfirmarFuturas";
+import { ESTILOS_EDITOR } from "./estilos";
+
+const DIAS: { w: Weekday; nombre: string }[] = [
+  { w: 1, nombre: "Lunes" }, { w: 2, nombre: "Martes" }, { w: 3, nombre: "Miércoles" }, { w: 4, nombre: "Jueves" }, { w: 5, nombre: "Viernes" },
+];
+const NOMBRE_DIA = Object.fromEntries(DIAS.map((d) => [d.w, d.nombre])) as Record<Weekday, string>;
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
+const SALIR_SIN_GUARDAR = "Hay cambios sin guardar. ¿Salir sin guardarlos?";
+
+// Ids del tablero: "dia-N" para la columna, "N|store_id" para cada tarjeta.
+const diaDe = (id: UniqueIdentifier): Weekday => {
+  const s = String(id);
+  return Number(s.startsWith("dia-") ? s.slice(4) : s.slice(0, s.indexOf("|"))) as Weekday;
+};
+const tiendaDe = (id: UniqueIdentifier) => { const s = String(id); return s.slice(s.indexOf("|") + 1); };
+
+export default function EditorRuta({ userId, nombre, versiones, tiendas, manana }: {
+  userId: string; nombre: string; versiones: Version[]; tiendas: TiendaBuscable[]; manana: string;
+}) {
+  const router = useRouter();
+  const [s, dispatch] = useReducer(reducir, undefined, () => iniciarEditor(versionVigente(versiones, manana)?.stops ?? [], manana));
+  const [semana, setSemana] = useState(() => lunesDe(manana));
+  const [sel, setSel] = useState<string | null>(null);
+  const [arrastrada, setArrastrada] = useState<string | null>(null);
+  const [overDia, setOverDia] = useState<Weekday | null>(null);
+  const [confirmar, setConfirmar] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const saliendo = useRef(false);
+
+  const porId = useMemo(() => new Map(tiendas.map((t) => [t.store_id, t])), [tiendas]);
+  const futuras = useMemo(() => versionesFuturas(versiones, s.effectiveFrom), [versiones, s.effectiveFrom]);
+  const cambios = contarCambios(s);
+  const perfil = `/panel/mercaderistas/${userId}`;
+
+  useEffect(() => {
+    if (cambios === 0) return;
+    const onUnload = (e: BeforeUnloadEvent) => { if (!saliendo.current) { e.preventDefault(); e.returnValue = ""; } };
+    window.addEventListener("beforeunload", onUnload);
+    return () => window.removeEventListener("beforeunload", onUnload);
+  }, [cambios]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), // por debajo de esto es un click (abre el panel)
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+      keyboardCodes: { start: [KeyboardCode.Space], cancel: [KeyboardCode.Esc], end: [KeyboardCode.Space, KeyboardCode.Tab] },
+    }),
+  );
+
+  const onDragStart = (e: DragStartEvent) => { setSel(null); setArrastrada(String(e.active.id)); };
+  const onDragOver = (e: DragOverEvent) => setOverDia(e.over ? diaDe(e.over.id) : null);
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    setArrastrada(null); setOverDia(null);
+    if (!over) return;
+    const desde = diaDe(active.id);
+    const hacia = diaDe(over.id);
+    const destino = stopsDelDia(s, hacia);
+    let indice = destino.length; // soltada en el hueco de la columna: al final
+    if (!String(over.id).startsWith("dia-")) {
+      indice = destino.findIndex((p) => idTarjeta(p) === over.id);
+      // Otra columna: si quedó por debajo del centro de la tarjeta, va después de ella.
+      const r = active.rect.current.translated;
+      if (desde !== hacia && r && r.top > over.rect.top + over.rect.height / 2) indice += 1;
+    }
+    dispatch({ tipo: "mover", store_id: tiendaDe(active.id), desde, hacia, indice });
+  };
+
+  const seleccionada = sel ? s.stops.find((p) => idTarjeta(p) === sel) ?? null : null;
+  const enArrastre = arrastrada ? s.stops.find((p) => idTarjeta(p) === arrastrada) ?? null : null;
+  const numeroEnSemana = (p: Parada) => {
+    const i = paradasDelDia(stopsDelDia(s, p.weekday), sumarDias(semana, p.weekday - 1)).findIndex((x) => x.store_id === p.store_id);
+    return i < 0 ? null : i + 1;
+  };
+
+  async function guardar(aplicarAFuturas: boolean) {
+    setConfirmar(false); setGuardando(true); setError(null);
+    try {
+      await guardarRuta(userId, armarVersionesAGuardar(s.base, s.stops, s.effectiveFrom, futuras, aplicarAFuturas), ultimaVersionVista(versiones));
+      saliendo.current = true;
+      router.push(`${perfil}?ver=ruta&semana=${lunesDe(s.effectiveFrom)}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e)); // mensaje del servidor, tal cual
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <>
+      <style>{ESTILOS_EDITOR}</style>
+      <Link
+        href={perfil}
+        onClick={(e) => { if (cambios > 0 && !window.confirm(SALIR_SIN_GUARDAR)) e.preventDefault(); }}
+        style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--text-sm)", color: "var(--text-muted)", textDecoration: "none", fontWeight: 500 }}
+      >
+        <ArrowLeft size={15} /> {nombre}
+      </Link>
+
+      <div className="card" style={{ padding: 0, overflow: "hidden", flexShrink: 0 }}>
+        <div className="ed-bar">
+          <h1 style={{ flex: 1, minWidth: "200px", margin: 0, fontSize: "var(--text-md)", fontWeight: 600 }}>Ruta fija de {nombre}</h1>
+          <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            Los cambios aplican desde
+            <input
+              type="date"
+              className="form-input"
+              min={manana}
+              value={s.effectiveFrom}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (!YMD.test(v) || v < manana) return;
+                dispatch({ tipo: "fecha", effectiveFrom: v });
+                setSemana(lunesDe(v));
+              }}
+              style={{ width: "auto", padding: "5px 8px", fontSize: "var(--text-sm)", borderColor: "var(--border-accent)" }}
+            />
+          </label>
+          <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            Viendo la semana
+            <button type="button" className="filter-chip" aria-label="Semana anterior" disabled={semana <= lunesDe(s.effectiveFrom)} onClick={() => setSemana(sumarDias(semana, -7))}><ChevronLeft size={14} /></button>
+            <span style={{ minWidth: "110px", textAlign: "center", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{rangoSemana(semana)}</span>
+            <button type="button" className="filter-chip" aria-label="Semana siguiente" onClick={() => setSemana(sumarDias(semana, 7))}><ChevronRight size={14} /></button>
+          </span>
+        </div>
+        {futuras.length > 0 && (
+          <div className="ed-aviso">Hay un cambio programado desde el {fechaCorta(futuras[0].effective_from)}</div>
+        )}
+
+        <div className="ed-board-wrap">
+          <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={() => { setArrastrada(null); setOverDia(null); }}>
+            <div className="ed-board">
+              {DIAS.map(({ w, nombre: dia }) => (
+                <ColumnaDia
+                  key={w}
+                  weekday={w}
+                  nombre={dia}
+                  fechaVista={sumarDias(semana, w - 1)}
+                  stops={stopsDelDia(s, w)}
+                  tiendas={tiendas}
+                  porId={porId}
+                  seleccion={sel}
+                  resaltada={overDia === w && enArrastre?.weekday !== w}
+                  onAbrir={(p) => setSel(idTarjeta(p))}
+                  onAgregar={(store_id) => dispatch({ tipo: "agregar", weekday: w, store_id })}
+                />
+              ))}
+            </div>
+            <DragOverlay>
+              {enArrastre && (
+                <div className="ed-card ed-card-drag">
+                  <CuerpoTarjeta parada={enArrastre} tienda={porId.get(enArrastre.store_id)} numero={numeroEnSemana(enArrastre)} />
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
+
+          {seleccionada && (
+            <PanelParada
+              parada={seleccionada}
+              nombreTienda={porId.get(seleccionada.store_id)?.name ?? seleccionada.store_id}
+              nombreDia={NOMBRE_DIA[seleccionada.weekday]}
+              fecha={s.effectiveFrom}
+              onFrecuencia={(n) => dispatch({ tipo: "frecuencia", weekday: seleccionada.weekday, store_id: seleccionada.store_id, n })}
+              onSemana={(anchor_monday) => dispatch({ tipo: "semana", weekday: seleccionada.weekday, store_id: seleccionada.store_id, anchor_monday })}
+              onQuitar={() => { dispatch({ tipo: "quitar", weekday: seleccionada.weekday, store_id: seleccionada.store_id }); setSel(null); }}
+              onCerrar={() => setSel(null)}
+            />
+          )}
+        </div>
+
+        <div className="ed-bar" style={{ borderTop: "1px solid var(--border)", borderBottom: 0, justifyContent: "flex-end" }}>
+          <span style={{ marginRight: "auto", color: cambios ? "var(--text-secondary)" : "var(--text-muted)" }}>
+            {cambios === 0 ? "Sin cambios" : cambios === 1 ? "1 cambio sin guardar" : `${cambios} cambios sin guardar`}
+          </span>
+          {error && <span role="alert" style={{ color: "var(--danger)", fontWeight: 600, flexBasis: "100%", order: -1 }}>{error}</span>}
+          <button type="button" className="btn btn-secondary btn-sm" disabled={cambios === 0 || guardando} onClick={() => { dispatch({ tipo: "descartar" }); setSel(null); setError(null); }}>Descartar</button>
+          <button type="button" className="btn btn-primary btn-sm" disabled={cambios === 0 || guardando} onClick={() => (futuras.length > 0 ? setConfirmar(true) : guardar(false))}>
+            {guardando ? "Guardando…" : "Guardar cambios"}
+          </button>
+        </div>
+      </div>
+
+      {confirmar && (
+        <ConfirmarFuturas fecha={fechaCorta(futuras[0].effective_from)} onAmbas={() => guardar(true)} onSoloEsta={() => guardar(false)} onCancelar={() => setConfirmar(false)} />
+      )}
+    </>
+  );
+}
