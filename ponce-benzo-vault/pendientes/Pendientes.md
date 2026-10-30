@@ -13,6 +13,24 @@ Este documento almacena las preguntas por resolver, datos necesarios por parte d
 
 ---
 
+## 🗺️ Rutas fijas (2026-10-30)
+
+Ver [[decisiones/ADR-017-Rutas-Fijas-Versionadas|ADR-017]] y [[logs/Log-2026-10-30|Log 2026-10-30]].
+
+> [!WARNING]
+> Sin ruta fija, un mercaderista se queda sin ruta desde el 01-01-2027 (las filas del CSV llegan hasta el 31-12-2026).
+
+- [ ] Armar la ruta fija de cada mercaderista activo antes del 31-12-2026 (Jonathan Fernández ya no hace rutas).
+- [ ] Verificar el editor en el navegador como admin (no se hizo: sin credenciales de admin).
+- [ ] Archivar `tools/cargar-rutas-csv.ts` y `revisar-rutas-*.ts` cuando todos tengan ruta fija.
+- [ ] `fn_extender_rutas` debe omitir usuarios inactivos (`users.active = false`); hoy siguen recibiendo rutas y bajarían el cumplimiento. Mientras tanto: guardarles una ruta vacía al darlos de baja.
+- [ ] Tomar el lock por usuario (`pg_advisory_xact_lock`) también en la extensión nocturna, para que no choque con un guardado a la 01:00.
+- [ ] El error "Hay sucursales inactivas en la ruta." debería nombrar la sucursal y la fecha de la versión.
+- [ ] Editor: anuncios de lector de pantalla en español, foco en el panel de la tienda, aviso al usar atrás/adelante del navegador.
+- [ ] Revisar la sesión del 2026-07-29 ligada a una ruta del 2026-12-28 (posible dato de prueba o bug viejo de `pickRoute`).
+
+---
+
 ## 🎨 Auditoría UX smart-ux (2026-09-29)
 
 > [!IMPORTANT]

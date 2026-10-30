@@ -1,0 +1,96 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { armarVersionesAGuardar, avisoFecha, baseParaFecha, buscarTiendas, esConflictoVersion, fechaCorta, numerosDelDia, rangoSemana } from "./editorUi";
+import type { Parada, Version } from "./plan";
+
+const p = (weekday: Parada["weekday"], position: number, store_id: string, every_n_weeks: Parada["every_n_weeks"] = 1, anchor_monday = "2026-11-16"): Parada =>
+  ({ weekday, position, store_id, every_n_weeks, anchor_monday });
+
+test("fechaCorta", () => {
+  assert.equal(fechaCorta("2026-11-16"), "16 nov");
+  assert.equal(fechaCorta("2027-01-04"), "4 ene");
+});
+
+test("rangoSemana mismo mes y cruzando mes", () => {
+  assert.equal(rangoSemana("2026-11-16"), "16 – 20 nov");
+  assert.equal(rangoSemana("2026-11-30"), "30 nov – 4 dic");
+});
+
+test("buscarTiendas: activas, no repetidas en el día, sin acentos, por cliente o zona", () => {
+  const ts = [
+    { store_id: "a", name: "GAMA Santa Mónica", client_name: "Gama", zona: "Libertador", active: true },
+    { store_id: "b", name: "FTD Monjes", client_name: "Farmatodo", zona: "Libertador", active: true },
+    { store_id: "c", name: "Locatel Monica", client_name: "Locatel", zona: "Baruta", active: false },
+  ];
+  assert.deepEqual(buscarTiendas(ts, "monica", new Set()).map((t) => t.store_id), ["a"]);
+  assert.deepEqual(buscarTiendas(ts, "liber", new Set(["a"])).map((t) => t.store_id), ["b"]);
+  assert.deepEqual(buscarTiendas(ts, "farma", new Set()).map((t) => t.store_id), ["b"]);
+  assert.deepEqual(buscarTiendas(ts, "  ", new Set()), []);
+});
+
+test("armarVersionesAGuardar sin futuras o sin aplicar: solo la editada", () => {
+  const stops = [p(1, 1, "a")];
+  const fut: Version[] = [{ plan_id: "x", effective_from: "2026-12-07", created_at: "t", stops: [p(2, 1, "z")] }];
+  assert.deepEqual(armarVersionesAGuardar([], stops, "2026-11-16", [], true), [{ effective_from: "2026-11-16", stops }]);
+  assert.deepEqual(armarVersionesAGuardar([], stops, "2026-11-16", fut, false), [{ effective_from: "2026-11-16", stops }]);
+});
+
+test("armarVersionesAGuardar aplica el diff a las futuras", () => {
+  const base = [p(1, 1, "a"), p(1, 2, "b")];
+  const stops = [p(1, 1, "b"), p(1, 2, "c"), p(2, 1, "a", 2)]; // quita a del lunes, agrega c, a pasa al martes cada 2
+  const fut: Version[] = [{ plan_id: "x", effective_from: "2026-12-07", created_at: "t", stops: [p(1, 1, "a"), p(1, 2, "b"), p(3, 1, "z")] }];
+  const [primera, segunda] = armarVersionesAGuardar(base, stops, "2026-11-16", fut, true);
+  assert.deepEqual(primera, { effective_from: "2026-11-16", stops });
+  assert.equal(segunda.effective_from, "2026-12-07");
+  const ids = (w: number) => segunda.stops.filter((s) => s.weekday === w).sort((x, y) => x.position - y.position).map((s) => s.store_id);
+  assert.deepEqual(ids(1), ["b", "c"]);
+  assert.deepEqual(ids(2), ["a"]);
+  assert.deepEqual(ids(3), ["z"]); // lo propio de la futura se conserva
+  assert.equal(segunda.stops.find((s) => s.store_id === "a")!.every_n_weeks, 2);
+});
+
+const v = (effective_from: string, stops: Parada[]): Version => ({ plan_id: effective_from, effective_from, created_at: "t", stops });
+
+test("baseParaFecha: la versión vigente en la fecha elegida", () => {
+  const nov = [p(1, 1, "a")];
+  const dic = [p(2, 1, "b")];
+  const vs = [v("2026-11-16", nov), v("2026-12-01", dic)];
+  assert.deepEqual(baseParaFecha(vs, "2026-12-01"), dic);
+  assert.deepEqual(baseParaFecha(vs, "2026-11-20"), nov);
+  assert.deepEqual(baseParaFecha(vs, "2026-11-10"), []);
+});
+
+test("avisoFecha: versión programada entre la base y la nueva fecha", () => {
+  const vs = [v("2026-11-16", []), v("2026-12-01", [])];
+  assert.equal(avisoFecha(vs, "2026-11-20", "2026-11-27"), null);
+  assert.deepEqual(avisoFecha(vs, "2026-11-20", "2026-12-01"), { tipo: "reemplaza", fecha: "2026-12-01" });
+  assert.deepEqual(avisoFecha(vs, "2026-11-20", "2026-12-08"), { tipo: "rige-antes", fecha: "2026-12-01" });
+  assert.equal(avisoFecha(vs, "2026-12-01", "2026-12-08"), null); // la base ya es esa versión
+});
+
+test("avisoFecha: fecha anterior a la base adelanta la versión programada", () => {
+  const vs = [v("2026-11-16", []), v("2026-12-01", [])];
+  // base armada desde el 1 dic (versión G), fecha movida al 20 nov → G empezaría a regir antes
+  assert.deepEqual(avisoFecha(vs, "2026-12-03", "2026-11-20"), { tipo: "adelanta", fecha: "2026-12-01" });
+  assert.deepEqual(avisoFecha(vs, "2026-12-01", "2026-11-30"), { tipo: "adelanta", fecha: "2026-12-01" });
+  // la base sigue siendo la misma versión → sin aviso
+  assert.equal(avisoFecha(vs, "2026-11-27", "2026-11-20"), null);
+  assert.equal(avisoFecha(vs, "2026-12-08", "2026-12-01"), null);
+  // sin versiones o base vacía antes de toda versión
+  assert.equal(avisoFecha([], "2026-12-03", "2026-11-20"), null);
+  assert.equal(avisoFecha(vs, "2026-11-12", "2026-11-10"), null);
+});
+
+test("numerosDelDia: nada antes de que rija, sin contar inactivas", () => {
+  const stops = [p(3, 1, "a"), p(3, 2, "b"), p(3, 3, "c"), p(3, 4, "d", 2)]; // d cada 2 desde el 16 nov
+  const todas = () => true;
+  assert.deepEqual(Array.from(numerosDelDia(stops, "2026-11-18", "2026-11-18", todas)), [["a", 1], ["b", 2], ["c", 3], ["d", 4]]);
+  assert.deepEqual(Array.from(numerosDelDia(stops, "2026-11-25", "2026-11-18", todas)), [["a", 1], ["b", 2], ["c", 3]]);
+  assert.equal(numerosDelDia(stops, "2026-11-18", "2026-11-19", todas).size, 0); // sigue la ruta anterior
+  assert.deepEqual(Array.from(numerosDelDia(stops, "2026-11-18", "2026-11-18", (id) => id !== "b")), [["a", 1], ["c", 2], ["d", 3]]);
+});
+
+test("esConflictoVersion", () => {
+  assert.ok(esConflictoVersion("La ruta cambió mientras la editabas. Recarga para ver la versión actual."));
+  assert.ok(!esConflictoVersion("Hay sucursales inactivas en la ruta."));
+});
