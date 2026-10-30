@@ -53,6 +53,7 @@ function MercaderistasInner() {
     }).sort((a, b) => (a.c?.pct ?? 101) - (b.c?.pct ?? 101) || a.nombre.localeCompare(b.nombre, "es"));
   }, [cumpl, roster, ids, anom]);
 
+  const enRoster = useMemo(() => new Set((roster ?? []).map((r) => r.user_id)), [roster]);
   const qs = serializePeriodo(desde, hasta);
 
   return (
@@ -90,7 +91,7 @@ function MercaderistasInner() {
                 <tr key={f.id} style={{ borderTop: "1px solid var(--border)" }}>
                   <td style={{ padding: "10px 14px" }}>
                     <Link href={`/panel/mercaderistas/${f.id}?${qs}`} style={{ fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>{f.nombre}</Link>
-                    {esAdmin && conPlan && !conPlan.has(f.id) && (
+                    {esAdmin && conPlan && enRoster.has(f.id) && !conPlan.has(f.id) && (
                       <span title="La ruta cargada por CSV termina el 31-12-2026. Ármale su ruta fija en el editor." style={{ marginLeft: "8px", fontSize: "var(--text-2xs)", fontWeight: 600, color: "var(--warning)" }}>Sin ruta fija</span>
                     )}
                   </td>
