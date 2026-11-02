@@ -20,9 +20,12 @@ Ver [[decisiones/ADR-017-Rutas-Fijas-Versionadas|ADR-017]] y [[logs/Log-2026-10-
 > [!WARNING]
 > Sin ruta fija, un mercaderista se queda sin ruta desde el 01-01-2027 (las filas del CSV llegan hasta el 31-12-2026).
 
-- [ ] Armar la ruta fija de cada mercaderista activo antes del 31-12-2026 (Jonathan Fernández ya no hace rutas).
+- [x] Rutas fijas de los 7 mercaderistas cargadas desde el CSV del 2-nov, vigentes desde el 09-11-2026 (Eduward con ruta vacía: vacaciones). Ver [[logs/Log-2026-11-02|Log 2026-11-02]].
+- [ ] Cuando Eduward vuelva de vacaciones: armarle la ruta en el editor.
+- [ ] Cargar "Excelsior Gama" (PDV-0194, Carlos Zurita, viernes semanas 1 y 3) cuando el negocio diga qué sucursal es: agregarla en el editor.
+- [ ] Revisar el GPS de las 8 tiendas creadas el 2-nov (varias sin coordenadas).
 - [ ] Verificar el editor en el navegador como admin (no se hizo: sin credenciales de admin).
-- [ ] Archivar `tools/cargar-rutas-csv.ts` y `revisar-rutas-*.ts` cuando todos tengan ruta fija.
+- [ ] Archivar `tools/cargar-rutas-csv.ts` y `revisar-rutas-*.ts` (reemplazados por `tools/cargar-rutas-fijas-csv.ts`).
 - [ ] `fn_extender_rutas` debe omitir usuarios inactivos (`users.active = false`); hoy siguen recibiendo rutas y bajarían el cumplimiento. Mientras tanto: guardarles una ruta vacía al darlos de baja.
 - [ ] Tomar el lock por usuario (`pg_advisory_xact_lock`) también en la extensión nocturna, para que no choque con un guardado a la 01:00.
 - [ ] El error "Hay sucursales inactivas en la ruta." debería nombrar la sucursal y la fecha de la versión.
