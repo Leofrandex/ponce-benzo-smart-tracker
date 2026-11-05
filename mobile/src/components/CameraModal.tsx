@@ -9,6 +9,7 @@ import { ImageManipulator, SaveFormat, type ImageManipulatorContext, type ImageR
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, fonts } from '../theme';
 import { resizeTarget } from '../utils/photoSize';
+import { persistPhoto, deletePhotos } from '../services/photos/photoStore';
 
 interface CameraModalProps {
   visible: boolean;
@@ -20,9 +21,11 @@ export function CameraModal({ visible, onCapture, onClose }: CameraModalProps) {
   const [permission, requestPermission] = useCameraPermissions();
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const cameraRef = useRef<CameraView>(null);
 
   function handleClose() {
+    if (previewUri && !saving) void deletePhotos([previewUri]);
     setPreviewUri(null);
     onClose();
   }
@@ -44,6 +47,8 @@ export function CameraModal({ visible, onCapture, onClose }: CameraModalProps) {
         rendered = await ctx.renderAsync();
         const saved = await rendered.saveAsync({ compress: 0.6, format: SaveFormat.JPEG });
         uri = saved.uri;
+        // La original sin reducir ya no sirve; si la reduccion cayo a la original (arriba) no se toca.
+        if (saved.uri !== photo.uri) void deletePhotos([photo.uri]);
       } catch (e) {
         console.warn('[camera] no se pudo reducir la foto, se usa la original:', (e as Error)?.message ?? e);
       } finally {
@@ -59,13 +64,19 @@ export function CameraModal({ visible, onCapture, onClose }: CameraModalProps) {
     }
   }
 
-  function handleUsePhoto() {
-    if (!previewUri) return;
-    onCapture(previewUri);
-    setPreviewUri(null);
+  async function handleUsePhoto() {
+    if (!previewUri || saving) return;
+    setSaving(true);
+    try {
+      onCapture(await persistPhoto(previewUri));
+      setPreviewUri(null);
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleRetake() {
+    if (previewUri && !saving) void deletePhotos([previewUri]);
     setPreviewUri(null);
   }
 
@@ -102,11 +113,11 @@ export function CameraModal({ visible, onCapture, onClose }: CameraModalProps) {
           <View style={styles.previewScreen}>
             <Image source={{ uri: previewUri }} style={styles.previewImage} resizeMode="cover" />
             <View style={styles.previewActions}>
-              <TouchableOpacity style={styles.retakeBtn} onPress={handleRetake}>
+              <TouchableOpacity style={styles.retakeBtn} onPress={handleRetake} disabled={saving}>
                 <Ionicons name="refresh" size={20} color={colors.white} />
                 <Text style={styles.retakeBtnText}>Retomar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.useBtn} onPress={handleUsePhoto}>
+              <TouchableOpacity style={[styles.useBtn, saving && styles.captureBtnDisabled]} onPress={handleUsePhoto} disabled={saving}>
                 <Ionicons name="checkmark" size={20} color={colors.white} />
                 <Text style={styles.useBtnText}>Usar foto</Text>
               </TouchableOpacity>
