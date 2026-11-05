@@ -93,7 +93,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       await logEvent(db, result.source === 'error' ? 'warn' : 'info', 'route_load', result.source, user.id);
 
       if (result.source === 'error') {
-        setRouteError('No se pudo cargar la ruta y no hay copia guardada. Conectate al menos una vez.');
+        setRouteError('No se pudo cargar la ruta y no hay copia guardada. Conéctate al menos una vez.');
         setRouteFromCache(false);
         return;
       }

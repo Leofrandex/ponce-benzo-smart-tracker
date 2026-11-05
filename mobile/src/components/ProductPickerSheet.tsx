@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Modal, View, Text, TextInput, TouchableOpacity, Pressable, ScrollView, StyleSheet,
+  Modal, View, Text, TextInput, TouchableOpacity, Pressable, ScrollView, StyleSheet, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, fonts } from '../theme';
@@ -19,7 +19,28 @@ export function ProductPickerSheet({ visible, title, options, selectedIds, onCon
   const [draft, setDraft] = useState<string[]>(selectedIds);
   const [query, setQuery] = useState('');
 
-  useEffect(() => { if (visible) { setDraft(selectedIds); setQuery(''); } }, [visible, selectedIds]);
+  // Solo al abrir: con `selectedIds` en las deps, un `?? []` del padre (array nuevo
+  // en cada render, p. ej. por un update de GPS) reseteaba la selección en curso.
+  useEffect(() => {
+    if (visible) { setDraft(selectedIds); setQuery(''); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  const dirty =
+    draft.length !== selectedIds.length || draft.some((id) => !selectedIds.includes(id));
+
+  // Fondo y atrás de Android: con la selección cambiada, se pregunta antes de tirarla.
+  function requestClose() {
+    if (!dirty) { onClose(); return; }
+    Alert.alert(
+      '¿Descartar la selección?',
+      'Los productos que marcaste no se van a guardar.',
+      [
+        { text: 'Seguir editando', style: 'cancel' },
+        { text: 'Descartar', style: 'destructive', onPress: onClose },
+      ],
+    );
+  }
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -36,8 +57,8 @@ export function ProductPickerSheet({ visible, title, options, selectedIds, onCon
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable style={styles.scrim} onPress={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={requestClose} statusBarTranslucent>
+      <Pressable style={styles.scrim} onPress={requestClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.handle} />
           <Text style={styles.title}>{title}</Text>
@@ -47,6 +68,7 @@ export function ProductPickerSheet({ visible, title, options, selectedIds, onCon
             <Ionicons name="search" size={16} color={colors.textMuted} />
             <TextInput
               style={styles.searchInput}
+              accessibilityLabel="Buscar producto"
               placeholder="Buscar por nombre, marca o código…"
               placeholderTextColor={colors.textMuted}
               value={query}
@@ -62,6 +84,8 @@ export function ProductPickerSheet({ visible, title, options, selectedIds, onCon
                   key={p.product_id}
                   style={[styles.option, active && styles.optionActive]}
                   onPress={() => toggle(p.product_id)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: active }}
                   activeOpacity={0.7}
                 >
                   <View style={styles.optionInfo}>

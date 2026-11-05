@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, Image, Platform,
+  ScrollView, StyleSheet, Image, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -185,13 +185,18 @@ export function CheckInScreen() {
       restock_products: lastRestockDate ? restockProducts : [],
     };
 
-    // recordVisit actualiza la lista (optimista) y persiste en SQLite; la subida a
-    // Supabase corre en segundo plano. No se espera la red para cerrar: así el
-    // registro vuelve al menú de inmediato en vez de quedarse trabado.
-    recordVisit(store.store_id, record, competitionDraft ?? undefined).catch((e) =>
-      console.warn('[checkin] recordVisit FAIL:', (e as { message?: string })?.message ?? e),
-    );
-    navigation.goBack();
+    // recordVisit solo espera a SQLite (la subida corre en segundo plano). Si falla, la
+    // visita NO se guardó: el formulario (fotos incluidas) sigue intacto para reintentar.
+    // Todo lo posterior al insert de la visita va en try/catch dentro de recordVisit, así que
+    // una visita guardada nunca llega a este aviso (evita duplicarla al reintentar).
+    try {
+      await recordVisit(store.store_id, record, competitionDraft ?? undefined);
+      navigation.goBack();
+    } catch (e) {
+      console.warn('[checkin] recordVisit FAIL:', (e as { message?: string })?.message ?? e);
+      Alert.alert('No se pudo guardar la visita', 'Tus datos siguen aquí. Intenta de nuevo.');
+      setSubmitting(false);
+    }
   }
 
   return (
