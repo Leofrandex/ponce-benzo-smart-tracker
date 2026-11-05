@@ -34,6 +34,11 @@ export async function deactivateStore(storeId: string): Promise<{ error: string 
   return { error: error?.message ?? null };
 }
 
+// 23505 = unique_violation: en el alta de tienda solo puede ser pdv_code repetido.
+export function mensajeErrorAltaTienda(error: { code?: string; message: string }): string {
+  return error.code === "23505" ? "Ya existe una tienda con ese código PDV." : error.message;
+}
+
 const opc = (s?: string) => s?.trim() || null;
 
 export async function createStore(input: TiendaInput): Promise<{ error: string | null; store_id?: string }> {
@@ -59,6 +64,6 @@ export async function createStore(input: TiendaInput): Promise<{ error: string |
   const pdv = opc(input.pdv_code);
   if (pdv) row.pdv_code = pdv.toUpperCase();
   const { data, error } = await sb.from("stores").insert(row).select("store_id").single();
-  if (error) return { error: error.message };
+  if (error) return { error: mensajeErrorAltaTienda(error) };
   return { error: null, store_id: data.store_id as string };
 }
