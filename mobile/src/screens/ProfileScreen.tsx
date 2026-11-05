@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
+import { getDb } from '../store/localStore';
+import { getRecentVisits } from '../services/db';
+import { visitStats } from '../services/visitStats';
 import { Button } from '../components/Button';
 import { colors, radii, fonts } from '../theme';
 import { VERSION_STAMP } from '../diagnostics/version';
@@ -39,6 +42,23 @@ type ProfileNavProp = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 export function ProfileScreen() {
   const { user, signOut } = useAuth();
   const navigation = useNavigation<ProfileNavProp>();
+  const userId = user?.id;
+  // null = cargando o fallo: se muestra "—", nunca un 0 falso.
+  const [stats, setStats] = useState<ReturnType<typeof visitStats> | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId) return;
+      let active = true;
+      setStats(null);
+      getDb()
+        .then((db) => getRecentVisits(db, userId))
+        .then((rows) => { if (active) setStats(visitStats(rows, new Date())); })
+        .catch(() => {});
+      return () => { active = false; };
+    }, [userId]),
+  );
+
   if (!user) return null;
 
   const initials = getInitials(user.full_name);
@@ -62,9 +82,9 @@ export function ProfileScreen() {
         </View>
 
         <View style={styles.statsRow}>
-          <StatCard value="0" label="Visitas hoy" />
-          <StatCard value="0" label="Esta semana" />
-          <StatCard value="0" label="Completadas" />
+          <StatCard value={stats?.hoy ?? '—'} label="Visitas hoy" />
+          <StatCard value={stats?.semana ?? '—'} label="Esta semana" />
+          <StatCard value={stats?.completadas ?? '—'} label="Completadas" />
         </View>
 
         <View style={styles.infoCard}>

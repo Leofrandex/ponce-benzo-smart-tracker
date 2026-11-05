@@ -1,5 +1,5 @@
-export type SyncStatus = 'idle' | 'syncing' | 'offline' | 'synced';
-export type BannerTone = 'syncing' | 'offline' | 'pending' | 'synced';
+export type SyncStatus = 'idle' | 'syncing' | 'offline' | 'error' | 'synced';
+export type BannerTone = 'syncing' | 'offline' | 'error' | 'pending' | 'synced';
 
 export interface BannerState {
   tone: BannerTone;
@@ -37,6 +37,9 @@ export function deriveSyncBanner(input: BannerInput): BannerState | null {
     if (status === 'offline') {
       return { tone: 'offline', text: `Sin conexión · ${records} en cola`, icon: 'cloud-offline-outline' };
     }
+    if (status === 'error') {
+      return { tone: 'error', text: `No se pudo subir · ${records} en cola · se reintentará`, icon: 'alert-circle-outline' };
+    }
     const noun = records === 1 ? 'registro' : 'registros';
     return { tone: 'pending', text: `${records} ${noun} por subir`, icon: 'cloud-upload-outline' };
   }
@@ -45,6 +48,9 @@ export function deriveSyncBanner(input: BannerInput): BannerState | null {
     const noun = photos === 1 ? 'foto' : 'fotos';
     if (status === 'offline') {
       return { tone: 'offline', text: `Registros arriba ✓ · ${photos} ${noun} en cola`, icon: 'cloud-offline-outline' };
+    }
+    if (status === 'error') {
+      return { tone: 'error', text: `No se pudo subir · ${photos} ${noun} en cola · se reintentará`, icon: 'alert-circle-outline' };
     }
     return { tone: 'pending', text: `Registros arriba ✓ · ${photos} ${noun} por subir`, icon: 'image-outline' };
   }

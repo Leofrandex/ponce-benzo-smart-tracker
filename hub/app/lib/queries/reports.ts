@@ -1,5 +1,6 @@
 import { getSupabaseBrowser } from "../supabase/client";
 import { signVisitPhotos } from "./photos";
+import { coordenadasEn, fetchCambiosGps, type CambioGps } from "./gpsHistorial";
 import type { SupervisorReport } from "../types";
 
 // ── Reportes de competencia (por tienda) ─────────────────────────────────────
@@ -131,6 +132,11 @@ export async function fetchUserReports(userId: string, desde: string, hasta: str
 
 async function mapVisitRows(rows: VisitJoinRow[]): Promise<SupervisorReport[]> {
   const signed = await signVisitPhotos(Array.from(new Set(rows.flatMap((r) => r.photo_urls ?? []))));
+  // "Verificado" se mide contra el GPS que tenía la tienda ese día, no el actual.
+  // Si el historial no carga, falla todo: calcular con el GPS actual cambiaría visitas pasadas.
+  const cambios = await fetchCambiosGps(rows.map((r) => r.store_id), false);
+  const cambiosPorTienda = new Map<string, CambioGps[]>();
+  for (const c of cambios) (cambiosPorTienda.get(c.store_id) ?? cambiosPorTienda.set(c.store_id, []).get(c.store_id)!).push(c);
 
   return rows.map((v) => {
     const loc = v.check_in_location;
@@ -138,9 +144,12 @@ async function mapVisitRows(rows: VisitJoinRow[]): Promise<SupervisorReport[]> {
     // Sólo las fotos que se pudieron firmar: el contador debe coincidir con las
     // miniaturas que realmente se muestran.
     const photoUrls = (v.photo_urls ?? []).map((p) => signed.get(p)).filter((u): u is string => u != null);
+    const gps = store
+      ? coordenadasEn(v.check_in_time, { lat: store.master_lat, lng: store.master_lng }, cambiosPorTienda.get(v.store_id) ?? [])
+      : { lat: null, lng: null };
     const verified =
-      loc != null && store?.master_lat != null && store?.master_lng != null
-        ? haversineMeters(loc.lat, loc.lng, store.master_lat, store.master_lng) <= MAX_DISTANCE_METERS
+      loc != null && gps.lat != null && gps.lng != null
+        ? haversineMeters(loc.lat, loc.lng, gps.lat, gps.lng) <= MAX_DISTANCE_METERS
         : false;
 
     const productsByAnomaly: Record<string, string[]> = {};

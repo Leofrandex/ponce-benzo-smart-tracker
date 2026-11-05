@@ -78,6 +78,14 @@ export function parseSnapshot(raw: string | null): RouteSnapshot | null {
   }
 }
 
+/** Puro: la misma copia con las coordenadas nuevas para esa tienda. */
+export function withStoreGps(snapshot: RouteSnapshot, storeId: string, lat: number, lng: number): RouteSnapshot {
+  return {
+    ...snapshot,
+    stores: snapshot.stores.map((s) => (s.store_id === storeId ? { ...s, master_lat: lat, master_lng: lng } : s)),
+  };
+}
+
 const key = (userId: string) => `route_snapshot:${userId}`;
 
 export async function saveRouteSnapshot(db: SQLiteDatabase, userId: string, snapshot: RouteSnapshot): Promise<void> {
@@ -86,4 +94,10 @@ export async function saveRouteSnapshot(db: SQLiteDatabase, userId: string, snap
 
 export async function loadRouteSnapshot(db: SQLiteDatabase, userId: string): Promise<RouteSnapshot | null> {
   return parseSnapshot(await getMeta(db, key(userId)));
+}
+
+/** Sin copia guardada no hace nada: la crea la proxima carga online de la ruta. */
+export async function updateSnapshotStoreGps(db: SQLiteDatabase, userId: string, storeId: string, lat: number, lng: number): Promise<void> {
+  const snapshot = await loadRouteSnapshot(db, userId);
+  if (snapshot) await saveRouteSnapshot(db, userId, withStoreGps(snapshot, storeId, lat, lng));
 }

@@ -8,7 +8,7 @@ const store = (id: string, name: string): Store => ({
   active: true, created_at: "2024-01-01T00:00:00Z",
   contact_name: null, contact_phone: null, contact_email: null,
   estado: null, municipio: null, urbanizacion: null,
-  business_channel: "farmacia", classification: null,
+  business_channel: "farmacia", classification: null, pdv_code: null,
 });
 
 test("deriveClientRows suma tareas abiertas y resuelve la última visita por tienda", () => {

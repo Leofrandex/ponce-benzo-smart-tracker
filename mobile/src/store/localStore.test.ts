@@ -20,9 +20,9 @@ test('buildMigrations: agrega columnas faltantes y omite las presentes', () => {
 
 test('buildMigrations: sin faltantes devuelve []', () => {
   const full = {
-    visits: new Set(['anomaly_type', 'skip_reason', 'last_restock_date', 'photos_synced', 'supervisor_present_user_id']),
+    visits: new Set(['anomaly_type', 'skip_reason', 'last_restock_date', 'photos_synced', 'supervisor_present_user_id', 'photo_attempts', 'photo_next_try', 'photos_done', 'started_at']),
     location_pings: new Set(['user_id', 'synced']),
-    competition_reports: new Set(['visit_id', 'photos_synced']),
+    competition_reports: new Set(['visit_id', 'photos_synced', 'photo_attempts', 'photo_next_try', 'photos_done']),
     sessions: new Set(['app_version']),
   };
   assert.deepEqual(buildMigrations(full), []);
@@ -36,6 +36,15 @@ test('buildMigrations: existing vacío emite TODAS las columnas opcionales', () 
   assert.ok(stmts.some((s) => s.includes('ALTER TABLE competition_reports ADD COLUMN visit_id')));
   assert.ok(stmts.some((s) => s.includes('ALTER TABLE location_pings ADD COLUMN user_id')));
   assert.ok(stmts.some((s) => s.includes('ALTER TABLE location_pings ADD COLUMN synced')));
+});
+
+test('buildMigrations: columnas de reintento de fotos dejan elegibles las filas existentes', () => {
+  const stmts = buildMigrations({});
+  for (const t of ['visits', 'competition_reports']) {
+    assert.ok(stmts.includes(`ALTER TABLE ${t} ADD COLUMN photo_attempts INTEGER NOT NULL DEFAULT 0`));
+    assert.ok(stmts.includes(`ALTER TABLE ${t} ADD COLUMN photo_next_try TEXT`));
+    assert.ok(stmts.includes(`ALTER TABLE ${t} ADD COLUMN photos_done INTEGER NOT NULL DEFAULT 0`));
+  }
 });
 
 test("buildMigrations: agrega sessions.app_version si falta y no la repite", () => {

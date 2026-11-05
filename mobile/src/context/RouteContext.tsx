@@ -4,10 +4,11 @@ import { AppState } from 'react-native';
 import { useAuth } from './AuthContext';
 import { insertVisit, insertCompetitionReport, getTodayVisits, insertAnomalyProducts, insertRestockProducts } from '../services/db';
 import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
-import { resolveRouteLoad, saveRouteSnapshot, loadRouteSnapshot, mergeRecordedStatuses, type OnlineResult } from '../services/routeCache';
+import { resolveRouteLoad, saveRouteSnapshot, loadRouteSnapshot, mergeRecordedStatuses, updateSnapshotStoreGps, type OnlineResult } from '../services/routeCache';
+import { captureWithFreshFix, type LatLng } from '../services/storeGps';
 import { useSyncCtx } from './SyncContext';
 import { getDb } from '../store/localStore';
-import { resolveToday, startSession as ssStart, endSession as ssEnd, closeStaleSessions } from '../session/sessionStore';
+import { resolveToday, startSession as ssStart, endSession as ssEnd, closeStaleSessions, isAdhocSession } from '../session/sessionStore';
 import { logEvent } from '../diagnostics/log';
 import { APP_VERSION } from '../diagnostics/version';
 import { withTimeout } from '../utils/withTimeout';
@@ -36,11 +37,13 @@ interface RouteContextValue {
   startSession: () => Promise<void>;
   endSession: () => Promise<void>;
   startAdhocReport: (store: Store) => Promise<void>;
+  stopAdhocGps: () => void;
   recordVisit: (
     storeId: string,
     record: VisitRecord,
     competitionReport?: CompetitionReportRecord,
   ) => Promise<void>;
+  captureStoreGps: (storeId: string) => Promise<{ ok: boolean; coords?: LatLng }>;
 }
 
 const RouteContext = createContext<RouteContextValue | null>(null);
@@ -92,7 +95,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       await logEvent(db, result.source === 'error' ? 'warn' : 'info', 'route_load', result.source, user.id);
 
       if (result.source === 'error') {
-        setRouteError('No se pudo cargar la ruta y no hay copia guardada. Conectate al menos una vez.');
+        setRouteError('No se pudo cargar la ruta y no hay copia guardada. Conéctate al menos una vez.');
         setRouteFromCache(false);
         return;
       }
@@ -130,7 +133,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const db = await getDb();
     await closeStaleSessions(db, user.id);
-    const { state } = await resolveToday(db, user.id);
+    const { state, session } = await resolveToday(db, user.id);
     setSessionActive(state === 'ACTIVE');
     setSessionEnded(state === 'ENDED');
     if (state === 'ACTIVE') {
@@ -138,10 +141,14 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       try {
         stopWatchRef.current?.();
         stopWatchRef.current = null;
+        // Jornada de reporte suelto: solo GPS en primer plano. Si una version anterior dejo
+        // el servicio de fondo encendido para ella, se apaga.
+        const adhoc = await isAdhocSession(db, session?.session_id);
+        if (adhoc) await stopBackground().catch(() => {});
         stopWatchRef.current = await startTracking(({ lat, lng }) => {
           setCurrentLocation({ lat, lng });
           setGpsState('found');
-        });
+        }, { background: !adhoc });
         await ensureTracking(user.id);
       } catch (e) {
         setGpsState('error');
@@ -225,8 +232,10 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Reporte suelto: asegura la ruta especial del dia, abre la jornada si hace
-   * falta y enciende el GPS. NO arranca el tracking de fondo — el reporte suelto
-   * es puntual, no una jornada de campo completa (spec, Decision 4).
+   * falta (marcada como suelta en `adhoc_session_id`) y enciende solo el GPS de
+   * primer plano. NUNCA arranca el servicio de fondo; si ya hay una jornada normal
+   * con su servicio de fondo corriendo, ese servicio se deja como esta
+   * (spec, Decision 4).
    */
   async function startAdhocReport(store: Store) {
     if (!user) throw new Error('sin usuario');
@@ -239,12 +248,15 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     if (existing.state !== 'ACTIVE') {
       const perms = await requestPermissions();
       if (!perms.foreground) { setGpsState('error'); throw new Error('sin permiso de ubicacion'); }
+      // Un servicio de fondo sobrante (ruta de ayer sin cerrar o version anterior) seguiria
+      // generando pings a nombre de esta jornada suelta, que no debe tener GPS de fondo.
+      await stopBackground().catch(() => {});
       let lat: number | null = null, lng: number | null = null;
       const pos = await withTimeout(
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }), 3000, null,
       );
       if (pos) { lat = pos.coords.latitude; lng = pos.coords.longitude; }
-      await ssStart(db, { userId: user.id, routeId: routeIdSpecial, startLat: lat, startLng: lng, appVersion: APP_VERSION });
+      await ssStart(db, { userId: user.id, routeId: routeIdSpecial, startLat: lat, startLng: lng, appVersion: APP_VERSION, adhoc: true });
       if (lat != null) setCurrentLocation({ lat, lng: lng! });
       setSessionActive(true);
       setSessionEnded(false);
@@ -255,8 +267,25 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     stopWatchRef.current = await startTracking(({ lat: a, lng: b }) => {
       setCurrentLocation({ lat: a, lng: b });
       setGpsState('found');
-    });
+    }, { background: false });
     flushNow();
+  }
+
+  /**
+   * Apaga el GPS del reporte suelto al salir de su pantalla. Solo si la jornada activa
+   * ES la suelta: en una ruta normal ese seguimiento lo necesita el check-in.
+   */
+  function stopAdhocGps() {
+    (async () => {
+      if (!user) return;
+      const db = await getDb();
+      const { state, session } = await resolveToday(db, user.id);
+      if (state !== 'ACTIVE' || !(await isAdhocSession(db, session?.session_id))) return;
+      stopWatchRef.current?.();
+      stopWatchRef.current = null;
+      setGpsState('idle');
+      setCurrentLocation(null);
+    })().catch(() => {});
   }
 
   async function recordVisit(
@@ -288,6 +317,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       skip_reason: record.status === 'skipped' ? record.skip_reason : null,
       last_restock_date: record.last_restock_date,
       supervisor_present_user_id: record.supervisor_present_user_id,
+      started_at: record.started_at,
       synced: 0,
     });
 
@@ -346,6 +376,39 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     flushNow();
   }
 
+  /**
+   * Pide un fix nuevo: nunca usa currentLocation, que puede ser viejo. Nunca lanza:
+   * { ok: false } si no llego el fix a tiempo o la captura no quedo guardada en el telefono.
+   */
+  async function captureStoreGps(storeId: string): Promise<{ ok: boolean; coords?: LatLng }> {
+    if (!user) return { ok: false };
+    try {
+      const db = await getDb();
+      const coords = await captureWithFreshFix(
+        db, { storeId, userId: user.id },
+        () => Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+      );
+      if (!coords) return { ok: false };
+      const { lat, lng } = coords;
+      setRouteItems((prev) =>
+        prev.map((item) =>
+          item.store.store_id === storeId
+            ? { ...item, store: { ...item.store, master_lat: lat, master_lng: lng } }
+            : item,
+        ),
+      );
+      // La captura ya esta en cola: si falla la copia de la ruta, latestLocalCapture la cubre.
+      updateSnapshotStoreGps(db, user.id, storeId, lat, lng)
+        .catch((e) => console.warn('[route] no se pudo actualizar la copia de la ruta:', (e as { message?: string })?.message ?? e));
+      refreshCount().catch(() => {});
+      flushNow();
+      return { ok: true, coords };
+    } catch (e) {
+      console.warn('[route] captura de GPS FAIL:', (e as { message?: string })?.message ?? e);
+      return { ok: false };
+    }
+  }
+
   function setRouteMode(mode: 'normal' | 'special') {
     setRouteModeState(mode);
     // 'special' = ruta personalizable: arranca vacía y se arma a mano.
@@ -397,7 +460,9 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         startSession,
         endSession,
         startAdhocReport,
+        stopAdhocGps,
         recordVisit,
+        captureStoreGps,
       }}
     >
       {children}

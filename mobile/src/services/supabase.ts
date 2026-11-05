@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { createTimedFetch } from './sync/timedFetch';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
 const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
@@ -16,4 +17,5 @@ export const supabase = createClient(url, anon, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+  global: { fetch: createTimedFetch() },
 });

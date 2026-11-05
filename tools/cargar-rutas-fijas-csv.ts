@@ -102,7 +102,7 @@ async function main() {
       if (!client_id) throw new Error(`Cliente ${client} no existe`);
       const reg = REGION[r.Region] ?? (() => { throw new Error(`Región ${r.Region}`); })();
       const s = must(await sb.from("stores").insert({
-        name, client_id, business_channel: CHANNEL[r.Tipo_PDV] ?? "otro",
+        name, client_id, pdv_code: r.ID_PDV, business_channel: CHANNEL[r.Tipo_PDV] ?? "otro",
         master_lat: r.Latitud ? Number(r.Latitud) : null, master_lng: r.Longitud ? Number(r.Longitud) : null,
         region: reg.region, estado: reg.estado, ciudad: reg.ciudad, ...zona(r.Zona), active: true,
       }).select("store_id").single(), `insert ${name}`) as { store_id: string };

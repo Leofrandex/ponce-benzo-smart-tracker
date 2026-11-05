@@ -2,6 +2,14 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { resolveTodayState, selectStaleOpen, type SessionLike, type TodayState } from './sessionState';
 import { newId } from '../services/sync/ids';
 import { logEvent } from '../diagnostics/log';
+import { getMeta, setMeta } from '../store/localStore';
+
+const ADHOC_META = 'adhoc_session_id';
+
+/** Jornada abierta por un reporte suelto: sin GPS de fondo. */
+export async function isAdhocSession(db: SQLiteDatabase, sessionId: string | null | undefined): Promise<boolean> {
+  return !!sessionId && (await getMeta(db, ADHOC_META)) === sessionId;
+}
 
 async function allSessions(db: SQLiteDatabase, userId: string): Promise<SessionLike[]> {
   return db.getAllAsync<SessionLike>(
@@ -23,9 +31,12 @@ export async function closeStaleSessions(db: SQLiteDatabase, userId: string): Pr
 
 export async function startSession(
   db: SQLiteDatabase,
-  p: { userId: string; routeId: string; startLat: number | null; startLng: number | null; appVersion: string },
+  p: { userId: string; routeId: string; startLat: number | null; startLng: number | null; appVersion: string; adhoc?: boolean },
 ): Promise<string> {
   const sid = newId();
+  // Una jornada normal limpia la marca: un id viejo no puede apagar el rastreo.
+  if (p.adhoc) await setMeta(db, ADHOC_META, sid);
+  else await db.runAsync(`DELETE FROM meta WHERE key = ?`, ADHOC_META);
   const startIso = new Date().toISOString();
   await db.runAsync(
     `INSERT INTO sessions (session_id, user_id, route_id, session_start, start_lat, start_lng, app_version, synced)
@@ -51,6 +62,7 @@ export async function endSession(db: SQLiteDatabase, userId: string): Promise<st
   }
   const endIso = new Date().toISOString();
   await db.runAsync(`UPDATE sessions SET session_end = ?, synced = 0 WHERE session_id = ?`, endIso, session.session_id);
+  if (await isAdhocSession(db, session.session_id)) await db.runAsync(`DELETE FROM meta WHERE key = ?`, ADHOC_META);
   await logEvent(db, 'info', 'session_end', session.session_id, userId);
   return session.session_id;
 }

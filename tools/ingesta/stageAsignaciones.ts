@@ -13,6 +13,10 @@ const XLS = path.join(
 );
 
 async function main() {
+  if (!process.argv.includes("--reemplazar-asignaciones")) {
+    console.error("Esta herramienta reemplaza toda la tabla client_assignments y borra lo creado en el hub. Si es lo que quieres, usa --reemplazar-asignaciones.");
+    process.exit(1);
+  }
   const commit = process.argv.includes("--commit");
   const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 

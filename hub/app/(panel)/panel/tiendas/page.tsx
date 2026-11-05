@@ -3,6 +3,11 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus, Search } from "lucide-react";
+import { useAuth } from "@/app/lib/auth-context";
+import { canConfigure, canCreateStore } from "@/app/lib/roles";
+import { createStore } from "@/app/lib/mutations/stores";
+import type { TiendaInput } from "@/app/lib/types";
+import { StoreFormModal } from "@/app/components/clientes/StoreFormModal";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchStores } from "@/app/lib/queries/stores";
 import { fetchTasks } from "@/app/lib/queries/tasks";
@@ -14,6 +19,8 @@ import { filtrarTiendas, parseTiendasParams, serializeTiendasParams, type Client
 import { ClientesFilters } from "@/app/components/clientes/ClientesFilters";
 import { ClientesTable } from "@/app/components/clientes/ClientesTable";
 import SectionError from "@/app/components/ui/SectionError";
+import Segmented from "@/app/components/ui/Segmented";
+import { CargaMasivaPanel } from "@/app/components/carga/CargaMasivaPanel";
 import { Skeleton, TiendasSkeleton } from "@/app/components/ui/Skeleton";
 
 export default function TiendasPage() {
@@ -28,7 +35,18 @@ function TiendasInner() {
   const sp = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const { profile } = useAuth();
+  const [adding, setAdding] = useState(false);
   const qs = sp.toString();
+  // Sin permiso la pestaña no existe y ?vista=carga cae en la vista normal.
+  const puedeCargar = canConfigure(profile?.role);
+  const vista = puedeCargar && sp.get("vista") === "carga" ? "carga" : "lista";
+  const setVista = (v: "lista" | "carga") => {
+    const p = new URLSearchParams(qs);
+    if (v === "carga") p.set("vista", "carga"); else p.delete("vista");
+    const next = p.toString();
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+  };
 
   const { filters, q } = useMemo(() => parseTiendasParams(new URLSearchParams(qs)), [qs]);
 
@@ -119,16 +137,25 @@ function TiendasInner() {
             ? <Skeleton h={10} w={140} pill style={{ marginTop: 8 }} />
             : <p className="text-muted text-sm" style={{ marginTop: "4px" }}>{`${rows.length} de ${(stores ?? []).length} tiendas`}</p>}
         </div>
-        <button
-          type="button"
-          onClick={() => alert("La creación de sucursales llega en la siguiente fase (escritura).")}
-          className="filter-chip"
-          style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}
-        >
-          <Plus size={12} /> Agregar sucursal
-        </button>
+        {canCreateStore(profile?.role) && (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="filter-chip"
+            style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}
+          >
+            <Plus size={12} /> Agregar tienda
+          </button>
+        )}
       </div>
 
+      {puedeCargar && (
+        <Segmented ariaLabel="Vista de tiendas" value={vista} onChange={setVista} style={{ maxWidth: "360px" }}
+          options={[{ value: "lista", label: "Tiendas" }, { value: "carga", label: "Carga masiva" }]} />
+      )}
+      {vista === "carga" ? (
+        <CargaMasivaPanel tipo="tiendas" onCargado={() => void refetchStores()} />
+      ) : (<>
       <div style={{ position: "relative" }}>
         <Search size={15} color="var(--text-muted)" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }} />
         <input className="form-input" placeholder="Buscar por nombre..." value={search} onChange={(e) => handleSearchChange(e.target.value)} style={{ paddingLeft: "34px" }} />
@@ -146,6 +173,19 @@ function TiendasInner() {
         </div>
       )}
       <ClientesTable rows={rows} loading={cargandoTabla} />
+      </>)}
+      <StoreFormModal
+        open={adding}
+        store={null}
+        clients={clients ?? []}
+        onClose={() => setAdding(false)}
+        onSave={async (input: TiendaInput) => {
+          const { error } = await createStore(input);
+          if (error) return { error };
+          await refetchStores();
+          return {};
+        }}
+      />
     </>
   );
 }

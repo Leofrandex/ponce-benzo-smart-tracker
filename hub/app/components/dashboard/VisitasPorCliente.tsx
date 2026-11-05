@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LabelList } from "recharts";
 import type { BarRectangleItem } from "recharts";
 import type { VisitasClienteRow } from "@/app/lib/queries/dashboard";
 import { ChartLinkTick } from "./ChartLinkTick";
+import { etiquetaParticipacion, totalVisitas } from "@/app/lib/queries/participacion";
 import { linkCadena } from "@/app/lib/queries/dashboardLinks";
 import SectionError from "@/app/components/ui/SectionError";
 import { Skeleton } from "@/app/components/ui/Skeleton";
@@ -27,13 +28,14 @@ export default function VisitasPorCliente({ rows, error, onRetry }: Props) {
       </div>
     );
   }
-  const data = rows.map((r) => ({ name: r.cliente, visitas: r.visitas, anomalias: r.anomalias, clientId: r.client_id }));
+  const total = totalVisitas(rows);
+  const data = rows.map((r) => ({ name: r.cliente, visitas: r.visitas, etiqueta: etiquetaParticipacion(Number(r.visitas), total), anomalias: r.anomalias, clientId: r.client_id }));
 
   return (
     <div className="card" style={{ padding: 16 }}>
       <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Visitas por cadena</h2>
       <ResponsiveContainer width="100%" height={Math.max(120, data.length * 34)}>
-        <BarChart data={data} layout="vertical" margin={{ left: 8, right: 24 }}>
+        <BarChart data={data} layout="vertical" margin={{ left: 8, right: 84 }}>
           <XAxis type="number" tick={{ fontSize: 11 }} />
           <YAxis
             type="category"
@@ -55,7 +57,9 @@ export default function VisitasPorCliente({ rows, error, onRetry }: Props) {
               const href = linkCadena((d.payload as { clientId: string | null }).clientId);
               if (href) router.push(href);
             }}
-          />
+          >
+            <LabelList dataKey="etiqueta" position="right" style={{ fontSize: 11 }} />
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>

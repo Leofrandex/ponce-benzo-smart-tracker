@@ -15,10 +15,11 @@ import { updateStore } from "@/app/lib/mutations/stores";
 import { createContact, updateContact, deleteContact } from "@/app/lib/mutations/contacts";
 import { createEngagement, toggleEngagementDone } from "@/app/lib/mutations/engagements";
 import { eliminarReposicion } from "@/app/lib/mutations/restocks";
-import { canRegisterRestock } from "@/app/lib/roles";
+import { canConfigure, canRegisterRestock } from "@/app/lib/roles";
 import type { Store, ContactEngagement } from "@/app/lib/types";
 import type { ContactFormValue } from "@/app/components/clientes/ContactFormModal";
 import { ClientInfoPanel } from "@/app/components/clientes/ClientInfoPanel";
+import { GpsHistorial } from "@/app/components/clientes/GpsHistorial";
 import { ContactList } from "@/app/components/clientes/ContactList";
 import { EngagementsPanel } from "@/app/components/clientes/EngagementsPanel";
 import { ActivityFeed } from "@/app/components/clientes/ActivityFeed";
@@ -132,6 +133,7 @@ export default function ClienteDetailPage() {
         <div style={{ width: 48, height: 48, borderRadius: "var(--radius-md)", background: "var(--accent-glow)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Building2 size={24} color="var(--accent)" /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1 style={{ fontSize: "var(--text-lg)", fontWeight: 600, color: "var(--text-primary)", letterSpacing: "var(--tracking-tight)", margin: 0 }}>{store.name}</h1>
+          <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", marginTop: "2px" }}>Código PDV: {store.pdv_code ?? "—"}</div>
           <div style={{ marginTop: "4px" }}>
             <span className={store.active ? "badge badge-success" : "badge"} style={!store.active ? { background: "var(--bg-elevated)", color: "var(--text-muted)", border: "1px solid var(--border)" } : {}}>{store.active ? "Activa" : "Inactiva"}</span>
           </div>
@@ -144,6 +146,7 @@ export default function ClienteDetailPage() {
       <div className="detail-two-col">
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <ClientInfoPanel store={store} lastRestock={lastRestock} />
+          <GpsHistorial storeId={storeId} canRestore={canConfigure(profile?.role)} onRestored={refetchStore} />
           <ContactList
             key={storeId}
             storeId={storeId}

@@ -1,8 +1,12 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, X } from "lucide-react";
+import { ChevronRight, Plus, X } from "lucide-react";
+import { useAuth } from "@/app/lib/auth-context";
+import { canConfigure } from "@/app/lib/roles";
+import { createClient } from "@/app/lib/mutations/clients";
+import { ClientFormModal } from "@/app/components/clientes/ClientFormModal";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchClients, fetchStoreGeo } from "@/app/lib/queries/clients";
@@ -13,16 +17,29 @@ import {
 } from "@/app/lib/queries/clientFilters";
 import { Select } from "@/app/components/ui/Select";
 import { CHANNEL_LABELS } from "@/app/components/clientes/ClientesTable";
+import Segmented from "@/app/components/ui/Segmented";
+import { CargaMasivaPanel } from "@/app/components/carga/CargaMasivaPanel";
 import { ClientesSkeleton, Skeleton, SkeletonList } from "@/app/components/ui/Skeleton";
 
 function ClientesInner() {
   const sp = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const { profile } = useAuth();
+  const [adding, setAdding] = useState(false);
   const qs = sp.toString();
   const filters = useMemo(() => parseClientesParams(new URLSearchParams(qs)), [qs]);
 
-  const { data: clients, loading, error } = useSupabaseQuery(fetchClients, [], "clients");
+  const puedeCargar = canConfigure(profile?.role);
+  const vista = puedeCargar && sp.get("vista") === "carga" ? "carga" : "lista";
+  const setVista = (v: "lista" | "carga") => {
+    const p = new URLSearchParams(qs);
+    if (v === "carga") p.set("vista", "carga"); else p.delete("vista");
+    const next = p.toString();
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+  };
+
+  const { data: clients, loading, error, refetch } = useSupabaseQuery(fetchClients, [], "clients");
   const { data: storeGeo } = useSupabaseQuery(fetchStoreGeo, [], "stores:geo");
   const { data: rawAssignees } = useSupabaseQuery(fetchTaskAssignees, [], "assignees");
   const assignees = useMemo(() => rawAssignees ?? [], [rawAssignees]);
@@ -57,10 +74,25 @@ function ClientesInner() {
   if (error) return <div className="empty-state"><div className="empty-title">Error al cargar clientes</div><div className="empty-desc">{error}</div></div>;
   return (
     <>
-      <div>
-        <h1 style={{ fontSize: "var(--text-xl)", fontWeight: 600, letterSpacing: "var(--tracking-tight)" }}>Clientes</h1>
-        {loading ? <Skeleton h={10} w={120} pill style={{ marginTop: 8 }} /> : <p className="text-muted text-sm" style={{ marginTop: "4px" }}>{hasFilters ? `${rows.length} de ${(clients ?? []).length} cadenas` : `${rows.length} cadenas`}</p>}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+        <div>
+          <h1 style={{ fontSize: "var(--text-xl)", fontWeight: 600, letterSpacing: "var(--tracking-tight)" }}>Clientes</h1>
+          {loading ? <Skeleton h={10} w={120} pill style={{ marginTop: 8 }} /> : <p className="text-muted text-sm" style={{ marginTop: "4px" }}>{hasFilters ? `${rows.length} de ${(clients ?? []).length} cadenas` : `${rows.length} cadenas`}</p>}
+        </div>
+        {canConfigure(profile?.role) && (
+          <button type="button" onClick={() => setAdding(true)} className="filter-chip"
+            style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
+            <Plus size={12} /> Agregar cliente
+          </button>
+        )}
       </div>
+      {puedeCargar && (
+        <Segmented ariaLabel="Vista de clientes" value={vista} onChange={setVista} style={{ maxWidth: "360px" }}
+          options={[{ value: "lista", label: "Clientes" }, { value: "carga", label: "Carga masiva" }]} />
+      )}
+      {vista === "carga" ? (
+        <CargaMasivaPanel tipo="clientes" onCargado={() => void refetch()} />
+      ) : (<>
       <div className="card" style={{ padding: "12px", display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "flex-end" }}>
         <Select label="Estado" value={filters.estado}
           options={estados.map((e) => ({ value: e, label: e }))}
@@ -107,6 +139,19 @@ function ClientesInner() {
             </Link>
           ))}
         </div>
+      )}
+      </>)}
+      {canConfigure(profile?.role) && (
+        <ClientFormModal
+          open={adding}
+          onClose={() => setAdding(false)}
+          onSave={async (input) => {
+            const { error } = await createClient(input);
+            if (error) return { error };
+            await refetch();
+            return {};
+          }}
+        />
       )}
     </>
   );

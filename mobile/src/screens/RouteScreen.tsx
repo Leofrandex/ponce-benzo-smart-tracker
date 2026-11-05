@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator,
+  View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -15,6 +15,7 @@ import { colors, radii, fonts } from '../theme';
 import type { RouteStoreItem, Store } from '../types';
 import { useRouteCtx } from '../context/RouteContext';
 import { fetchAllStores } from '../services/catalogApi';
+import { confirmEndRouteArgs } from '../session/confirmEndRoute';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
@@ -85,6 +86,9 @@ export function RouteScreen() {
             <Text style={styles.headerDate}>{formatToday()}</Text>
           </View>
         </View>
+        <View style={styles.bannerSlot}>
+          <SyncBanner />
+        </View>
         <View style={styles.centeredState}>
           <ActivityIndicator size="large" />
           <Text style={styles.centeredStateText}>Cargando tu ruta…</Text>
@@ -102,6 +106,9 @@ export function RouteScreen() {
             <Text style={styles.headerTitle}>Ruta del Día</Text>
             <Text style={styles.headerDate}>{formatToday()}</Text>
           </View>
+        </View>
+        <View style={styles.bannerSlot}>
+          <SyncBanner />
         </View>
         <View style={styles.centeredState}>
           <Ionicons name="alert-circle-outline" size={40} color={colors.danger} />
@@ -152,7 +159,7 @@ export function RouteScreen() {
             {!sessionEnded && (routeItems.length > 0) && (
               <Button
                 label={sessionActive ? 'Finalizar Ruta' : 'Empezar Ruta'}
-                onPress={sessionActive ? endSession : startSession}
+                onPress={sessionActive ? () => Alert.alert(...confirmEndRouteArgs(() => { endSession(); })) : startSession}
                 variant={sessionActive ? 'danger' : 'primary'}
                 style={styles.sessionBtn}
               />
@@ -224,6 +231,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgSurface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  bannerSlot: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
   headerTitle: {
     fontSize: 20,
