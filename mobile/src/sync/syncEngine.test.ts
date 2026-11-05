@@ -1,6 +1,7 @@
 import { test, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import { splitUploadable, photoCount, flush, pendingCounts } from './syncEngine';
+import { splitUploadable, photoCount, flush, pendingCounts, pendingPhotos } from './syncEngine';
+import { deriveSyncBanner } from './bannerState';
 import { expoPhotoFs } from '../services/photos/photoStore';
 
 test('splitUploadable: separa pings con y sin user_id', () => {
@@ -28,7 +29,7 @@ type Row = Record<string, any>;
 
 function fakeDb(tables: Record<string, Row[]>) {
   // Fase de fotos: respeta photo_next_try y el ORDER BY de la consulta.
-  const pendingPhotos = (rows: Row[], sql: string, now?: string, maxWait?: string): Row[] => {
+  const duePhotos = (rows: Row[], sql: string, now?: string, maxWait?: string): Row[] => {
     const col = /ORDER BY (\w+) DESC/.exec(sql)?.[1];
     const due = rows.filter((r) => r.synced === 1 && r.photos_synced === 0 && (
       now === undefined || r.photo_next_try == null || r.photo_next_try <= now || (maxWait !== undefined && r.photo_next_try > maxWait)
@@ -38,9 +39,9 @@ function fakeDb(tables: Record<string, Row[]>) {
   const match = (sql: string, now?: string, maxWait?: string): Row[] => {
     if (sql.includes('FROM sessions')) return tables.sessions.filter((r) => r.synced === 0);
     // OJO: chequear photos_synced primero — 'photos_synced = 0' contiene 'synced = 0'.
-    if (sql.includes('FROM visits') && sql.includes('photos_synced = 0')) return pendingPhotos(tables.visits, sql, now, maxWait);
+    if (sql.includes('FROM visits') && sql.includes('photos_synced = 0')) return duePhotos(tables.visits, sql, now, maxWait);
     if (sql.includes('FROM visits') && sql.includes('synced = 0')) return tables.visits.filter((r) => r.synced === 0);
-    if (sql.includes('FROM competition_reports') && sql.includes('photos_synced = 0')) return pendingPhotos(tables.competition_reports, sql, now, maxWait);
+    if (sql.includes('FROM competition_reports') && sql.includes('photos_synced = 0')) return duePhotos(tables.competition_reports, sql, now, maxWait);
     if (sql.includes('FROM competition_reports') && sql.includes('synced = 0')) return tables.competition_reports.filter((r) => r.synced === 0);
     if (sql.includes('FROM location_pings')) return tables.location_pings.filter((r) => r.synced === 0);
     if (sql.includes('FROM restock_products')) {
@@ -67,9 +68,6 @@ function fakeDb(tables: Record<string, Row[]>) {
             tables.sessions.filter((r) => r.synced === 0).length +
             tables.visits.filter((r) => r.synced === 0).length +
             tables.competition_reports.filter((r) => r.synced === 0).length,
-          photos:
-            tables.visits.filter((r) => r.synced === 1 && r.photos_synced === 0).length +
-            tables.competition_reports.filter((r) => r.synced === 1 && r.photos_synced === 0).length,
           pings: tables.location_pings.filter((r) => r.synced === 0).length,
         };
       }
@@ -90,7 +88,7 @@ function fakeDb(tables: Record<string, Row[]>) {
       if (sql.includes('UPDATE visits SET photos_synced=1')) { const r = find(tables.visits, 'visit_id'); if (r) r.photos_synced = 1; }
       if (sql.includes('UPDATE competition_reports SET synced=1')) { const r = find(tables.competition_reports, 'report_id'); if (r) { r.synced = 1; r.photos_synced = args[0]; } }
       if (sql.includes('UPDATE competition_reports SET photos_synced=1')) { const r = find(tables.competition_reports, 'report_id'); if (r) r.photos_synced = 1; }
-      if (sql.includes('UPDATE location_pings')) { const r = find(tables.location_pings, 'ping_id'); if (r) r.synced = 1; }
+      if (sql.includes('UPDATE location_pings')) for (const r of tables.location_pings) if (args.includes(r.ping_id)) r.synced = 1;
       if (sql.includes('UPDATE restock_products SET synced=1')) {
         const r = (tables.restock_products ?? []).find((rp) => rp.visit_id === args[0] && rp.product_id === args[1]);
         if (r) r.synced = 1;
@@ -99,11 +97,11 @@ function fakeDb(tables: Record<string, Row[]>) {
   } as any;
 }
 
-function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFailTables?: string[]; failUploadOnce?: string[]; noRowsOnUpdate?: boolean; failList?: boolean } = {}) {
+function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFailTables?: string[]; failUploadOnce?: string[]; noRowsOnUpdate?: boolean; failList?: boolean; upsertError?: (table: string, payload: any) => any; storageMessage?: string; onUpload?: () => void; existing?: string[] } = {}) {
   const calls: string[] = [];
   const updates: { table: string; payload: any }[] = [];
   const upserts: { table: string; payload: any }[] = [];
-  const uploaded = new Set<string>();
+  const uploaded = new Set<string>(opts.existing);
   const failedOnce = new Set<string>();
   const result = (table: string) =>
     opts.fkFailTables?.includes(table)
@@ -116,7 +114,12 @@ function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFa
     updates,
     upserts,
     from: (table: string) => ({
-      upsert: (payload: any, _opts: any) => { calls.push(`upsert:${table}`); upserts.push({ table, payload }); return result(table); },
+      upsert: (payload: any, _opts: any) => {
+        calls.push(`upsert:${table}`);
+        upserts.push({ table, payload });
+        const error = opts.upsertError?.(table, payload);
+        return error ? Promise.resolve({ error }) : result(table);
+      },
       update: (payload: any) => ({
         eq: () => ({
           select: async () => {
@@ -140,6 +143,8 @@ function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFa
         },
         upload: (path: string) => {
           calls.push(`storage:upload:${path}`);
+          opts.onUpload?.();
+          if (opts.storageMessage) return Promise.resolve({ error: { message: opts.storageMessage } });
           if (opts.failStorage) return Promise.resolve({ error: { message: 'foto no subió' } });
           if (opts.failUploadOnce?.includes(path) && !failedOnce.has(path)) {
             failedOnce.add(path);
@@ -543,4 +548,250 @@ test('pendingCounts: separa records / photos / pings', async () => {
   tables.location_pings.push({ ping_id: 'p1', session_id: 's1', user_id: 'u1', timestamp: 't', lat: 1, lng: 2, synced: 0 });
   const counts = await pendingCounts(fakeDb(tables));
   assert.deepEqual(counts, { records: 1, photos: 1, pings: 1 });
+});
+
+// ── Motor fiel a la realidad (P3, B1-B5) ──────────────────────────────────────
+
+const ping = (id: string): Row => ({ ping_id: id, session_id: 's1', user_id: 'u1', timestamp: 't', lat: 1, lng: 2, synced: 0 });
+const pings = (n: number): Row[] => Array.from({ length: n }, (_, i) => ping(`p${i}`));
+const upsertCalls = (supa: any, table: string) => supa.calls.filter((c: string) => c === `upsert:${table}`).length;
+const report = (id: string, uris: string[]): Row => ({
+  report_id: id, user_id: 'u1', created_at: '2026-07-15', photo_uri: JSON.stringify(uris), synced: 1, photos_synced: 0,
+  photo_attempts: 0, photo_next_try: null, photos_done: 0,
+});
+// La forma real de postgrest-js sin red: code viene vacío, no ausente.
+const NET_ERR = { message: 'TypeError: Network request failed', code: '' };
+const CHECK_ERR = { message: 'viola un check', code: '23514' };
+
+// Reloj que solo avanza cuando la subida simulada tarda.
+function fakeClock(t: TestContext, msPerUpload: number) {
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  return () => { now += msPerUpload; };
+}
+
+test('fotos antes que pings (P3)', async (t) => {
+  fakeFiles(t);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a']));
+  tables.location_pings.push(ping('p1'));
+  const supa = fakeSupabase();
+  await flush(fakeDb(tables), supa);
+  const iPhoto = supa.calls.indexOf('storage:upload:u1/v1/0.jpg');
+  const iPing = supa.calls.indexOf('upsert:location_pings');
+  assert.ok(iPhoto >= 0 && iPing >= 0 && iPhoto < iPing, supa.calls.join(','));
+});
+
+test('pings en lotes de 100: 250 pings son 3 upserts (P3)', async () => {
+  const tables = baseTables();
+  tables.location_pings.push(...pings(250));
+  const supa = fakeSupabase();
+  const r = await flush(fakeDb(tables), supa);
+  assert.deepEqual(supa.upserts.map((u: any) => u.payload.length), [100, 100, 50]);
+  assert.equal(r.pushed, 250);
+  assert.equal(r.failed, 0);
+  assert.ok(tables.location_pings.every((p) => p.synced === 1));
+});
+
+test('un ping rechazado no bloquea su lote (P3)', async () => {
+  const tables = baseTables();
+  tables.location_pings.push(ping('p1'), ping('malo'), ping('p3'));
+  const supa = fakeSupabase({
+    upsertError: (_t, payload) => (payload.some((p: any) => p.ping_id === 'malo') ? CHECK_ERR : null),
+  });
+  const r = await flush(fakeDb(tables), supa);
+  assert.equal(upsertCalls(supa, 'location_pings'), 4, 'el lote y luego uno por uno');
+  assert.deepEqual(tables.location_pings.map((p) => p.synced), [1, 0, 1]);
+  assert.equal(r.pushed, 2);
+  assert.equal(r.failed, 1);
+  assert.equal(r.errorKind, 'server');
+});
+
+test('sin red, un lote fallido no reintenta uno a uno (P3)', async () => {
+  const tables = baseTables();
+  tables.location_pings.push(...pings(250));
+  const supa = fakeSupabase({ upsertError: () => NET_ERR });
+  const r = await flush(fakeDb(tables), supa);
+  assert.equal(upsertCalls(supa, 'location_pings'), 1);
+  assert.equal(r.failed, 100);
+  assert.equal(r.errorKind, 'network');
+  assert.ok(tables.location_pings.every((p) => p.synced === 0));
+});
+
+test('si la red cae en el reintento uno a uno, cuenta lo que falta del lote y para', async () => {
+  const tables = baseTables();
+  tables.location_pings.push(...pings(250));
+  const supa = fakeSupabase({
+    upsertError: (_t, payload) => {
+      if (payload.length > 1) return CHECK_ERR;
+      return payload[0].ping_id === 'p0' ? null : NET_ERR;
+    },
+  });
+  const r = await flush(fakeDb(tables), supa);
+  assert.equal(upsertCalls(supa, 'location_pings'), 3, 'lote, p0 y p1; nada más');
+  assert.equal(r.pushed, 1);
+  assert.equal(r.failed, 99);
+  assert.equal(r.errorKind, 'network');
+});
+
+test('un error sin código del servidor no reintenta uno a uno', async () => {
+  const tables = baseTables();
+  tables.location_pings.push(...pings(3));
+  const supa = fakeSupabase({ failTables: ['location_pings'] });
+  const r = await flush(fakeDb(tables), supa);
+  assert.equal(upsertCalls(supa, 'location_pings'), 1);
+  assert.equal(r.failed, 3);
+  assert.equal(r.errorKind, 'server');
+});
+
+test('flush concurrente devuelve busy true (B4)', async () => {
+  const tables = baseTables();
+  tables.visits.push(visit('v1'));
+  const db = fakeDb(tables);
+  const first = flush(db, fakeSupabase());
+  assert.deepEqual(await flush(db, fakeSupabase()), { pushed: 0, failed: 0, busy: true, errorKind: null });
+  const r = await first;
+  assert.equal(r.busy, false);
+  assert.equal(r.pushed, 1);
+});
+
+test('flush reporta errorKind network y server (B1)', async (t) => {
+  const run = async (fill: (x: ReturnType<typeof baseTables>) => void, opts: Parameters<typeof fakeSupabase>[0]) => {
+    const tables = baseTables();
+    fill(tables);
+    return flush(fakeDb(tables), fakeSupabase(opts));
+  };
+  const visitAndPing = (x: ReturnType<typeof baseTables>) => { x.visits.push(visit('v1')); x.location_pings.push(ping('p1')); };
+  assert.equal((await run(visitAndPing, {})).errorKind, null);
+  assert.equal((await run(visitAndPing, { upsertError: () => NET_ERR })).errorKind, 'network');
+  assert.equal((await run(visitAndPing, { upsertError: () => CHECK_ERR })).errorKind, 'server');
+  // server gana en cualquier orden.
+  assert.equal((await run(visitAndPing, { upsertError: (table) => (table === 'visits' ? NET_ERR : CHECK_ERR) })).errorKind, 'server');
+  assert.equal((await run(visitAndPing, { upsertError: (table) => (table === 'visits' ? CHECK_ERR : NET_ERR) })).errorKind, 'server');
+
+  fakeFiles(t);
+  const photo = (x: ReturnType<typeof baseTables>) => { x.visits.push(pendingVisit('v1', ['a'])); };
+  assert.equal((await run(photo, { storageMessage: 'Network request failed' })).errorKind, 'network');
+  assert.equal((await run(photo, { storageMessage: 'Bucket not found' })).errorKind, 'server');
+});
+
+test('flush se detiene antes de la siguiente foto al agotar budgetMs (B3)', async (t) => {
+  fakeFiles(t);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a', 'b', 'c']));
+  tables.competition_reports.push(report('r1', ['x']));
+  const db = fakeDb(tables);
+  const supa = fakeSupabase({ onUpload: fakeClock(t, 60) });
+
+  // a arranca en 0 y b en 60; c ya arrancaría en 120.
+  const r = await flush(db, supa, undefined, { budgetMs: 100 });
+  assert.deepEqual(supa.calls.filter((c: string) => c.startsWith('storage:upload:')), ['storage:upload:u1/v1/0.jpg', 'storage:upload:u1/v1/1.jpg']);
+  assert.equal(r.failed, 0, 'parar por presupuesto no es un fallo');
+  assert.equal(r.errorKind, null);
+  assert.equal(tables.visits[0].photos_synced, 0);
+  assert.equal(tables.visits[0].photos_done, 2);
+  assert.equal(tables.visits[0].photo_attempts, 0, 'no gasta intento');
+  assert.equal(tables.visits[0].photo_next_try, null, 'no programa espera');
+  assert.deepEqual(supa.updates.at(-1).payload.photo_urls, ['u1/v1/0.jpg', 'u1/v1/1.jpg']);
+  assert.equal(tables.competition_reports[0].photos_synced, 0, 'el presupuesto vale también para los reportes');
+  assert.equal((await pendingCounts(db)).photos, 2);
+
+  // La pasada siguiente sigue donde quedó.
+  await flush(db, supa);
+  assert.equal(tables.visits[0].photos_synced, 1);
+  assert.equal(tables.competition_reports[0].photos_synced, 1);
+  assert.equal(supa.calls.filter((c: string) => c === 'storage:upload:u1/v1/0.jpg').length, 1);
+});
+
+test('el presupuesto no frena registros ni pings, solo fotos (B3)', async (t) => {
+  fakeFiles(t);
+  const tables = baseTables();
+  tables.visits.push(visit('v1'), pendingVisit('v2', ['a']));
+  tables.location_pings.push(ping('p1'));
+  const supa = fakeSupabase();
+  const r = await flush(fakeDb(tables), supa, undefined, { budgetMs: 0 });
+  assert.equal(tables.visits[0].synced, 1);
+  assert.equal(tables.location_pings[0].synced, 1);
+  assert.ok(!supa.calls.some((c: string) => c.startsWith('storage:')));
+  assert.equal(r.failed, 0);
+});
+
+test('al parar por presupuesto no quita del enlace una foto ya arriba', async (t) => {
+  fakeFiles(t);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a', 'b', 'c']));
+  const supa = fakeSupabase({ existing: ['u1/v1/2.jpg'], onUpload: fakeClock(t, 200) });
+  await flush(fakeDb(tables), supa, undefined, { budgetMs: 100 });
+  assert.deepEqual(supa.updates.at(-1).payload.photo_urls, ['u1/v1/0.jpg', 'u1/v1/2.jpg']);
+  assert.equal(tables.visits[0].photos_synced, 0);
+  assert.equal(tables.visits[0].photos_done, 2);
+});
+
+test('al parar por presupuesto sin listado no toca photo_urls', async (t) => {
+  fakeFiles(t);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a', 'b']));
+  const supa = fakeSupabase({ failList: true, onUpload: fakeClock(t, 200) });
+  const r = await flush(fakeDb(tables), supa, undefined, { budgetMs: 100 });
+  assert.equal(supa.updates.length, 0);
+  assert.equal(tables.visits[0].photos_synced, 0);
+  assert.equal(r.failed, 0);
+});
+
+test('onProgress se llama al avanzar (B3)', async (t) => {
+  fakeFiles(t);
+  const tables = baseTables();
+  tables.visits.push(visit('v1'), pendingVisit('v2', ['a', 'b']));
+  const seen: { v1: number; done: number; closed: number }[] = [];
+  await flush(fakeDb(tables), fakeSupabase(), undefined, {
+    onProgress: () => { seen.push({ v1: tables.visits[0].synced, done: tables.visits[1].photos_done, closed: tables.visits[1].photos_synced }); },
+  });
+  assert.deepEqual(seen, [
+    { v1: 1, done: 0, closed: 0 }, // el registro
+    { v1: 1, done: 1, closed: 0 }, // cada foto queda contada antes de avisar
+    { v1: 1, done: 2, closed: 0 },
+    { v1: 1, done: 2, closed: 1 }, // el cierre de la fila
+  ]);
+});
+
+test('pendingCounts cuenta fotos reales menos las hechas (B2)', async () => {
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a', 'b', 'c'], { photos_done: 1 }));
+  assert.equal((await pendingCounts(fakeDb(tables))).photos, 2);
+
+  tables.competition_reports.push(report('r1', ['x', 'y']));
+  tables.visits.push(pendingVisit('ajena', ['z'], { user_id: 'u2' }));
+  assert.equal((await pendingCounts(fakeDb(tables))).photos, 5);
+  assert.equal((await pendingCounts(fakeDb(tables), 'u2')).photos, 1);
+});
+
+test('pendingPhotos: JSON inválido cuenta 0 y nunca da negativo (B2)', () => {
+  assert.equal(pendingPhotos([{ photo_uri: '["a","b","c"]', photos_done: 1 }, { photo_uri: '["d"]', photos_done: 0 }]), 3);
+  assert.equal(pendingPhotos([{ photo_uri: 'no-es-json', photos_done: 0 }]), 0);
+  assert.equal(pendingPhotos([{ photo_uri: null, photos_done: 0 }]), 0);
+  assert.equal(pendingPhotos([{ photo_uri: '{"a":1}', photos_done: 0 }]), 0);
+  assert.equal(pendingPhotos([{ photo_uri: '["a"]', photos_done: 5 }, { photo_uri: '["b"]', photos_done: 0 }]), 1);
+  assert.equal(pendingPhotos([]), 0);
+});
+
+test('fotos arriba pero sin enlazar: sigue contando como pendiente (B4)', async (t) => {
+  fakeFiles(t);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a', 'b']));
+  const db = fakeDb(tables);
+  await flush(db, fakeSupabase({ failTables: ['visits'] }));
+  assert.equal(tables.visits[0].photos_synced, 0);
+  assert.equal((await pendingCounts(db)).photos, 1);
+});
+
+test('fila esperando photo_next_try: flush sin fallos pero el banner no dice Todo sincronizado (B4)', async (t) => {
+  fakeFiles(t);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a'], { photo_next_try: new Date(Date.now() + 10 * 60_000).toISOString() }));
+  const db = fakeDb(tables);
+  const r = await flush(db, fakeSupabase());
+  assert.equal(r.failed, 0);
+  const counts = await pendingCounts(db);
+  assert.equal(counts.photos, 1);
+  assert.equal(deriveSyncBanner({ status: 'synced', records: counts.records, photos: counts.photos })!.tone, 'pending');
 });

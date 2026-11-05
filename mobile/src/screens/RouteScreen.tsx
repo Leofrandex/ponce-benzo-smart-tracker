@@ -85,6 +85,9 @@ export function RouteScreen() {
             <Text style={styles.headerDate}>{formatToday()}</Text>
           </View>
         </View>
+        <View style={styles.bannerSlot}>
+          <SyncBanner />
+        </View>
         <View style={styles.centeredState}>
           <ActivityIndicator size="large" />
           <Text style={styles.centeredStateText}>Cargando tu ruta…</Text>
@@ -102,6 +105,9 @@ export function RouteScreen() {
             <Text style={styles.headerTitle}>Ruta del Día</Text>
             <Text style={styles.headerDate}>{formatToday()}</Text>
           </View>
+        </View>
+        <View style={styles.bannerSlot}>
+          <SyncBanner />
         </View>
         <View style={styles.centeredState}>
           <Ionicons name="alert-circle-outline" size={40} color={colors.danger} />
@@ -224,6 +230,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgSurface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  bannerSlot: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
   headerTitle: {
     fontSize: 20,

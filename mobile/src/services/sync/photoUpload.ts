@@ -17,21 +17,23 @@ export function shortError(e: unknown): string {
     .slice(0, 200);
 }
 
-export type PhotoResult = { listed: boolean; paths: string[]; missing: number[]; failed: { index: number; error: string }[] };
+export type PhotoResult = { listed: boolean; paths: string[]; missing: number[]; failed: { index: number; error: string }[]; stopped: boolean };
 
 /**
  * Sube las fotos una a una; un fallo no frena a las demás. `paths` queda en orden de índice.
  * Una foto solo es `missing` si el archivo no existe Y Storage confirmó que tampoco está:
  * sin listado no se puede saber, y queda en `failed` para reintentar.
+ * Con `shouldStop` no arranca más subidas y marca `stopped`; las fotos ya arriba se siguen
+ * contando para que `paths` no pierda ninguna ya enlazada.
  */
 export async function uploadPhotos(
   supabase: SupabaseClient,
   userId: string,
   ownerId: string,
   uris: string[],
-  opts: { timeoutMs?: number; exists?: (uri: string) => Promise<boolean>; onPhotoDone?: () => void } = {},
+  opts: { timeoutMs?: number; exists?: (uri: string) => Promise<boolean>; onPhotoDone?: () => void | Promise<void>; shouldStop?: () => boolean } = {},
 ): Promise<PhotoResult> {
-  const { timeoutMs = LOCAL_READ_TIMEOUT_MS, exists = photoExists, onPhotoDone } = opts;
+  const { timeoutMs = LOCAL_READ_TIMEOUT_MS, exists = photoExists, onPhotoDone, shouldStop } = opts;
   const folder = `${userId}/${ownerId}`;
   let uploaded: Set<string> | null = null;
   let listError = "sin datos";
@@ -46,11 +48,12 @@ export async function uploadPhotos(
     }
   } catch (e) { listError = shortError(e); }
 
-  const result: PhotoResult = { listed: uploaded !== null, paths: [], missing: [], failed: [] };
+  const result: PhotoResult = { listed: uploaded !== null, paths: [], missing: [], failed: [], stopped: false };
   for (let i = 0; i < uris.length; i++) {
     const path = storagePath(userId, ownerId, i);
     try {
-      if (uploaded?.has(path)) { result.paths.push(path); onPhotoDone?.(); continue; }
+      if (uploaded?.has(path)) { result.paths.push(path); await onPhotoDone?.(); continue; }
+      if (shouldStop?.()) { result.stopped = true; continue; }
       if (!(await exists(uris[i]))) {
         if (uploaded) result.missing.push(i);
         else result.failed.push({ index: i, error: `archivo ausente y Storage sin listar: ${listError}` });
@@ -62,7 +65,7 @@ export async function uploadPhotos(
       const { error } = await supabase.storage.from("visit-photos").upload(path, buf, { contentType: "image/jpeg", upsert: true });
       if (error) throw error;
       result.paths.push(path);
-      onPhotoDone?.();
+      await onPhotoDone?.();
     } catch (e) {
       result.failed.push({ index: i, error: shortError(e) });
     }

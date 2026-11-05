@@ -8,6 +8,7 @@ import { deriveSyncBanner, type BannerTone } from '../sync/bannerState';
 const TONE_COLORS: Record<BannerTone, { fg: string; bg: string }> = {
   syncing: { fg: colors.accent, bg: colors.accentGlow },
   offline: { fg: colors.warning, bg: colors.warningBg },
+  error: { fg: colors.danger, bg: colors.dangerBg },
   pending: { fg: colors.warning, bg: colors.warningBg },
   synced: { fg: colors.success, bg: colors.successBg },
 };
