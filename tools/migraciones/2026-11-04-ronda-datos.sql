@@ -477,45 +477,47 @@ begin
       raise exception 'Fila %: faltan campos obligatorios: %.', v_fila->>'fila', v_faltan using errcode = '22023';
     end if;
 
-    v_cliente := (v_fila->>'client_id')::uuid;
-    v_clave := v_cliente::text || '|' || public.fn_norm_texto(v_fila->>'name');
-    v_codigo := upper(nullif(btrim(v_fila->>'pdv_code'), ''));
-    v_motivo := null;
+    -- Todo error de aqui adentro sale con el numero de fila. Un raise propio no lo lleva:
+    -- se lo pone when others.
+    begin
+      v_cliente := (v_fila->>'client_id')::uuid;
+      v_clave := v_cliente::text || '|' || public.fn_norm_texto(v_fila->>'name');
+      v_codigo := upper(nullif(btrim(v_fila->>'pdv_code'), ''));
+      v_motivo := null;
 
-    if v_codigo is not null then
-      if exists (select 1 from public.stores s where s.pdv_code = v_codigo) then
-        v_motivo := format('El código %s ya existe.', v_codigo);
-      else
-        select a.kind into v_kind from public.store_code_aliases a where a.code = v_codigo;
-        if found then
-          v_motivo := case v_kind
-            when 'reservado' then format('El código %s está reservado.', v_codigo)
-            else format('El código %s es un alias de otra tienda.', v_codigo)
-          end;
+      if v_codigo is not null then
+        if exists (select 1 from public.stores s where s.pdv_code = v_codigo) then
+          v_motivo := format('El código %s ya existe.', v_codigo);
+        else
+          select a.kind into v_kind from public.store_code_aliases a where a.code = v_codigo;
+          if found then
+            v_motivo := case v_kind
+              when 'reservado' then format('El código %s está reservado.', v_codigo)
+              else format('El código %s es un alias de otra tienda.', v_codigo)
+            end;
+          end if;
         end if;
       end if;
-    end if;
 
-    if v_motivo is null and v_clave = any (v_vistas) then
-      v_motivo := 'Repetida dentro del archivo: mismo cliente y nombre que una fila anterior.';
-    elsif v_motivo is null and v_clave = any (v_existentes) then
-      v_motivo := 'Ya existe una tienda de ese cliente con el mismo nombre.';
-    end if;
+      if v_motivo is null and v_clave = any (v_vistas) then
+        v_motivo := 'Repetida dentro del archivo: mismo cliente y nombre que una fila anterior.';
+      elsif v_motivo is null and v_clave = any (v_existentes) then
+        v_motivo := 'Ya existe una tienda de ese cliente con el mismo nombre.';
+      end if;
 
-    v_vistas := v_vistas || v_clave;
+      v_vistas := v_vistas || v_clave;
 
-    if v_motivo is not null then
-      v_repetidas := v_repetidas || jsonb_build_object('fila', (v_fila->>'fila')::int, 'motivo', v_motivo);
-      continue;
-    end if;
+      if v_motivo is not null then
+        v_repetidas := v_repetidas || jsonb_build_object('fila', (v_fila->>'fila')::int, 'motivo', v_motivo);
+        continue;
+      end if;
 
-    v_lat := nullif(v_fila->>'master_lat', '')::double precision;
-    v_lng := nullif(v_fila->>'master_lng', '')::double precision;
-    if v_lat not between -90 and 90 or v_lng not between -180 and 180 then
-      raise exception 'Fila %: coordenadas fuera de rango.', v_fila->>'fila' using errcode = '22023';
-    end if;
+      v_lat := nullif(v_fila->>'master_lat', '')::double precision;
+      v_lng := nullif(v_fila->>'master_lng', '')::double precision;
+      if v_lat not between -90 and 90 or v_lng not between -180 and 180 then
+        raise exception 'coordenadas fuera de rango.' using errcode = '22023';
+      end if;
 
-    begin
       insert into public.stores (
         client_id, name, business_channel, estado, municipio, address,
         urbanizacion, ciudad, region, master_lat, master_lng, pdv_code
@@ -535,6 +537,8 @@ begin
         when 'stores_pdv_code_key' then 'el código PDV ya existe'
         else format('dato no permitido (%s)', v_restriccion)
       end using errcode = sqlstate;
+    when others then
+      raise exception 'Fila %: %', v_fila->>'fila', sqlerrm using errcode = sqlstate;
     end;
     v_insertadas := v_insertadas + 1;
   end loop;
