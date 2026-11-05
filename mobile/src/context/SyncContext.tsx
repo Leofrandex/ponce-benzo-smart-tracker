@@ -5,6 +5,8 @@ import { supabase } from '../services/supabase';
 import { getDb } from '../store/localStore';
 import { flush, pendingCounts, type PendingCounts } from '../sync/syncEngine';
 import { flushDeviceLogs } from '../diagnostics/log';
+import { purgeIfDue } from '../store/purge';
+import { expoPhotoFs } from '../services/photos/photoStore';
 import { classifyError } from '../sync/errorKind';
 import type { SyncStatus } from '../sync/bannerState';
 
@@ -63,6 +65,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       await flushDeviceLogs(db, supabase, userId);
       await refreshCount();
       if (activeUser.current === userId) setStatus(failed > 0 ? (errorKind === 'network' ? 'offline' : 'error') : 'synced');
+      // Limpieza diaria tras un flush correcto; sin await y sin tocar el estado (purgeIfDue nunca lanza).
+      if (failed === 0) void purgeIfDue(db, expoPhotoFs, Date.now());
     } catch (e) {
       if (activeUser.current === userId) setStatus(classifyError(e) === 'network' ? 'offline' : 'error');
     } finally { running.current = false; }

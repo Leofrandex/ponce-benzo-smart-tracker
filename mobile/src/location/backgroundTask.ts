@@ -2,7 +2,6 @@ import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import { getDb } from '../store/localStore';
 import { shouldEmitPing } from './pingThrottle';
-import { logEvent } from '../diagnostics/log';
 import { flush } from '../sync/syncEngine';
 import { supabase } from '../services/supabase';
 import { newId } from '../services/sync/ids';
@@ -41,9 +40,6 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: TaskMan
         newId(), open.session_id, open.user_id, new Date(loc.timestamp).toISOString(),
         loc.coords.latitude, loc.coords.longitude,
       );
-      await logEvent(db, 'info', 'ping_insert', `${loc.coords.latitude.toFixed(5)},${loc.coords.longitude.toFixed(5)}`, open.user_id);
-    } else {
-      await logEvent(db, 'info', 'ping_skip', `throttle`, open.user_id);
     }
 
     // Flush COMPLETO (sesiones + visitas + reportes + pings + fotos), no sólo pings:

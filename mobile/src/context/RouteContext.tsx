@@ -7,7 +7,7 @@ import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
 import { resolveRouteLoad, saveRouteSnapshot, loadRouteSnapshot, mergeRecordedStatuses, type OnlineResult } from '../services/routeCache';
 import { useSyncCtx } from './SyncContext';
 import { getDb } from '../store/localStore';
-import { resolveToday, startSession as ssStart, endSession as ssEnd, closeStaleSessions } from '../session/sessionStore';
+import { resolveToday, startSession as ssStart, endSession as ssEnd, closeStaleSessions, isAdhocSession } from '../session/sessionStore';
 import { logEvent } from '../diagnostics/log';
 import { APP_VERSION } from '../diagnostics/version';
 import { withTimeout } from '../utils/withTimeout';
@@ -36,6 +36,7 @@ interface RouteContextValue {
   startSession: () => Promise<void>;
   endSession: () => Promise<void>;
   startAdhocReport: (store: Store) => Promise<void>;
+  stopAdhocGps: () => void;
   recordVisit: (
     storeId: string,
     record: VisitRecord,
@@ -130,7 +131,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const db = await getDb();
     await closeStaleSessions(db, user.id);
-    const { state } = await resolveToday(db, user.id);
+    const { state, session } = await resolveToday(db, user.id);
     setSessionActive(state === 'ACTIVE');
     setSessionEnded(state === 'ENDED');
     if (state === 'ACTIVE') {
@@ -138,10 +139,14 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       try {
         stopWatchRef.current?.();
         stopWatchRef.current = null;
+        // Jornada de reporte suelto: solo GPS en primer plano. Si una version anterior dejo
+        // el servicio de fondo encendido para ella, se apaga.
+        const adhoc = await isAdhocSession(db, session?.session_id);
+        if (adhoc) await stopBackground().catch(() => {});
         stopWatchRef.current = await startTracking(({ lat, lng }) => {
           setCurrentLocation({ lat, lng });
           setGpsState('found');
-        });
+        }, { background: !adhoc });
         await ensureTracking(user.id);
       } catch (e) {
         setGpsState('error');
@@ -225,8 +230,10 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Reporte suelto: asegura la ruta especial del dia, abre la jornada si hace
-   * falta y enciende el GPS. NO arranca el tracking de fondo — el reporte suelto
-   * es puntual, no una jornada de campo completa (spec, Decision 4).
+   * falta (marcada como suelta en `adhoc_session_id`) y enciende solo el GPS de
+   * primer plano. NUNCA arranca el servicio de fondo; si ya hay una jornada normal
+   * con su servicio de fondo corriendo, ese servicio se deja como esta
+   * (spec, Decision 4).
    */
   async function startAdhocReport(store: Store) {
     if (!user) throw new Error('sin usuario');
@@ -244,7 +251,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }), 3000, null,
       );
       if (pos) { lat = pos.coords.latitude; lng = pos.coords.longitude; }
-      await ssStart(db, { userId: user.id, routeId: routeIdSpecial, startLat: lat, startLng: lng, appVersion: APP_VERSION });
+      await ssStart(db, { userId: user.id, routeId: routeIdSpecial, startLat: lat, startLng: lng, appVersion: APP_VERSION, adhoc: true });
       if (lat != null) setCurrentLocation({ lat, lng: lng! });
       setSessionActive(true);
       setSessionEnded(false);
@@ -255,8 +262,25 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     stopWatchRef.current = await startTracking(({ lat: a, lng: b }) => {
       setCurrentLocation({ lat: a, lng: b });
       setGpsState('found');
-    });
+    }, { background: false });
     flushNow();
+  }
+
+  /**
+   * Apaga el GPS del reporte suelto al salir de su pantalla. Solo si la jornada activa
+   * ES la suelta: en una ruta normal ese seguimiento lo necesita el check-in.
+   */
+  function stopAdhocGps() {
+    (async () => {
+      if (!user) return;
+      const db = await getDb();
+      const { state, session } = await resolveToday(db, user.id);
+      if (state !== 'ACTIVE' || !(await isAdhocSession(db, session?.session_id))) return;
+      stopWatchRef.current?.();
+      stopWatchRef.current = null;
+      setGpsState('idle');
+      setCurrentLocation(null);
+    })().catch(() => {});
   }
 
   async function recordVisit(
@@ -397,6 +421,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         startSession,
         endSession,
         startAdhocReport,
+        stopAdhocGps,
         recordVisit,
       }}
     >

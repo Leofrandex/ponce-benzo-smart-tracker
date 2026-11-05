@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -11,12 +11,17 @@ import type { Store } from '../types';
 
 export function AdhocReportScreen() {
   const navigation = useNavigation<any>();
-  const { startAdhocReport } = useRouteCtx();
+  const { startAdhocReport, stopAdhocGps } = useRouteCtx();
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+
+  // Al salir, apaga el GPS del reporte suelto (no toca el de una ruta normal).
+  const stopRef = useRef(stopAdhocGps);
+  stopRef.current = stopAdhocGps;
+  useEffect(() => () => stopRef.current(), []);
 
   useEffect(() => {
     let alive = true;

@@ -64,6 +64,16 @@ const CREATE_SQL = `
   );
 `;
 
+// Van DESPUES de las columnas opcionales: referencian synced/photos_synced/user_id, que en BD viejas se agregan por migracion.
+const INDEX_SQL = `
+  CREATE INDEX IF NOT EXISTS idx_visits_user_sync ON visits(user_id, synced, photos_synced);
+  CREATE INDEX IF NOT EXISTS idx_visits_checkin ON visits(check_in_time);
+  CREATE INDEX IF NOT EXISTS idx_reports_user_sync ON competition_reports(user_id, synced, photos_synced);
+  CREATE INDEX IF NOT EXISTS idx_pings_synced ON location_pings(synced);
+  CREATE INDEX IF NOT EXISTS idx_pings_ts ON location_pings(timestamp);
+  CREATE INDEX IF NOT EXISTS idx_synclog_sync_user ON sync_log(synced, user_id);
+`;
+
 export async function initSchema(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(CREATE_SQL);
   const tables = Object.keys(OPTIONAL_COLUMNS);
@@ -75,6 +85,7 @@ export async function initSchema(db: SQLiteDatabase): Promise<void> {
   for (const stmt of buildMigrations(existing)) {
     await db.execAsync(stmt);
   }
+  await db.execAsync(INDEX_SQL);
 }
 
 let dbPromise: Promise<SQLiteDatabase> | null = null;

@@ -30,20 +30,17 @@ export async function flushDeviceLogs(db: SQLiteDatabase, supabase: SupabaseClie
     `SELECT log_id, user_id, ts, level, event, detail FROM sync_log WHERE synced = 0 AND user_id = ? LIMIT 200`,
     userId,
   );
-  let pushed = 0;
-  for (const r of rows) {
-    try {
-      const { error } = await withDeadline(
-        supabase.from('device_logs').upsert(
-          { log_id: r.log_id, user_id: r.user_id, ts: r.ts, level: r.level, event: r.event, detail: r.detail },
-          { onConflict: 'log_id' },
-        ),
-        15_000, `log ${r.log_id}`,
-      );
-      if (error) throw error;
-      await db.runAsync(`UPDATE sync_log SET synced = 1 WHERE log_id = ?`, r.log_id);
-      pushed++;
-    } catch { break; /* sin red no vale la pena seguir: reintenta en el próximo flush */ }
-  }
-  return pushed;
+  if (rows.length === 0) return 0;
+  try {
+    const { error } = await withDeadline(
+      supabase.from('device_logs').upsert(
+        rows.map((r) => ({ log_id: r.log_id, user_id: r.user_id, ts: r.ts, level: r.level, event: r.event, detail: r.detail })),
+        { onConflict: 'log_id' },
+      ),
+      15_000, 'device_logs',
+    );
+    if (error) throw error;
+    await db.runAsync(`UPDATE sync_log SET synced = 1 WHERE log_id IN (${rows.map(() => '?').join(',')})`, ...rows.map((r) => r.log_id));
+    return rows.length;
+  } catch { return 0; /* sin red o rechazado: nada se marca, reintenta en el próximo flush */ }
 }
