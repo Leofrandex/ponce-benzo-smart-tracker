@@ -1,5 +1,5 @@
 import { getSupabaseBrowser } from "../supabase/client";
-import type { Store } from "../types";
+import type { Store, TiendaInput } from "../types";
 
 // Validación pura de coordenadas (lat [-90,90], lng [-180,180], finitas).
 export function validateCoords(lat: number, lng: number): boolean {
@@ -32,4 +32,33 @@ export async function deactivateStore(storeId: string): Promise<{ error: string 
   const sb = getSupabaseBrowser();
   const { error } = await sb.from("stores").update({ active: false }).eq("store_id", storeId);
   return { error: error?.message ?? null };
+}
+
+const opc = (s?: string) => s?.trim() || null;
+
+export async function createStore(input: TiendaInput): Promise<{ error: string | null; store_id?: string }> {
+  const lat = input.master_lat ?? null;
+  const lng = input.master_lng ?? null;
+  if ((lat == null) !== (lng == null)) return { error: "Indica latitud y longitud, o deja ambas vacías." };
+  if (lat != null && lng != null && !validateCoords(lat, lng)) return { error: "Coordenadas fuera de rango." };
+  const sb = getSupabaseBrowser();
+  const row: Record<string, unknown> = {
+    client_id: input.client_id,
+    name: input.name.trim(),
+    business_channel: input.business_channel,
+    estado: input.estado.trim(),
+    municipio: input.municipio.trim(),
+    address: input.address.trim(),
+    urbanizacion: opc(input.urbanizacion),
+    ciudad: opc(input.ciudad),
+    region: opc(input.region),
+    master_lat: lat,
+    master_lng: lng,
+  };
+  // Sin pdv_code la base asigna el siguiente (default fn_next_pdv).
+  const pdv = opc(input.pdv_code);
+  if (pdv) row.pdv_code = pdv.toUpperCase();
+  const { data, error } = await sb.from("stores").insert(row).select("store_id").single();
+  if (error) return { error: error.message };
+  return { error: null, store_id: data.store_id as string };
 }

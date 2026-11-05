@@ -4,12 +4,10 @@ import Link from "next/link";
 import { Building2, ChevronRight, AlertTriangle } from "lucide-react";
 import type { ClientRow } from "@/app/lib/queries/derive";
 import { fechaCaracas } from "@/app/lib/queries/taskFilters";
+import { CANAL_LABEL as CHANNEL_LABELS } from "@/app/lib/carga/canales";
 import { SkeletonTable } from "@/app/components/ui/Skeleton";
 
-export const CHANNEL_LABELS: Record<string, string> = {
-  drogueria: "Droguería", farmacia: "Farmacia", supermercado: "Supermercado",
-  autoservicio: "Autoservicio", mayorista: "Mayorista", otro: "Otro",
-};
+export { CANAL_LABEL as CHANNEL_LABELS } from "@/app/lib/carga/canales";
 const CLASS_COLORS: Record<string, string> = {
   A: "var(--success)", B: "var(--warning)", C: "var(--text-muted)",
 };

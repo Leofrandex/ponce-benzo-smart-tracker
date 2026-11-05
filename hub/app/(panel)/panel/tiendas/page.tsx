@@ -3,6 +3,11 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus, Search } from "lucide-react";
+import { useAuth } from "@/app/lib/auth-context";
+import { canCreateStore } from "@/app/lib/roles";
+import { createStore } from "@/app/lib/mutations/stores";
+import type { TiendaInput } from "@/app/lib/types";
+import { StoreFormModal } from "@/app/components/clientes/StoreFormModal";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchStores } from "@/app/lib/queries/stores";
 import { fetchTasks } from "@/app/lib/queries/tasks";
@@ -28,6 +33,8 @@ function TiendasInner() {
   const sp = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const { profile } = useAuth();
+  const [adding, setAdding] = useState(false);
   const qs = sp.toString();
 
   const { filters, q } = useMemo(() => parseTiendasParams(new URLSearchParams(qs)), [qs]);
@@ -119,14 +126,16 @@ function TiendasInner() {
             ? <Skeleton h={10} w={140} pill style={{ marginTop: 8 }} />
             : <p className="text-muted text-sm" style={{ marginTop: "4px" }}>{`${rows.length} de ${(stores ?? []).length} tiendas`}</p>}
         </div>
-        <button
-          type="button"
-          onClick={() => alert("La creación de sucursales llega en la siguiente fase (escritura).")}
-          className="filter-chip"
-          style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}
-        >
-          <Plus size={12} /> Agregar sucursal
-        </button>
+        {canCreateStore(profile?.role) && (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="filter-chip"
+            style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}
+          >
+            <Plus size={12} /> Agregar tienda
+          </button>
+        )}
       </div>
 
       <div style={{ position: "relative" }}>
@@ -146,6 +155,18 @@ function TiendasInner() {
         </div>
       )}
       <ClientesTable rows={rows} loading={cargandoTabla} />
+      <StoreFormModal
+        open={adding}
+        store={null}
+        clients={clients ?? []}
+        onClose={() => setAdding(false)}
+        onSave={async (input: TiendaInput) => {
+          const { error } = await createStore(input);
+          if (error) return { error };
+          await refetchStores();
+          return {};
+        }}
+      />
     </>
   );
 }

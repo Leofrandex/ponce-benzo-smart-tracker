@@ -223,3 +223,27 @@ export interface CompetitionReport {
   created_at: string;
   synced: boolean;
 }
+
+// Alta de tienda desde el hub (nombres = columnas de la base).
+export interface TiendaInput {
+  client_id: string | null;
+  name: string;
+  business_channel: string;
+  estado: string;
+  municipio: string;
+  address: string;
+  urbanizacion?: string;
+  ciudad?: string;
+  region?: string;
+  master_lat?: number | null;
+  master_lng?: number | null;
+  pdv_code?: string;
+}
+
+// Alta de cliente (cadena) desde el hub; se crea con fn_crear_cliente.
+export interface ClienteInput {
+  name: string;
+  business_channel: string;
+  rif?: string;
+  vendedor_id?: string | null;
+}
