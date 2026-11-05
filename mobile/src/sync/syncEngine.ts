@@ -133,7 +133,8 @@ export async function flush(
           NET_TIMEOUT_MS, `session ${s.session_id}`,
         );
         if (error) throw error;
-        await db.runAsync(`UPDATE sessions SET synced=1 WHERE session_id=?`, s.session_id);
+        // Si la ruta se finalizo durante la subida, session_end cambio: sigue pendiente.
+        await db.runAsync(`UPDATE sessions SET synced=1 WHERE session_id=? AND session_end IS ?`, s.session_id, s.session_end ?? null);
         done();
       } catch (e) { fail(e); console.warn(`[sync] session ${s.session_id} FAIL:`, errMsg(e)); }
     }

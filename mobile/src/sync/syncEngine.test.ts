@@ -895,6 +895,28 @@ test('fila esperando photo_next_try: flush sin fallos pero el banner no dice Tod
 // ── Capturas de GPS: SQLite real, solo Supabase falso ─────────────────────────
 
 async function realDb() { const db = memoryDb(); await initSchema(db); return db; }
+
+test('REGRESIÓN: finalizar la ruta durante la subida de la sesión no pierde session_end', async () => {
+  const db = await realDb();
+  const fin = '2026-11-05T15:00:00.000Z';
+  await db.runAsync(`INSERT INTO sessions (session_id, user_id, route_id, session_start, synced) VALUES ('s1', 'u1', 'r1', '2026-11-05T12:00:00.000Z', 0)`);
+  const subidas: any[] = [];
+  const supa = fakeSupabase({
+    upsertError: (table, payload) => {
+      if (table !== 'sessions') return null;
+      subidas.push(payload);
+      if (subidas.length === 1) void db.runAsync(`UPDATE sessions SET session_end = ?, synced = 0 WHERE session_id = 's1'`, fin);
+      return null;
+    },
+  });
+  await flush(db, supa, 'u1');
+  const trasPrimera = await db.getFirstAsync<any>(`SELECT synced FROM sessions WHERE session_id = 's1'`);
+  assert.equal(trasPrimera.synced, 0, 'el cierre sigue pendiente');
+  await flush(db, supa, 'u1');
+  const trasSegunda = await db.getFirstAsync<any>(`SELECT synced FROM sessions WHERE session_id = 's1'`);
+  assert.equal(trasSegunda.synced, 1);
+  assert.equal(subidas.at(-1).session_end, fin);
+});
 const gpsInput = (over = {}) => ({ storeId: 'st1', userId: 'u1', lat: 10.5, lng: -66.9, nowIso: '2026-11-04T14:00:00.000Z', ...over });
 const gpsRow = (db: any, id: string) => db.getFirstAsync(`SELECT synced FROM store_gps_captures WHERE capture_id=?`, id);
 const gpsLogs = (db: any) => db.getAllAsync(`SELECT event, detail, user_id, level FROM sync_log WHERE event='gps_capture_rejected'`);
