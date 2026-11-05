@@ -52,10 +52,10 @@ test('deletePhotos sigue con las demas si una falla', async () => {
   assert.deepEqual(fs.removed, ['file:///perm/b.jpg']);
 });
 
-test('photoExists consulta al fs y no lanza', async () => {
+test('photoExists: false solo si la ausencia es confirmada; ante error asume que existe', async () => {
   const fs = fakeFs(['file:///perm/a.jpg']);
   assert.equal(await photoExists('file:///perm/a.jpg', fs), true);
   assert.equal(await photoExists('file:///perm/z.jpg', fs), false);
   fs.exists = async () => { throw new Error('boom'); };
-  assert.equal(await photoExists('file:///perm/a.jpg', fs), false);
+  assert.equal(await photoExists('file:///perm/a.jpg', fs), true);
 });

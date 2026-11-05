@@ -66,6 +66,7 @@ export async function deletePhotos(uris: string[], fs: PhotoFs = expoPhotoFs): P
   }
 }
 
+/** Solo false cuando la ausencia esta confirmada; ante un error asume que existe (nunca dar por perdida una foto). */
 export async function photoExists(uri: string, fs: PhotoFs = expoPhotoFs): Promise<boolean> {
-  try { return await fs.exists(uri); } catch { return false; }
+  try { return await fs.exists(uri); } catch { return true; }
 }

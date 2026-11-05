@@ -22,10 +22,21 @@ export function CameraModal({ visible, onCapture, onClose }: CameraModalProps) {
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const originalRef = useRef<string | null>(null);
   const cameraRef = useRef<CameraView>(null);
 
+  // Descarta preview y original sin reducir (nunca el mismo URI dos veces ni nada si se esta guardando).
+  function discardPreview() {
+    if (savingRef.current) return;
+    const orig = originalRef.current;
+    originalRef.current = null;
+    const doomed = [previewUri, orig].filter((u): u is string => !!u);
+    if (doomed.length) void deletePhotos([...new Set(doomed)]);
+  }
+
   function handleClose() {
-    if (previewUri && !saving) void deletePhotos([previewUri]);
+    discardPreview();
     setPreviewUri(null);
     onClose();
   }
@@ -47,14 +58,14 @@ export function CameraModal({ visible, onCapture, onClose }: CameraModalProps) {
         rendered = await ctx.renderAsync();
         const saved = await rendered.saveAsync({ compress: 0.6, format: SaveFormat.JPEG });
         uri = saved.uri;
-        // La original sin reducir ya no sirve; si la reduccion cayo a la original (arriba) no se toca.
-        if (saved.uri !== photo.uri) void deletePhotos([photo.uri]);
       } catch (e) {
         console.warn('[camera] no se pudo reducir la foto, se usa la original:', (e as Error)?.message ?? e);
       } finally {
         rendered?.release();
         ctx?.release();
       }
+      // La original se conserva hasta que el usuario acepte y persistPhoto tenga exito.
+      originalRef.current = uri !== photo.uri ? photo.uri : null;
       setPreviewUri(uri);
     } catch {
       // camera error — just close
@@ -65,18 +76,25 @@ export function CameraModal({ visible, onCapture, onClose }: CameraModalProps) {
   }
 
   async function handleUsePhoto() {
-    if (!previewUri || saving) return;
+    if (!previewUri || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
-      onCapture(await persistPhoto(previewUri));
+      const saved = await persistPhoto(previewUri);
+      const orig = originalRef.current;
+      originalRef.current = null;
+      // Solo si la copia salio bien (ruta distinta) la original sobra; nunca si es el mismo URI.
+      if (orig && saved !== previewUri && orig !== saved) void deletePhotos([orig]);
+      onCapture(saved);
       setPreviewUri(null);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
 
   function handleRetake() {
-    if (previewUri && !saving) void deletePhotos([previewUri]);
+    discardPreview();
     setPreviewUri(null);
   }
 
