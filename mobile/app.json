@@ -2,7 +2,7 @@
   "expo": {
     "name": "Ponce & Benzo Tracker",
     "slug": "ponce-benzo-tracker",
-    "version": "1.3.2",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "com.poncebenzo.tracker",
-      "versionCode": 6,
+      "versionCode": 7,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#00205C"
@@ -60,7 +60,10 @@
       "policy": "appVersion"
     },
     "updates": {
-      "enabled": false
+      "enabled": true,
+      "url": "https://u.expo.dev/d2737f7b-0538-44aa-a579-4ed2e3caa7a6",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     }
   }
 }
