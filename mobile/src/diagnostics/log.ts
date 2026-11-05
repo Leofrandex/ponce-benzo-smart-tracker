@@ -26,12 +26,12 @@ export async function logEvent(
 // Solo los del usuario de la sesión: los de otra cuenta los rechaza RLS y, por ir
 // primero en el LIMIT, tapaban para siempre los del usuario actual.
 export async function flushDeviceLogs(db: SQLiteDatabase, supabase: SupabaseClient, userId: string): Promise<number> {
-  const rows = await db.getAllAsync<{ log_id: string; user_id: string | null; ts: string; level: string; event: string; detail: string | null }>(
-    `SELECT log_id, user_id, ts, level, event, detail FROM sync_log WHERE synced = 0 AND user_id = ? LIMIT 200`,
-    userId,
-  );
-  if (rows.length === 0) return 0;
   try {
+    const rows = await db.getAllAsync<{ log_id: string; user_id: string | null; ts: string; level: string; event: string; detail: string | null }>(
+      `SELECT log_id, user_id, ts, level, event, detail FROM sync_log WHERE synced = 0 AND user_id = ? LIMIT 200`,
+      userId,
+    );
+    if (rows.length === 0) return 0;
     const { error } = await withDeadline(
       supabase.from('device_logs').upsert(
         rows.map((r) => ({ log_id: r.log_id, user_id: r.user_id, ts: r.ts, level: r.level, event: r.event, detail: r.detail })),

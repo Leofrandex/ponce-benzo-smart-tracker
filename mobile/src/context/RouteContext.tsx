@@ -246,6 +246,9 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     if (existing.state !== 'ACTIVE') {
       const perms = await requestPermissions();
       if (!perms.foreground) { setGpsState('error'); throw new Error('sin permiso de ubicacion'); }
+      // Un servicio de fondo sobrante (ruta de ayer sin cerrar o version anterior) seguiria
+      // generando pings a nombre de esta jornada suelta, que no debe tener GPS de fondo.
+      await stopBackground().catch(() => {});
       let lat: number | null = null, lng: number | null = null;
       const pos = await withTimeout(
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }), 3000, null,

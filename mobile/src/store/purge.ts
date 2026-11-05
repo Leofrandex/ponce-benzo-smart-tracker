@@ -22,47 +22,63 @@ export async function purgeLocal(db: SQLiteDatabase, nowMs: number): Promise<voi
   await db.runAsync(`DELETE FROM sync_log WHERE synced = 1 AND ts < ?`, week);
 }
 
-/** URIs referenciadas por cualquier fila; null si alguna no se puede interpretar (podria esconder una referencia). */
+const base = (uri: string) => uri.split('/').pop() ?? uri; // por nombre de archivo: tolera diferencias de prefijo/formato de URI
+
+/** Agrega las referencias de una fila; false si no se puede interpretar (podria esconder una referencia). */
 function parseRefs(raw: string | null, into: Set<string>): boolean {
   if (raw == null || raw === '') return true;
   try {
     const v = JSON.parse(raw);
     if (!Array.isArray(v) || v.some((u) => typeof u !== 'string')) return false;
-    v.forEach((u) => into.add(u));
+    v.forEach((u) => into.add(base(u)));
     return true;
   } catch { return false; }
 }
 
-/** Borra de la carpeta permanente las fotos que ninguna fila referencia y tienen +7 dias. Devuelve cuantas. */
-export async function purgeOrphanPhotos(db: SQLiteDatabase, fs: PhotoFs, nowMs: number): Promise<number> {
+/** Version con motivo: `skip` explica por que no se borro nada. */
+async function orphanPass(db: SQLiteDatabase, fs: PhotoFs, nowMs: number): Promise<{ deleted: number; skip?: string }> {
   const refs = new Set<string>();
   try {
     for (const table of ['visits', 'competition_reports']) {
       const rows = await db.getAllAsync<{ photo_uri: string | null }>(`SELECT photo_uri FROM ${table}`);
-      for (const r of rows) if (!parseRefs(r.photo_uri, refs)) return 0;
+      for (const r of rows) if (!parseRefs(r.photo_uri, refs)) return { deleted: 0, skip: `photo_uri ilegible en ${table}` };
     }
-  } catch { return 0; }
+  } catch (e) { return { deleted: 0, skip: `lectura fallo: ${(e as Error)?.message ?? e}` }; }
   let files: { uri: string; modifiedMs: number }[];
-  try { files = await fs.list(); } catch { return 0; }
+  try { files = await fs.list(); } catch (e) { return { deleted: 0, skip: `listado fallo: ${(e as Error)?.message ?? e}` }; }
   // modifiedMs 0 = fecha desconocida: se conserva.
-  const doomed = files.filter((f) => !refs.has(f.uri) && f.modifiedMs > 0 && f.modifiedMs < nowMs - 7 * DAY).map((f) => f.uri);
+  const doomed = files.filter((f) => !refs.has(base(f.uri)) && f.modifiedMs > 0 && f.modifiedMs < nowMs - 7 * DAY).map((f) => f.uri);
   await deletePhotos(doomed, fs);
-  return doomed.length;
+  return { deleted: doomed.length };
+}
+
+/** Borra de la carpeta permanente las fotos que ninguna fila referencia y tienen +7 dias. Devuelve cuantas. */
+export async function purgeOrphanPhotos(db: SQLiteDatabase, fs: PhotoFs, nowMs: number): Promise<number> {
+  return (await orphanPass(db, fs, nowMs)).deleted;
 }
 
 let purging = false;
+let lastFailMs: number | null = null;
+const FAIL_BACKOFF_MS = 3_600_000;
 
-/** Purga a lo mas una vez cada 24 h. Nunca lanza; last_purge se escribe solo si termino bien. */
-export async function purgeIfDue(db: SQLiteDatabase, fs: PhotoFs, nowMs: number): Promise<void> {
+/** Purga a lo mas una vez cada 24 h (y 1 h de espera tras un fallo). Nunca lanza; last_purge se escribe solo si termino bien. */
+export async function purgeIfDue(db: SQLiteDatabase, fs: PhotoFs, nowMs: number, userId?: string): Promise<void> {
   if (purging) return;
+  if (lastFailMs != null && nowMs - lastFailMs < FAIL_BACKOFF_MS) return;
   purging = true;
   try {
     const last = Number(await getMeta(db, 'last_purge'));
     if (Number.isFinite(last) && last > 0 && nowMs - last < DAY) return;
     await purgeLocal(db, nowMs);
-    await purgeOrphanPhotos(db, fs, nowMs);
+    const { deleted, skip } = await orphanPass(db, fs, nowMs);
     await setMeta(db, 'last_purge', String(nowMs));
+    lastFailMs = null;
+    await logEvent(db, skip ? 'warn' : 'info', 'purge_done', `fotos=${deleted}${skip ? ` omitido: ${skip}` : ''}`, userId);
   } catch (e) {
-    await logEvent(db, 'warn', 'purge_failed', (e as Error)?.message ?? String(e));
+    lastFailMs = nowMs;
+    await logEvent(db, 'warn', 'purge_failed', (e as Error)?.message ?? String(e), userId);
   } finally { purging = false; }
 }
+
+/** Solo para pruebas: reinicia la espera tras fallo. */
+export function resetPurgeBackoff(): void { lastFailMs = null; }

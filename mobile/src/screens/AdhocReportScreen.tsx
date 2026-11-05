@@ -18,7 +18,7 @@ export function AdhocReportScreen() {
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
 
-  // Al salir, apaga el GPS del reporte suelto (no toca el de una ruta normal).
+  // Al desmontarse esta pantalla se apaga el GPS de primer plano del reporte suelto (no toca el de una ruta normal). No hay GPS de fondo.
   const stopRef = useRef(stopAdhocGps);
   stopRef.current = stopAdhocGps;
   useEffect(() => () => stopRef.current(), []);
@@ -51,8 +51,8 @@ export function AdhocReportScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Reporte suelto</Text>
         <Text style={styles.subtitle}>
-          Reporta cualquier sucursal, esté o no en tu ruta de hoy. El GPS se enciende
-          mientras dure el reporte.
+          Reporta cualquier sucursal, esté o no en tu ruta de hoy. El GPS solo se usa
+          con la app abierta, mientras haces el reporte.
         </Text>
       </View>
 

@@ -66,7 +66,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       await refreshCount();
       if (activeUser.current === userId) setStatus(failed > 0 ? (errorKind === 'network' ? 'offline' : 'error') : 'synced');
       // Limpieza diaria tras un flush correcto; sin await y sin tocar el estado (purgeIfDue nunca lanza).
-      if (failed === 0) void purgeIfDue(db, expoPhotoFs, Date.now());
+      if (failed === 0) void purgeIfDue(db, expoPhotoFs, Date.now(), userId);
     } catch (e) {
       if (activeUser.current === userId) setStatus(classifyError(e) === 'network' ? 'offline' : 'error');
     } finally { running.current = false; }

@@ -29,3 +29,8 @@ test("flushDeviceLogs: con error no marca nada y no lanza", async () => {
   assert.equal(await flushDeviceLogs(db, thrower, "u"), 0);
   assert.deepEqual(await synced(db), []);
 });
+
+test("flushDeviceLogs: si falla la lectura no lanza", async () => {
+  const db = memoryDb(); // sin esquema: el SELECT lanza
+  assert.equal(await flushDeviceLogs(db, sb([], () => ({ error: null })), "u"), 0);
+});

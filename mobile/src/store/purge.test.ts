@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { memoryDb } from "../testing/sqliteAdapter";
 import { initSchema, getMeta } from "./localStore";
-import { purgeLocal, purgeOrphanPhotos, purgeIfDue } from "./purge";
+import { purgeLocal, purgeOrphanPhotos, purgeIfDue, resetPurgeBackoff } from "./purge";
 import type { PhotoFs } from "../services/photos/photoStore";
 
 const DAY = 86_400_000;
@@ -125,8 +125,42 @@ test("purgeOrphanPhotos: si la lectura de la tabla falla no borra nada", async (
   assert.deepEqual(removed, []);
 });
 
+test("purgeOrphanPhotos: compara por nombre de archivo, con cualquier prefijo", async () => {
+  const db = await fresh();
+  await visit(db, "v", { days: 1, uri: JSON.stringify(["/data/user/0/app/files/photos/a.jpg"]) });
+  const { fs, removed } = fakeFs([{ uri: "file:///data/user/0/app/files/photos/a.jpg", modifiedMs: OLD }, { uri: "file:///x/photos/b.jpg", modifiedMs: OLD }]);
+  assert.equal(await purgeOrphanPhotos(db, fs, NOW), 1);
+  assert.deepEqual(removed, ["file:///x/photos/b.jpg"]);
+});
+
+test("purgeIfDue: registra purge_done con el usuario, y el motivo si omitio las fotos", async () => {
+  resetPurgeBackoff();
+  const db = await fresh();
+  await visit(db, "v", { days: 1, uri: "no-es-json" });
+  await purgeIfDue(db, fakeFs([]).fs, NOW, "u1");
+  const row = await db.getFirstAsync<any>(`SELECT level, detail, user_id FROM sync_log WHERE event = 'purge_done'`);
+  assert.equal(row.user_id, "u1");
+  assert.equal(row.level, "warn");
+  assert.match(row.detail, /fotos=0 omitido: photo_uri ilegible/);
+});
+
+test("purgeIfDue: un fallo se registra con usuario y espera 1 h antes de reintentar", async () => {
+  resetPurgeBackoff();
+  const db = await fresh();
+  await db.execAsync(`DROP TABLE visit_anomaly_products`); // purgeLocal lanza
+  await purgeIfDue(db, fakeFs([]).fs, NOW, "u1");
+  const n = async () => (await db.getFirstAsync<any>(`SELECT COUNT(*) AS n FROM sync_log WHERE event = 'purge_failed' AND user_id = 'u1'`)).n;
+  assert.equal(await n(), 1);
+  await purgeIfDue(db, fakeFs([]).fs, NOW + 1800_000, "u1");
+  assert.equal(await n(), 1); // en espera
+  await purgeIfDue(db, fakeFs([]).fs, NOW + 3700_000, "u1");
+  assert.equal(await n(), 2);
+  resetPurgeBackoff();
+});
+
 test("purgeIfDue: corre una vez cada 24 h, escribe last_purge al terminar y un fallo no lanza ni escribe", async () => {
   const db = await fresh();
+  resetPurgeBackoff();
   const { fs } = fakeFs([]);
   await purgeIfDue(db, fs, NOW);
   assert.equal(await getMeta(db, "last_purge"), String(NOW));

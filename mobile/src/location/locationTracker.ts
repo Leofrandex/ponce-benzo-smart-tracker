@@ -42,6 +42,7 @@ async function startBackground(): Promise<void> {
       notificationColor: '#00205C',
     },
   });
+  lastRestartMs = Date.now(); // recien arrancado: el watchdog no lo reinicia por no tener pings todavia
 }
 
 export async function stopBackground(): Promise<void> {
