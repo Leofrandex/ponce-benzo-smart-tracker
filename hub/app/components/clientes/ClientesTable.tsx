@@ -61,6 +61,7 @@ export function ClientesTable({ rows, loading = false }: { rows: ClientRow[]; lo
                 {/* Solo en teléfono: el header está oculto, así que la fecha lleva su etiqueta. */}
                 <div className="contactos-mobile-sub" style={{ paddingLeft: "15px" }}>
                   {[
+                    r.pdv_code || null,
                     r.business_channel ? (CHANNEL_LABELS[r.business_channel] ?? r.business_channel) : null,
                     r.classification ? `Clase ${r.classification}` : null,
                     r.last_visit_date ? `Visita ${fechaCaracas(r.last_visit_date)}` : "Sin visitas",

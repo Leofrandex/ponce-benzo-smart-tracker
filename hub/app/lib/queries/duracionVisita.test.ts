@@ -8,3 +8,6 @@ test("menos de un minuto", () => assert.equal(etiquetaDuracion("2026-11-10T14:31
 test("más de una hora", () => assert.equal(etiquetaDuracion("2026-11-10T13:27:00Z", t), "1 h 5 min"));
 test("sin inicio", () => assert.equal(etiquetaDuracion(null, t), "—"));
 test("inicio posterior al guardado", () => assert.equal(etiquetaDuracion("2026-11-10T15:00:00Z", t), "—"));
+test("60 min exactos", () => assert.equal(etiquetaDuracion("2026-11-10T13:32:00Z", t), "1 h"));
+test("61 min", () => assert.equal(etiquetaDuracion("2026-11-10T13:31:00Z", t), "1 h 1 min"));
+test("fecha inválida", () => assert.equal(etiquetaDuracion("no-es-fecha", t), "—"));
