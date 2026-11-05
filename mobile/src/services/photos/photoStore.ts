@@ -6,6 +6,7 @@ export interface PhotoFs {
   exists(uri: string): Promise<boolean>;
   remove(uri: string): Promise<void>;
   list(): Promise<{ uri: string; modifiedMs: number }[]>;
+  size(uri: string): Promise<number>;
 }
 
 // expo-file-system se carga perezoso: las pruebas corren en Node plano y no lo tienen.
@@ -42,6 +43,13 @@ export const expoPhotoFs: PhotoFs = {
       .filter((e): e is InstanceType<typeof File> => e instanceof File)
       .map((f) => ({ uri: f.uri, modifiedMs: f.modificationTime ?? 0 }));
   },
+  async size(uri) {
+    const { File } = await fsApi();
+    // File.size da 0 tambien si el archivo no existe o no se puede leer: info() los distingue.
+    const info = new File(uri).info();
+    if (!info.exists || typeof info.size !== 'number') throw new Error('no se pudo leer el tamano de la foto');
+    return info.size;
+  },
 };
 
 /** Copia la foto a la carpeta permanente y borra el original solo si la copia salio bien.
@@ -69,4 +77,9 @@ export async function deletePhotos(uris: string[], fs: PhotoFs = expoPhotoFs): P
 /** Solo false cuando la ausencia esta confirmada; ante un error asume que existe (nunca dar por perdida una foto). */
 export async function photoExists(uri: string, fs: PhotoFs = expoPhotoFs): Promise<boolean> {
   try { return await fs.exists(uri); } catch { return true; }
+}
+
+/** Tamano real en disco. Un error se propaga: nunca debe leerse como 0 bytes. */
+export function photoSize(uri: string, fs: PhotoFs = expoPhotoFs): Promise<number> {
+  return fs.size(uri);
 }

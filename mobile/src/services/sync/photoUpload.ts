@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { photoExists } from "../photos/photoStore";
+import { photoExists, photoSize } from "../photos/photoStore";
 import { withDeadline } from "../../utils/withTimeout";
 
 // Solo para la lectura local: list y upload ya los cancela timedFetch (60 s).
@@ -24,8 +24,9 @@ export type PhotoResult = { listed: boolean; paths: string[]; missing: number[];
  * Sube las fotos una a una; un fallo no frena a las demás. `paths` queda en orden de índice.
  * Una foto solo es `missing` si el archivo no existe Y Storage confirmó que tampoco está:
  * sin listado no se puede saber, y queda en `failed` para reintentar.
- * Un archivo de 0 bytes cuenta igual, pero solo con `attempts` agotados: la lectura vacía
- * puede ser pasajera. Queda además en `empty`, para que el log lo distinga.
+ * Un archivo de 0 bytes cuenta igual, pero solo con `attempts` agotados y si el disco confirma
+ * tamaño 0: la lectura vacía puede ser pasajera, y cerrar la fila borra el archivo.
+ * Queda además en `empty`, para que el log lo distinga.
  * Con `shouldStop` no arranca más subidas y marca `stopped`; las fotos ya arriba se siguen
  * contando para que `paths` no pierda ninguna ya enlazada.
  */
@@ -34,9 +35,9 @@ export async function uploadPhotos(
   userId: string,
   ownerId: string,
   uris: string[],
-  opts: { timeoutMs?: number; exists?: (uri: string) => Promise<boolean>; onPhotoDone?: () => void | Promise<void>; shouldStop?: () => boolean; attempts?: number } = {},
+  opts: { timeoutMs?: number; exists?: (uri: string) => Promise<boolean>; size?: (uri: string) => Promise<number>; onPhotoDone?: () => void | Promise<void>; shouldStop?: () => boolean; attempts?: number } = {},
 ): Promise<PhotoResult> {
-  const { timeoutMs = LOCAL_READ_TIMEOUT_MS, exists = photoExists, onPhotoDone, shouldStop, attempts = 0 } = opts;
+  const { timeoutMs = LOCAL_READ_TIMEOUT_MS, exists = photoExists, size = photoSize, onPhotoDone, shouldStop, attempts = 0 } = opts;
   const folder = `${userId}/${ownerId}`;
   let uploaded: Set<string> | null = null;
   let listError = "sin datos";
@@ -65,7 +66,7 @@ export async function uploadPhotos(
       const res = await withDeadline(fetch(uris[i]), timeoutMs, `leer foto ${path}`);
       const buf = await withDeadline(res.arrayBuffer(), timeoutMs, `leer foto ${path}`);
       if (buf.byteLength === 0) {
-        if (uploaded && attempts >= EMPTY_FILE_ATTEMPTS) { result.missing.push(i); result.empty.push(i); }
+        if (uploaded && attempts >= EMPTY_FILE_ATTEMPTS && (await size(uris[i])) === 0) { result.missing.push(i); result.empty.push(i); }
         else result.failed.push({ index: i, error: "archivo de 0 bytes" });
         continue;
       }

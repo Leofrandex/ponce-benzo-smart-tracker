@@ -93,13 +93,29 @@ test("archivo vacío con 2 intentos: sigue en failed", async () => {
   assert.deepEqual(r.missing, []);
 });
 
-test("archivo vacío con 3 intentos y listado correcto: missing y marcado vacío", async () => {
+test("archivo vacío con 3 intentos, listado correcto y tamaño real 0: missing y marcado vacío", async () => {
   const s = supa({ fileBytes: 0 });
-  const r = await uploadPhotos(s, "u", "v", ["a"], { exists: yes, attempts: 3 });
+  const r = await uploadPhotos(s, "u", "v", ["a"], { exists: yes, attempts: 3, size: async () => 0 });
   assert.deepEqual(r.missing, [0]);
   assert.deepEqual(r.empty, [0]);
   assert.deepEqual(r.failed, []);
   assert.equal(s.uploads.length, 0);
+});
+
+test("lectura vacía de un archivo con bytes: sigue en failed aunque agote los intentos", async () => {
+  const r = await uploadPhotos(supa({ fileBytes: 0 }), "u", "v", ["a"], { exists: yes, attempts: 3, size: async () => 2048 });
+  assert.equal(r.failed.length, 1);
+  assert.deepEqual(r.missing, []);
+  assert.deepEqual(r.empty, []);
+});
+
+test("lectura vacía y tamaño que no se puede leer: sigue en failed", async () => {
+  const r = await uploadPhotos(supa({ fileBytes: 0 }), "u", "v", ["a"], {
+    exists: yes, attempts: 3, size: async () => { throw new Error("sin acceso"); },
+  });
+  assert.equal(r.failed[0].error, "sin acceso");
+  assert.deepEqual(r.missing, []);
+  assert.deepEqual(r.empty, []);
 });
 
 test("archivo vacío con 3 intentos y listado caído: failed, nunca missing", async () => {

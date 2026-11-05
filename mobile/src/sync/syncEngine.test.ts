@@ -183,11 +183,13 @@ const pendingVisit = (id: string, uris: string[], over: Row = {}): Row =>
 const baseTables = () => ({ sessions: [] as Row[], visits: [] as Row[], competition_reports: [] as Row[], location_pings: [] as Row[], restock_products: [] as Row[], sync_log: [] as Row[] });
 
 // Archivos locales simulados: expoPhotoFs es el fs por defecto de photoExists/deletePhotos.
-function fakeFiles(t: TestContext, missing: string[] = [], empty: string[] = []) {
+function fakeFiles(t: TestContext, missing: string[] = [], empty: string[] = [], size?: (uri: string) => Promise<number>) {
   const realFetch = globalThis.fetch;
   globalThis.fetch = (async (uri: string) => ({ arrayBuffer: async () => new ArrayBuffer(empty.includes(uri) ? 0 : 1) })) as any;
   t.after(() => { globalThis.fetch = realFetch; });
   t.mock.method(expoPhotoFs, 'exists', async (uri: string) => !missing.includes(uri));
+  // Por defecto el disco coincide con lo leído: un vacío es de verdad 0 bytes.
+  t.mock.method(expoPhotoFs, 'size', size ?? (async (uri: string) => (empty.includes(uri) ? 0 : 1)));
   const remove = t.mock.method(expoPhotoFs, 'remove', async () => {});
   return { removed: () => remove.mock.calls.map((c) => c.arguments[0]) };
 }
@@ -411,6 +413,27 @@ test('archivo vacío con 3 intentos y listado caído: sigue abierta y no borra',
   assert.equal(tables.visits[0].photos_synced, 0);
   assert.equal(r.failed, 1);
   assert.equal(tables.sync_log.filter((l) => l.event === 'photo_missing').length, 0);
+  assert.deepEqual(files.removed(), []);
+});
+
+test('lectura vacía de un archivo con bytes, 3 intentos: sigue abierta y no borra', async (t) => {
+  const files = fakeFiles(t, [], ['b'], async () => 2048);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a', 'b'], { photo_attempts: 3 }));
+  const r = await flush(fakeDb(tables), fakeSupabase());
+  assert.equal(tables.visits[0].photos_synced, 0);
+  assert.equal(r.failed, 1);
+  assert.equal(tables.sync_log.filter((l) => l.event === 'photo_missing').length, 0);
+  assert.deepEqual(files.removed(), []);
+});
+
+test('lectura vacía y tamaño ilegible, 3 intentos: sigue abierta y no borra', async (t) => {
+  const files = fakeFiles(t, [], ['b'], async () => { throw new Error('sin acceso'); });
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a', 'b'], { photo_attempts: 3 }));
+  const r = await flush(fakeDb(tables), fakeSupabase());
+  assert.equal(tables.visits[0].photos_synced, 0);
+  assert.equal(r.failed, 1);
   assert.deepEqual(files.removed(), []);
 });
 

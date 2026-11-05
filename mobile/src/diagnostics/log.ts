@@ -26,11 +26,12 @@ export async function logEvent(
   } catch { /* el log nunca debe tumbar la app */ }
 }
 
-// Postgres rechazó la fila: reintentarla no sirve. Sin código (5xx sin cuerpo) o con
-// PGRST (token vencido, base caída) la culpa no es de la fila: marcarla perdería el log.
+// Solo las clases de datos (22) e integridad (23) culpan a la fila: reintentarla no sirve.
+// Lo demás (base en solo lectura, statement timeout, permisos, token vencido, 5xx sin
+// cuerpo) es pasajero: marcarla perdería el log sin haberlo subido.
 const rowRejected = (e: unknown): boolean => {
   const code = (e as { code?: unknown } | null)?.code;
-  return typeof code === 'string' && code !== '' && !code.startsWith('PGRST') && classifyError(e) !== 'network';
+  return typeof code === 'string' && /^(22|23)/.test(code);
 };
 
 // Solo los del usuario de la sesión: los de otra cuenta los rechaza RLS y, por ir

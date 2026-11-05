@@ -70,6 +70,21 @@ test("flushDeviceLogs: falla del servidor que no es culpa de la fila no descarta
   }
 });
 
+test("flushDeviceLogs: statement timeout y permisos paran sin marcar nada", async () => {
+  for (const code of ["57014", "42501", "25006"]) {
+    const db = await seeded(); const calls: any[] = [];
+    assert.equal(await flushDeviceLogs(db, sb(calls, () => ({ error: { code, message: "x" } })), "u"), 0);
+    assert.equal(calls.length, 2, "el lote y una fila; luego para");
+    assert.deepEqual(await synced(db), [], code);
+  }
+});
+
+test("flushDeviceLogs: una fila con 23514 queda marcada como rechazada", async () => {
+  const db = await seeded(); const calls: any[] = [];
+  assert.equal(await flushDeviceLogs(db, sb(calls, () => ({ error: CHECK })), "u"), 0, "ninguna subió");
+  assert.deepEqual(await synced(db), ["a", "b"]);
+});
+
 test("flushDeviceLogs: si falla la lectura no lanza", async () => {
   const db = memoryDb(); // sin esquema: el SELECT lanza
   assert.equal(await flushDeviceLogs(db, sb([], () => ({ error: null })), "u"), 0);

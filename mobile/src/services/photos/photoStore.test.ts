@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { persistPhoto, deletePhotos, photoExists, type PhotoFs } from './photoStore';
+import { persistPhoto, deletePhotos, photoExists, photoSize, type PhotoFs } from './photoStore';
 
 function fakeFs(existing: string[], opts: { copyFails?: boolean; removeFails?: boolean } = {}) {
   const removed: string[] = [];
@@ -17,6 +17,7 @@ function fakeFs(existing: string[], opts: { copyFails?: boolean; removeFails?: b
       removed.push(uri);
     },
     async list() { return []; },
+    async size() { return 5; },
   };
   return fs;
 }
@@ -58,4 +59,11 @@ test('photoExists: false solo si la ausencia es confirmada; ante error asume que
   assert.equal(await photoExists('file:///perm/z.jpg', fs), false);
   fs.exists = async () => { throw new Error('boom'); };
   assert.equal(await photoExists('file:///perm/a.jpg', fs), true);
+});
+
+test('photoSize: devuelve el tamaño y no oculta un error de lectura', async () => {
+  const fs = fakeFs([]);
+  assert.equal(await photoSize('file:///perm/a.jpg', fs), 5);
+  fs.size = async () => { throw new Error('sin acceso'); };
+  await assert.rejects(photoSize('file:///perm/a.jpg', fs), /sin acceso/);
 });

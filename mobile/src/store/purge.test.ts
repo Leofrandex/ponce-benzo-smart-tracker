@@ -107,7 +107,7 @@ function fakeFs(files: { uri: string; modifiedMs: number }[]) {
   const removed: string[] = [];
   const fs: PhotoFs = {
     ensureDir: async () => {}, copyToPermanent: async (u) => u, exists: async () => true,
-    remove: async (u) => { removed.push(u); }, list: async () => files,
+    remove: async (u) => { removed.push(u); }, list: async () => files, size: async () => 1,
   };
   return { fs, removed };
 }
