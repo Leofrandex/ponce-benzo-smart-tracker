@@ -98,7 +98,7 @@ export async function leerExcel(
     return { errorGeneral: "El archivo no es un Excel válido (.xlsx)." };
   }
   const ws = wb.getWorksheet(HOJA[tipo]) ?? wb.worksheets[0];
-  if (!ws) return { errorGeneral: "El archivo no tiene hojas." };
+  if (!ws) return { errorGeneral: "El archivo no parece un libro de Excel (no tiene hojas)." };
 
   const cols = COLUMNAS[tipo];
   const indice = new Map<number, string>();
@@ -111,17 +111,19 @@ export async function leerExcel(
   if (faltan.length) return { errorGeneral: `Faltan columnas obligatorias: ${faltan.map((x) => x.titulo).join(", ")}.` };
 
   const filas: FilaCruda[] = [];
-  for (let n = 2; n <= ws.rowCount; n++) {
-    const row = ws.getRow(n);
+  let excedido = false;
+  ws.eachRow((row, n) => {
+    if (n < 2 || excedido) return;
     const valores: Record<string, string> = {};
     indice.forEach((clave, col) => {
       const t = aTexto(row.getCell(col).value);
       if (t) valores[clave] = t;
     });
-    if (!Object.keys(valores).length) continue;
-    if (filas.length >= MAX_FILAS) return { errorGeneral: `El archivo tiene más de ${MAX_FILAS} filas.` };
+    if (!Object.keys(valores).length) return;
+    if (filas.length >= MAX_FILAS) { excedido = true; return; }
     filas.push({ fila: n, valores });
-  }
+  });
+  if (excedido) return { errorGeneral: `El archivo tiene más de ${MAX_FILAS} filas.` };
   return { filas };
 }
 

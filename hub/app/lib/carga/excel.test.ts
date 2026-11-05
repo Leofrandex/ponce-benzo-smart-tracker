@@ -74,3 +74,36 @@ test("errores: columna Errores al final con los mensajes", async () => {
   assert.equal(ws.getRow(2).getCell(1).value, "A");
   assert.equal(ws.getRow(2).getCell(5).value, "x; y");
 });
+
+test("leer: celda perdida en una fila altísima no se recorre fila por fila", async () => {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Clientes");
+  ws.addRow(["Nombre", "Canal"]);
+  ws.addRow(["Gama", "otro"]);
+  ws.getCell(1000000, 1).value = "perdida";
+  const u = new Uint8Array((await wb.xlsx.writeBuffer()) as ArrayBuffer);
+  const t0 = Date.now();
+  const r = (await leerExcel("clientes", u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength) as ArrayBuffer)) as any;
+  assert.ok(Date.now() - t0 < 5000);
+  assert.deepEqual(r.filas.map((f: any) => f.fila), [2, 1000000]);
+});
+test("leer: zip válido que no es un libro da error general en español", async () => {
+  const zip = new (await import("jszip")).default();
+  zip.file("a.txt", "hola");
+  const u = await zip.generateAsync({ type: "uint8array" });
+  const r = await leerExcel("clientes", u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength) as ArrayBuffer);
+  assert.match((r as any).errorGeneral, /Excel/);
+});
+test("leer: hoja con otro nombre lee la primera hoja", async () => {
+  const r = await leerExcel("clientes", await libro([["Nombre", "Canal"], ["Gama", "otro"]]));
+  assert.equal((r as any).filas.length, 1);
+});
+test("leer: fecha y fórmula con error llegan como texto, no [object Object]", async () => {
+  const r = await leerExcel("clientes", await libro([["Nombre", "Canal", "RIF", "Vendedor"], [
+    new Date(Date.UTC(2026, 10, 4)), "otro", { formula: "1/0", result: { error: "#DIV/0!" } }, "x",
+  ]]));
+  const v = (r as any).filas[0].valores;
+  assert.equal(v.nombre, "2026-11-04");
+  assert.equal(v.rif, undefined);
+  assert.ok(!JSON.stringify(v).includes("[object"));
+});
