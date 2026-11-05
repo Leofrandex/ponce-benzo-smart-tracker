@@ -4,8 +4,10 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 const OPTIONAL_COLUMNS: Record<string, Array<[string, string]>> = {
   // photos_synced DEFAULT 1: las filas viejas ya sincronizadas subieron sus fotos con el
   // motor anterior (fotos-antes-que-registro); los inserts nuevos ponen 0 explícitamente.
-  visits: [['anomaly_type', 'TEXT'], ['skip_reason', 'TEXT'], ['last_restock_date', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1'], ['supervisor_present_user_id', 'TEXT']],
-  competition_reports: [['visit_id', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1']],
+  // photo_next_try nulo y photo_attempts 0: las filas con fotos pendientes de versiones
+  // anteriores quedan elegibles de inmediato.
+  visits: [['anomaly_type', 'TEXT'], ['skip_reason', 'TEXT'], ['last_restock_date', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1'], ['supervisor_present_user_id', 'TEXT'], ['photo_attempts', 'INTEGER NOT NULL DEFAULT 0'], ['photo_next_try', 'TEXT'], ['photos_done', 'INTEGER NOT NULL DEFAULT 0']],
+  competition_reports: [['visit_id', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1'], ['photo_attempts', 'INTEGER NOT NULL DEFAULT 0'], ['photo_next_try', 'TEXT'], ['photos_done', 'INTEGER NOT NULL DEFAULT 0']],
   location_pings: [['user_id', 'TEXT'], ['synced', 'INTEGER NOT NULL DEFAULT 0']],
   sessions: [['app_version', 'TEXT']],
 };

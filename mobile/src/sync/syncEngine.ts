@@ -1,16 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { toSessionPayload, toPingPayload, toVisitPayload, toCompetitionPayload, toAnomalyProductPayload, toRestockProductPayload } from '../services/sync/payloads';
-import { uploadPhotos } from '../services/sync/photoUpload';
+import { shortError, uploadPhotos } from '../services/sync/photoUpload';
+import { deletePhotos } from '../services/photos/photoStore';
+import { logEvent } from '../diagnostics/log';
+import { nextPhotoRetry } from './photoRetry';
 import { withDeadline } from '../utils/withTimeout';
 
 // Plazo máximo por request. Con señal débil (no cero) un fetch puede colgarse
 // minutos; sin esto un solo request congelaba TODA la cola de sincronización
 // y el banner mentía "Sincronizando…" indefinidamente.
 const NET_TIMEOUT_MS = 15_000;
-
-// Una foto de ~300 KB con señal débil necesita más que 15 s.
-const PHOTO_TIMEOUT_MS = 30_000;
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : JSON.stringify(e));
 
@@ -71,7 +71,7 @@ let isFlushing = false;
  * sesiones → REGISTROS de visita (sin fotos) → vínculos de anomalía → productos
  * repuestos → reportes (sin fotos) → pings → fotos.
  * El registro (pequeño, crítico) NUNCA espera por sus fotos (pesadas): sube primero
- * con photo_urls=[] y las fotos se completan en una fase aparte (photos_synced).
+ * sin photo_urls y las fotos se completan en una fase aparte (photos_synced).
  * Con userId sube solo lo de ese usuario (el de la sesión abierta en la app).
  */
 export async function flush(db: SQLiteDatabase, supabase: SupabaseClient, userId?: string): Promise<{ pushed: number; failed: number }> {
@@ -96,7 +96,7 @@ export async function flush(db: SQLiteDatabase, supabase: SupabaseClient, userId
     for (const v of await db.getAllAsync<any>(`SELECT * FROM visits WHERE synced = 0${ownedBy('user_id', userId)}`, ...ownerArgs(userId))) {
       try {
         const { error } = await withDeadline(
-          supabase.from('visits').upsert(toVisitPayload(v, []), { onConflict: 'visit_id' }),
+          supabase.from('visits').upsert(toVisitPayload(v), { onConflict: 'visit_id' }),
           NET_TIMEOUT_MS, `visit ${v.visit_id}`,
         );
         if (error) throw error;
@@ -169,7 +169,7 @@ export async function flush(db: SQLiteDatabase, supabase: SupabaseClient, userId
     for (const c of await db.getAllAsync<any>(`SELECT * FROM competition_reports WHERE synced = 0${ownedBy('user_id', userId)}`, ...ownerArgs(userId))) {
       try {
         const { error } = await withDeadline(
-          supabase.from('competition_reports').upsert(toCompetitionPayload(c, []), { onConflict: 'report_id' }),
+          supabase.from('competition_reports').upsert(toCompetitionPayload(c), { onConflict: 'report_id' }),
           NET_TIMEOUT_MS, `report ${c.report_id}`,
         );
         if (error) throw error;
@@ -199,23 +199,53 @@ async function flushPendingPhotos(
   userId?: string,
 ): Promise<number> {
   let pushed = 0;
+  const sortCol = table === 'visits' ? 'check_in_time' : 'created_at';
   const rows = await db.getAllAsync<any>(
-    `SELECT * FROM ${table} WHERE synced = 1 AND photos_synced = 0${ownedBy('user_id', userId)}`, ...ownerArgs(userId),
+    `SELECT * FROM ${table}
+      WHERE synced = 1 AND photos_synced = 0 AND (photo_next_try IS NULL OR photo_next_try <= ?)${ownedBy('user_id', userId)}
+      ORDER BY ${sortCol} DESC`,
+    new Date().toISOString(), ...ownerArgs(userId),
   );
   for (const r of rows) {
     const id = r[idCol];
+    const errors: string[] = [];
     try {
       const uris: string[] = r.photo_uri ? JSON.parse(r.photo_uri) : [];
       if (!uris.length) { await db.runAsync(`UPDATE ${table} SET photos_synced=1 WHERE ${idCol}=?`, id); continue; }
-      const urls = await uploadPhotos(supabase, r.user_id, id, uris, PHOTO_TIMEOUT_MS);
-      const { error } = await withDeadline(
-        supabase.from(table).update({ photo_urls: urls }).eq(idCol, id),
-        NET_TIMEOUT_MS, `photo_urls ${id}`,
+      const { paths, missing, failed } = await uploadPhotos(supabase, r.user_id, id, uris);
+      for (const f of failed) errors.push(`foto ${f.index}: ${f.error}`);
+      // Se enlaza lo subido aunque otras fallen. Sin nada subido no se escribe: un arreglo
+      // vacío borraría lo que ya esté enlazado. Cero filas devueltas tampoco es éxito.
+      if (paths.length) {
+        try {
+          const { data, error } = await withDeadline(
+            supabase.from(table).update({ photo_urls: paths }).eq(idCol, id).select(idCol),
+            NET_TIMEOUT_MS, `photo_urls ${id}`,
+          );
+          if (error) throw error;
+          if (!data?.length) throw new Error('update sin filas afectadas');
+        } catch (e) { errors.push(`photo_urls: ${shortError(e)}`); }
+      }
+      await db.runAsync(`UPDATE ${table} SET photos_done=? WHERE ${idCol}=?`, paths.length + missing.length, id);
+      if (!errors.length) {
+        // Primero se cierra y después se borra: un archivo solo se va con su foto confirmada arriba.
+        await db.runAsync(`UPDATE ${table} SET photos_synced=1 WHERE ${idCol}=?`, id);
+        await deletePhotos(uris);
+        for (const i of missing) await logEvent(db, 'warn', 'photo_missing', `${id} foto ${i}`, r.user_id);
+        pushed++;
+        continue;
+      }
+    } catch (e) { errors.push(shortError(e)); }
+
+    addFailed(1);
+    console.warn(`[sync] fotos ${table}/${id} FAIL:`, errors.join('; '));
+    for (const err of errors) await logEvent(db, 'warn', 'photo_upload_fail', `${id} ${err}`, r.user_id);
+    try {
+      await db.runAsync(
+        `UPDATE ${table} SET photo_attempts=photo_attempts+1, photo_next_try=? WHERE ${idCol}=?`,
+        nextPhotoRetry(r.photo_attempts, Date.now()), id,
       );
-      if (error) throw error;
-      await db.runAsync(`UPDATE ${table} SET photos_synced=1 WHERE ${idCol}=?`, id);
-      pushed++;
-    } catch (e) { addFailed(1); console.warn(`[sync] fotos ${table}/${id} FAIL:`, errMsg(e)); }
+    } catch (e) { console.warn(`[sync] fotos ${table}/${id} sin programar reintento:`, errMsg(e)); }
   }
   return pushed;
 }

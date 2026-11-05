@@ -5,7 +5,9 @@ export function toSessionPayload(r: SessionRow) {
 export function toPingPayload(r: PingRow) {
   return { ping_id:r.ping_id, session_id:r.session_id, user_id:r.user_id, timestamp:r.timestamp, lat:r.lat, lng:r.lng };
 }
-export function toVisitPayload(r: VisitRow, photoUrls: string[]) {
+// photo_urls no viaja en el upsert: un reintento del registro borraría lo ya enlazado.
+// Solo lo escribe la fase de fotos; la columna tiene DEFAULT '{}' en Supabase.
+export function toVisitPayload(r: VisitRow) {
   let anomalyTypes: string[] | null = null;
   if (r.anomaly_type) {
     try {
@@ -23,7 +25,6 @@ export function toVisitPayload(r: VisitRow, photoUrls: string[]) {
     user_id: r.user_id,
     check_in_time: r.check_in_time,
     check_in_location: r.lat != null && r.lng != null ? { lat: r.lat, lng: r.lng } : null,
-    photo_urls: photoUrls,
     observations: r.observations,
     status: r.status,
     anomaly_type: anomalyTypes,
@@ -32,8 +33,8 @@ export function toVisitPayload(r: VisitRow, photoUrls: string[]) {
     supervisor_present_user_id: r.supervisor_present_user_id ?? null,
   };
 }
-export function toCompetitionPayload(r: CompetitionRawRow, photoUrls: string[]) {
-  return { report_id:r.report_id, session_id:r.session_id, visit_id:r.visit_id, store_id:r.store_id, user_id:r.user_id, brand_id:r.brand_id, activation_type:r.activation_type, photo_urls:photoUrls, notes:r.notes, created_at:r.created_at };
+export function toCompetitionPayload(r: CompetitionRawRow) {
+  return { report_id:r.report_id, session_id:r.session_id, visit_id:r.visit_id, store_id:r.store_id, user_id:r.user_id, brand_id:r.brand_id, activation_type:r.activation_type, notes:r.notes, created_at:r.created_at };
 }
 
 export function toAnomalyProductPayload(r: AnomalyProductRow) {
