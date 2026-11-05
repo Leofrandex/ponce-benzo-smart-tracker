@@ -17,6 +17,8 @@ import {
 } from "@/app/lib/queries/clientFilters";
 import { Select } from "@/app/components/ui/Select";
 import { CHANNEL_LABELS } from "@/app/components/clientes/ClientesTable";
+import Segmented from "@/app/components/ui/Segmented";
+import { CargaMasivaPanel } from "@/app/components/carga/CargaMasivaPanel";
 import { ClientesSkeleton, Skeleton, SkeletonList } from "@/app/components/ui/Skeleton";
 
 function ClientesInner() {
@@ -27,6 +29,15 @@ function ClientesInner() {
   const [adding, setAdding] = useState(false);
   const qs = sp.toString();
   const filters = useMemo(() => parseClientesParams(new URLSearchParams(qs)), [qs]);
+
+  const puedeCargar = canConfigure(profile?.role);
+  const vista = puedeCargar && sp.get("vista") === "carga" ? "carga" : "lista";
+  const setVista = (v: "lista" | "carga") => {
+    const p = new URLSearchParams(qs);
+    if (v === "carga") p.set("vista", "carga"); else p.delete("vista");
+    const next = p.toString();
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+  };
 
   const { data: clients, loading, error, refetch } = useSupabaseQuery(fetchClients, [], "clients");
   const { data: storeGeo } = useSupabaseQuery(fetchStoreGeo, [], "stores:geo");
@@ -75,6 +86,13 @@ function ClientesInner() {
           </button>
         )}
       </div>
+      {puedeCargar && (
+        <Segmented ariaLabel="Vista de clientes" value={vista} onChange={setVista} style={{ maxWidth: "360px" }}
+          options={[{ value: "lista", label: "Clientes" }, { value: "carga", label: "Carga masiva" }]} />
+      )}
+      {vista === "carga" ? (
+        <CargaMasivaPanel tipo="clientes" onCargado={() => void refetch()} />
+      ) : (<>
       <div className="card" style={{ padding: "12px", display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "flex-end" }}>
         <Select label="Estado" value={filters.estado}
           options={estados.map((e) => ({ value: e, label: e }))}
@@ -122,6 +140,7 @@ function ClientesInner() {
           ))}
         </div>
       )}
+      </>)}
       {canConfigure(profile?.role) && (
         <ClientFormModal
           open={adding}

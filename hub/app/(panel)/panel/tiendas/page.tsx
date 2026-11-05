@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import { useAuth } from "@/app/lib/auth-context";
-import { canCreateStore } from "@/app/lib/roles";
+import { canConfigure, canCreateStore } from "@/app/lib/roles";
 import { createStore } from "@/app/lib/mutations/stores";
 import type { TiendaInput } from "@/app/lib/types";
 import { StoreFormModal } from "@/app/components/clientes/StoreFormModal";
@@ -19,6 +19,8 @@ import { filtrarTiendas, parseTiendasParams, serializeTiendasParams, type Client
 import { ClientesFilters } from "@/app/components/clientes/ClientesFilters";
 import { ClientesTable } from "@/app/components/clientes/ClientesTable";
 import SectionError from "@/app/components/ui/SectionError";
+import Segmented from "@/app/components/ui/Segmented";
+import { CargaMasivaPanel } from "@/app/components/carga/CargaMasivaPanel";
 import { Skeleton, TiendasSkeleton } from "@/app/components/ui/Skeleton";
 
 export default function TiendasPage() {
@@ -36,6 +38,15 @@ function TiendasInner() {
   const { profile } = useAuth();
   const [adding, setAdding] = useState(false);
   const qs = sp.toString();
+  // Sin permiso la pestaña no existe y ?vista=carga cae en la vista normal.
+  const puedeCargar = canConfigure(profile?.role);
+  const vista = puedeCargar && sp.get("vista") === "carga" ? "carga" : "lista";
+  const setVista = (v: "lista" | "carga") => {
+    const p = new URLSearchParams(qs);
+    if (v === "carga") p.set("vista", "carga"); else p.delete("vista");
+    const next = p.toString();
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+  };
 
   const { filters, q } = useMemo(() => parseTiendasParams(new URLSearchParams(qs)), [qs]);
 
@@ -138,6 +149,13 @@ function TiendasInner() {
         )}
       </div>
 
+      {puedeCargar && (
+        <Segmented ariaLabel="Vista de tiendas" value={vista} onChange={setVista} style={{ maxWidth: "360px" }}
+          options={[{ value: "lista", label: "Tiendas" }, { value: "carga", label: "Carga masiva" }]} />
+      )}
+      {vista === "carga" ? (
+        <CargaMasivaPanel tipo="tiendas" onCargado={() => void refetchStores()} />
+      ) : (<>
       <div style={{ position: "relative" }}>
         <Search size={15} color="var(--text-muted)" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }} />
         <input className="form-input" placeholder="Buscar por nombre..." value={search} onChange={(e) => handleSearchChange(e.target.value)} style={{ paddingLeft: "34px" }} />
@@ -155,6 +173,7 @@ function TiendasInner() {
         </div>
       )}
       <ClientesTable rows={rows} loading={cargandoTabla} />
+      </>)}
       <StoreFormModal
         open={adding}
         store={null}
