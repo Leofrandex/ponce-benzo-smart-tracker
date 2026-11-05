@@ -17,7 +17,7 @@ export function shortError(e: unknown): string {
     .slice(0, 200);
 }
 
-export type PhotoResult = { paths: string[]; missing: number[]; failed: { index: number; error: string }[] };
+export type PhotoResult = { listed: boolean; paths: string[]; missing: number[]; failed: { index: number; error: string }[] };
 
 /**
  * Sube las fotos una a una; un fallo no frena a las demás. `paths` queda en orden de índice.
@@ -46,7 +46,7 @@ export async function uploadPhotos(
     }
   } catch (e) { listError = shortError(e); }
 
-  const result: PhotoResult = { paths: [], missing: [], failed: [] };
+  const result: PhotoResult = { listed: uploaded !== null, paths: [], missing: [], failed: [] };
   for (let i = 0; i < uris.length; i++) {
     const path = storagePath(userId, ownerId, i);
     try {

@@ -12,6 +12,8 @@ import { withDeadline } from '../utils/withTimeout';
 // y el banner mentía "Sincronizando…" indefinidamente.
 const NET_TIMEOUT_MS = 15_000;
 
+const MAX_PHOTO_WAIT_MS = 60 * 60_000;
+
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : JSON.stringify(e));
 
 export function splitUploadable(pings: { ping_id: string; user_id: string | null }[]): { ok: string[]; orphan: string[] } {
@@ -200,23 +202,27 @@ async function flushPendingPhotos(
 ): Promise<number> {
   let pushed = 0;
   const sortCol = table === 'visits' ? 'check_in_time' : 'created_at';
+  const nowMs = Date.now();
   const rows = await db.getAllAsync<any>(
     `SELECT * FROM ${table}
-      WHERE synced = 1 AND photos_synced = 0 AND (photo_next_try IS NULL OR photo_next_try <= ?)${ownedBy('user_id', userId)}
+      WHERE synced = 1 AND photos_synced = 0 AND (photo_next_try IS NULL OR photo_next_try <= ? OR photo_next_try > ?)${ownedBy('user_id', userId)}
       ORDER BY ${sortCol} DESC`,
-    new Date().toISOString(), ...ownerArgs(userId),
+    // La espera máxima es 60 min: una fecha más lejana viene de un reloj equivocado y se ignora.
+    new Date(nowMs).toISOString(), new Date(nowMs + MAX_PHOTO_WAIT_MS).toISOString(), ...ownerArgs(userId),
   );
   for (const r of rows) {
     const id = r[idCol];
     const errors: string[] = [];
     try {
       const uris: string[] = r.photo_uri ? JSON.parse(r.photo_uri) : [];
+      if (!Array.isArray(uris)) throw new Error('photo_uri no es un arreglo');
       if (!uris.length) { await db.runAsync(`UPDATE ${table} SET photos_synced=1 WHERE ${idCol}=?`, id); continue; }
-      const { paths, missing, failed } = await uploadPhotos(supabase, r.user_id, id, uris);
+      const { listed, paths, missing, failed } = await uploadPhotos(supabase, r.user_id, id, uris);
       for (const f of failed) errors.push(`foto ${f.index}: ${f.error}`);
       // Se enlaza lo subido aunque otras fallen. Sin nada subido no se escribe: un arreglo
       // vacío borraría lo que ya esté enlazado. Cero filas devueltas tampoco es éxito.
-      if (paths.length) {
+      // Sin listado, una foto fallida puede estar ya enlazada: escribir la quitaría de photo_urls.
+      if (paths.length && (listed || !failed.length)) {
         try {
           const { data, error } = await withDeadline(
             supabase.from(table).update({ photo_urls: paths }).eq(idCol, id).select(idCol),
@@ -228,10 +234,11 @@ async function flushPendingPhotos(
       }
       await db.runAsync(`UPDATE ${table} SET photos_done=? WHERE ${idCol}=?`, paths.length + missing.length, id);
       if (!errors.length) {
+        // El log va antes del cierre: si la app muere en medio, es el único rastro de la foto perdida.
+        for (const i of missing) await logEvent(db, 'warn', 'photo_missing', `${id} foto ${i}`, r.user_id);
         // Primero se cierra y después se borra: un archivo solo se va con su foto confirmada arriba.
         await db.runAsync(`UPDATE ${table} SET photos_synced=1 WHERE ${idCol}=?`, id);
         await deletePhotos(uris);
-        for (const i of missing) await logEvent(db, 'warn', 'photo_missing', `${id} foto ${i}`, r.user_id);
         pushed++;
         continue;
       }

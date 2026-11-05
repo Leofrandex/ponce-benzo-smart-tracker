@@ -58,12 +58,19 @@ test("archivo ausente sin poder listar Storage: failed, nunca missing", async ()
   const r = await uploadPhotos(supa({ listFails: true }), "u", "v", ["a"], { exists: no });
   assert.deepEqual(r.missing, []);
   assert.equal(r.failed.length, 1);
+  assert.equal(r.listed, false);
+});
+
+test("listed es true cuando el listado funcionó", async () => {
+  const r = await uploadPhotos(supa(), "u", "v", ["a"], { exists: yes });
+  assert.equal(r.listed, true);
 });
 
 test("archivo ausente con listado que lanza: failed, nunca missing", async () => {
   const r = await uploadPhotos(supa({ listThrows: true }), "u", "v", ["a"], { exists: no });
   assert.deepEqual(r.missing, []);
   assert.equal(r.failed.length, 1);
+  assert.equal(r.listed, false);
 });
 
 test("archivo de cero bytes: failed, no se sube", async () => {

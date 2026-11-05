@@ -28,17 +28,19 @@ type Row = Record<string, any>;
 
 function fakeDb(tables: Record<string, Row[]>) {
   // Fase de fotos: respeta photo_next_try y el ORDER BY de la consulta.
-  const pendingPhotos = (rows: Row[], sql: string, now?: string): Row[] => {
+  const pendingPhotos = (rows: Row[], sql: string, now?: string, maxWait?: string): Row[] => {
     const col = /ORDER BY (\w+) DESC/.exec(sql)?.[1];
-    const due = rows.filter((r) => r.synced === 1 && r.photos_synced === 0 && (now === undefined || r.photo_next_try == null || r.photo_next_try <= now));
+    const due = rows.filter((r) => r.synced === 1 && r.photos_synced === 0 && (
+      now === undefined || r.photo_next_try == null || r.photo_next_try <= now || (maxWait !== undefined && r.photo_next_try > maxWait)
+    ));
     return col ? due.sort((a, b) => (a[col] < b[col] ? 1 : -1)) : due;
   };
-  const match = (sql: string, now?: string): Row[] => {
+  const match = (sql: string, now?: string, maxWait?: string): Row[] => {
     if (sql.includes('FROM sessions')) return tables.sessions.filter((r) => r.synced === 0);
     // OJO: chequear photos_synced primero — 'photos_synced = 0' contiene 'synced = 0'.
-    if (sql.includes('FROM visits') && sql.includes('photos_synced = 0')) return pendingPhotos(tables.visits, sql, now);
+    if (sql.includes('FROM visits') && sql.includes('photos_synced = 0')) return pendingPhotos(tables.visits, sql, now, maxWait);
     if (sql.includes('FROM visits') && sql.includes('synced = 0')) return tables.visits.filter((r) => r.synced === 0);
-    if (sql.includes('FROM competition_reports') && sql.includes('photos_synced = 0')) return pendingPhotos(tables.competition_reports, sql, now);
+    if (sql.includes('FROM competition_reports') && sql.includes('photos_synced = 0')) return pendingPhotos(tables.competition_reports, sql, now, maxWait);
     if (sql.includes('FROM competition_reports') && sql.includes('synced = 0')) return tables.competition_reports.filter((r) => r.synced === 0);
     if (sql.includes('FROM location_pings')) return tables.location_pings.filter((r) => r.synced === 0);
     if (sql.includes('FROM restock_products')) {
@@ -51,9 +53,11 @@ function fakeDb(tables: Record<string, Row[]>) {
   const owner = (r: Row) => r.user_id ?? tables.visits.find((v) => v.visit_id === r.visit_id)?.user_id;
   return {
     getAllAsync: async (sql: string, ...args: any[]) => {
-      // La consulta de fotos lleva primero la hora (photo_next_try <= ?) y luego el dueño.
+      // La consulta de fotos lleva primero la hora (photo_next_try <= ?), luego el tope
+      // de espera (photo_next_try > ?) y al final el dueño.
       const now = sql.includes('photo_next_try <= ?') ? args.shift() : undefined;
-      const rows = match(sql, now);
+      const maxWait = sql.includes('photo_next_try > ?') ? args.shift() : undefined;
+      const rows = match(sql, now, maxWait);
       return args.length ? rows.filter((r) => owner(r) === args[0]) : rows;
     },
     getFirstAsync: async (sql: string) => {
@@ -95,7 +99,7 @@ function fakeDb(tables: Record<string, Row[]>) {
   } as any;
 }
 
-function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFailTables?: string[]; failUploadOnce?: string[]; noRowsOnUpdate?: boolean } = {}) {
+function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFailTables?: string[]; failUploadOnce?: string[]; noRowsOnUpdate?: boolean; failList?: boolean } = {}) {
   const calls: string[] = [];
   const updates: { table: string; payload: any }[] = [];
   const upserts: { table: string; payload: any }[] = [];
@@ -128,6 +132,7 @@ function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFa
       from: (_bucket: string) => ({
         list: (folder: string) => {
           calls.push('storage:list');
+          if (opts.failList) return Promise.resolve({ data: null, error: { message: 'listado caído' } });
           return Promise.resolve({
             data: [...uploaded].filter((p) => p.startsWith(folder + '/')).map((p) => ({ name: p.slice(folder.length + 1) })),
             error: null,
@@ -393,12 +398,87 @@ test('fallo: registra photo_upload_fail con causa y programa reintento (P5, P6)'
 test('respeta photo_next_try futuro (P5)', async (t) => {
   fakeFiles(t);
   const tables = baseTables();
-  tables.visits.push(pendingVisit('v1', ['a'], { photo_next_try: '2999-01-01T00:00:00.000Z' }));
+  tables.visits.push(pendingVisit('v1', ['a'], { photo_next_try: new Date(Date.now() + 59 * 60_000).toISOString() }));
   const supa = fakeSupabase();
   await flush(fakeDb(tables), supa);
   assert.ok(!supa.calls.some((c: string) => c.startsWith('storage:')));
   assert.equal(tables.visits[0].photos_synced, 0);
 });
+
+test('ignora un photo_next_try a más de 60 minutos: reloj del teléfono equivocado', async (t) => {
+  fakeFiles(t);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a'], { photo_next_try: new Date(Date.now() + 61 * 60_000).toISOString() }));
+  await flush(fakeDb(tables), fakeSupabase());
+  assert.equal(tables.visits[0].photos_synced, 1);
+});
+
+test('listado caído y archivo ausente: no toca photo_urls, sigue pendiente y no borra', async (t) => {
+  const files = fakeFiles(t, ['a']);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a', 'b']));
+  const supa = fakeSupabase({ failList: true });
+  await flush(fakeDb(tables), supa);
+  assert.ok(supa.calls.includes('storage:upload:u1/v1/1.jpg'), 'la foto presente sí sube');
+  assert.equal(supa.updates.length, 0);
+  assert.equal(tables.visits[0].photos_synced, 0);
+  assert.deepEqual(files.removed(), []);
+});
+
+test('listado caído y subida fallida: no quita del enlace la foto ya enlazada', async (t) => {
+  const files = fakeFiles(t);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a', 'b']));
+  const supa = fakeSupabase({ failList: true, failUploadOnce: ['u1/v1/0.jpg'] });
+  await flush(fakeDb(tables), supa);
+  assert.ok(supa.calls.includes('storage:upload:u1/v1/1.jpg'), 'la otra foto sí sube');
+  assert.equal(supa.updates.length, 0);
+  assert.equal(tables.visits[0].photos_synced, 0);
+  assert.deepEqual(files.removed(), []);
+});
+
+test('listado caído pero todo subió: enlaza y cierra', async (t) => {
+  const files = fakeFiles(t);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a', 'b']));
+  const supa = fakeSupabase({ failList: true });
+  await flush(fakeDb(tables), supa);
+  assert.deepEqual(supa.updates.at(-1).payload.photo_urls, ['u1/v1/0.jpg', 'u1/v1/1.jpg']);
+  assert.equal(tables.visits[0].photos_synced, 1);
+  assert.deepEqual(files.removed(), ['a', 'b']);
+});
+
+test('photo_missing queda registrado aunque el cierre falle', async (t) => {
+  const files = fakeFiles(t, ['a']);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a']));
+  const db = fakeDb(tables);
+  const run = db.runAsync;
+  db.runAsync = async (sql: string, ...args: any[]) => {
+    if (sql.includes('SET photos_synced=1')) throw new Error('app terminada');
+    return run(sql, ...args);
+  };
+  await flush(db, fakeSupabase());
+  assert.equal(tables.sync_log.filter((l) => l.event === 'photo_missing').length, 1);
+  assert.equal(tables.visits[0].photos_synced, 0);
+  assert.deepEqual(files.removed(), []);
+});
+
+for (const [name, photo_uri] of [['no es arreglo', '{"a":1}'], ['texto JSON', '"file:///a.jpg"'], ['JSON inválido', 'no-es-json']]) {
+  test(`photo_uri inválido (${name}): se registra y queda pendiente, nunca se cierra`, async (t) => {
+    const files = fakeFiles(t);
+    const tables = baseTables();
+    tables.visits.push(visit('v1', { synced: 1, photo_uri }));
+    const supa = fakeSupabase();
+    const r = await flush(fakeDb(tables), supa);
+    assert.ok(!supa.calls.some((c: string) => c.startsWith('storage:')));
+    assert.equal(tables.visits[0].photos_synced, 0);
+    assert.equal(tables.visits[0].photo_attempts, 1);
+    assert.equal(r.failed, 1);
+    assert.equal(tables.sync_log.filter((l) => l.event === 'photo_upload_fail').length, 1);
+    assert.deepEqual(files.removed(), []);
+  });
+}
 
 test('sube primero la visita más reciente (P5)', async (t) => {
   fakeFiles(t);
