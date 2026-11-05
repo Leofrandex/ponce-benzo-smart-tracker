@@ -35,8 +35,9 @@ test("planificar: repetir después de escribir no cambia nada", () => {
   assert.deepEqual(p.escribir, []);
   assert.deepEqual(p.conflictos, []);
   assert.equal(p.sinCodigo, 0);
-  // Los upsert son idempotentes: mismo código, misma tienda.
-  assert.deepEqual(p.alias.map((a) => a.code), ["PDV-0585"]);
+  // Lo ya registrado no se vuelve a enviar.
+  assert.deepEqual(p.alias, []);
+  assert.deepEqual(p.reservados, []);
 });
 
 test("planificar: código que ya tiene otra tienda se reporta y no se escribe", () => {
@@ -88,13 +89,51 @@ test("planificar: reservado que una tienda ya usa se reporta y no se registra", 
 });
 
 test("parseLista: separador ; o coma, BOM y columnas extra", () => {
-  assert.deepEqual(parseLista("﻿ID_PDV;Tienda;store_id\r\nPDV-0001;A;s1\r\n"), { "PDV-0001": "s1" });
-  assert.deepEqual(parseLista("store_id,ID_PDV\ns1,PDV-0001\ns2,PDV-0002\n"), { "PDV-0001": "s1", "PDV-0002": "s2" });
+  assert.deepEqual(parseLista("﻿ID_PDV;Tienda;store_id\r\nPDV-0001;A;s1\r\n").mapa, { "PDV-0001": "s1" });
+  assert.deepEqual(parseLista("store_id,ID_PDV\ns1,PDV-0001\ns2,PDV-0002\n").mapa, { "PDV-0001": "s1", "PDV-0002": "s2" });
 });
 
 test("parseLista: sin las columnas o con un código en dos tiendas, error claro", () => {
   assert.throws(() => parseLista("ID_PDV;Tienda\nPDV-0001;A\n"), /ID_PDV y store_id/);
   assert.throws(() => parseLista("ID_PDV;store_id\nPDV-0001;s1\nPDV-0001;s2\n"), /PDV-0001/);
+});
+
+test("parseLista: pasa a mayúsculas antes de validar", () => {
+  const r = parseLista("ID_PDV;store_id\npdv-0001;s1\n");
+  assert.deepEqual(r.mapa, { "PDV-0001": "s1" });
+  assert.deepEqual(r.saltadas, []);
+});
+
+test("parseLista: código mal formado se salta con su fila del archivo", () => {
+  const r = parseLista("ID_PDV;store_id\nPDV-0001;s1\nABC;s2\nPDV-12;s3\n");
+  assert.deepEqual(r.mapa, { "PDV-0001": "s1" });
+  assert.equal(r.saltadas.length, 2);
+  assert.match(r.saltadas[0], /^fila 3: .*ABC/);
+  assert.match(r.saltadas[1], /^fila 4: .*PDV-12/);
+});
+
+test("parseLista: filas cortas o incompletas se reportan, las vacías se ignoran, y la numeración sigue el archivo", () => {
+  const r = parseLista("ID_PDV;Tienda;store_id\nPDV-0001;A\n\n;;\nPDV-0002;B;\n;B;s9\nPDV-0003;C;s3\nXX;C;s4\n");
+  assert.deepEqual(r.mapa, { "PDV-0003": "s3" });
+  assert.deepEqual(r.saltadas.map((x) => x.split(":")[0]), ["fila 2", "fila 5", "fila 6", "fila 8"]);
+});
+
+test("planificar: código mal formado del mapa nunca llega a una escritura", () => {
+  const p = planificar({ "ABC": "s1", "pdv-0001": "s1", "PDV-0100": "s1", "PDV-12": "s2" }, [tienda("s1"), tienda("s2")], []);
+  assert.deepEqual(p.escribir, [{ store_id: "s1", code: "PDV-0100" }]);
+  assert.deepEqual(p.alias, []);
+  assert.deepEqual(p.malformados, ["ABC -> s1", "pdv-0001 -> s1", "PDV-12 -> s2"]);
+  assert.equal(p.sinCodigo, 1);
+});
+
+test("planificar: alias y reservado ya registrados no se reenvían, para no pisar kind ni note", () => {
+  const p = planificar({ "PDV-0100": "s1", "PDV-0585": "s1" }, [tienda("s1")], [
+    { code: "PDV-0585", store_id: "s1", kind: "reservado" }, { code: "PDV-0194", store_id: null, kind: "reservado" },
+  ]);
+  assert.deepEqual(p.escribir, [{ store_id: "s1", code: "PDV-0100" }]);
+  assert.deepEqual(p.alias, []);
+  assert.deepEqual(p.reservados, []);
+  assert.deepEqual(p.conflictos, []);
 });
 
 test("leerLista: archivo que no existe, error con la ruta", () => {
