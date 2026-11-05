@@ -15,10 +15,11 @@ import { updateStore } from "@/app/lib/mutations/stores";
 import { createContact, updateContact, deleteContact } from "@/app/lib/mutations/contacts";
 import { createEngagement, toggleEngagementDone } from "@/app/lib/mutations/engagements";
 import { eliminarReposicion } from "@/app/lib/mutations/restocks";
-import { canRegisterRestock } from "@/app/lib/roles";
+import { canConfigure, canRegisterRestock } from "@/app/lib/roles";
 import type { Store, ContactEngagement } from "@/app/lib/types";
 import type { ContactFormValue } from "@/app/components/clientes/ContactFormModal";
 import { ClientInfoPanel } from "@/app/components/clientes/ClientInfoPanel";
+import { GpsHistorial } from "@/app/components/clientes/GpsHistorial";
 import { ContactList } from "@/app/components/clientes/ContactList";
 import { EngagementsPanel } from "@/app/components/clientes/EngagementsPanel";
 import { ActivityFeed } from "@/app/components/clientes/ActivityFeed";
@@ -145,6 +146,7 @@ export default function ClienteDetailPage() {
       <div className="detail-two-col">
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <ClientInfoPanel store={store} lastRestock={lastRestock} />
+          <GpsHistorial storeId={storeId} canRestore={canConfigure(profile?.role)} onRestored={refetchStore} />
           <ContactList
             key={storeId}
             storeId={storeId}
