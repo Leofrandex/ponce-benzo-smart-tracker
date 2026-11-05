@@ -35,13 +35,24 @@ create sequence if not exists public.store_pdv_seq start 1001;
 -- Solo se consume a traves de fn_next_pdv.
 revoke all on sequence public.store_pdv_seq from public, anon, authenticated;
 
+-- Salta los codigos ya usados: una carga masiva puede traer codigos explicitos
+-- por delante de la secuencia. plpgsql porque store_code_aliases se crea mas abajo.
 create or replace function public.fn_next_pdv()
 returns text
-language sql
+language plpgsql
 security definer
 set search_path to ''
 as $$
-  select 'PDV-' || nextval('public.store_pdv_seq'::regclass)::text;
+declare
+  v_codigo text;
+begin
+  loop
+    v_codigo := 'PDV-' || nextval('public.store_pdv_seq'::regclass)::text;
+    exit when not exists (select 1 from public.stores s where s.pdv_code = v_codigo)
+      and not exists (select 1 from public.store_code_aliases a where a.code = v_codigo);
+  end loop;
+  return v_codigo;
+end;
 $$;
 
 -- Primero sin default, para que las filas existentes queden nulas.
@@ -149,6 +160,8 @@ create trigger trg_stores_gps_historial
 -- Idempotente por p_capture_id: la app reintenta sin conexion.
 -- Una captura vieja se intercala en la cadena segun su fecha y no pisa un cambio
 -- mas reciente; la tienda solo cambia si la captura queda de ultima.
+-- Mas de 45 dias atras se rechaza: reescribiria el old_* de la fila siguiente y
+-- con eso la verificacion de visitas pasadas. La cola de un telefono sin red cabe de sobra.
 create or replace function public.fn_capturar_gps_tienda(
   p_capture_id uuid, p_store_id uuid, p_lat double precision, p_lng double precision, p_captured_at timestamptz
 )
@@ -171,6 +184,10 @@ begin
 
   if p_capture_id is null or p_captured_at is null then
     raise exception 'La captura de GPS está incompleta.' using errcode = '22023';
+  end if;
+
+  if p_captured_at < now() - interval '45 days' then
+    raise exception 'La captura de GPS es demasiado vieja.' using errcode = '22023';
   end if;
 
   -- Un telefono con el reloj adelantado no debe bloquear las capturas siguientes.
@@ -354,7 +371,8 @@ $$;
 -- ---------------------------------------------------------------------------
 
 -- p_filas: [{ "fila", "name", "business_channel", "rif", "vendedor_id" }]
--- Repetidas se reportan y se saltan; cualquier otro error aborta toda la carga.
+-- Repetidas se reportan y se saltan; cualquier otro error aborta toda la carga,
+-- con el numero de fila en el mensaje.
 create or replace function public.fn_cargar_clientes(p_filas jsonb)
 returns jsonb
 language plpgsql
@@ -395,6 +413,11 @@ begin
         v_insertadas := v_insertadas + 1;
       exception when unique_violation then
         v_repetidas := v_repetidas || jsonb_build_object('fila', (v_fila->>'fila')::int, 'motivo', sqlerrm);
+      when check_violation then
+        -- El status lo fija fn_crear_cliente: el unico check que puede fallar es el canal.
+        raise exception 'Fila %: canal no válido.', v_fila->>'fila' using errcode = sqlstate;
+      when others then
+        raise exception 'Fila %: %', v_fila->>'fila', sqlerrm using errcode = sqlstate;
       end;
     end if;
 
@@ -410,7 +433,7 @@ $$;
 --             "urbanizacion", "ciudad", "region", "master_lat", "master_lng", "pdv_code" }]
 -- Repetida: codigo PDV en stores o en store_code_aliases, o mismo cliente y nombre
 -- normalizado en stores (tambien inactivas) o en una fila anterior del archivo.
--- Cualquier otro error aborta toda la carga.
+-- Cualquier otro error aborta toda la carga, con el numero de fila en el mensaje.
 create or replace function public.fn_cargar_tiendas(p_filas jsonb)
 returns jsonb
 language plpgsql
@@ -427,6 +450,7 @@ declare
   v_lat double precision;
   v_lng double precision;
   v_motivo text;
+  v_restriccion text;
   v_existentes text[];
   -- Todas las filas ya vistas cuentan, tambien las que se saltaron.
   v_vistas text[] := '{}';
@@ -491,16 +515,27 @@ begin
       raise exception 'Fila %: coordenadas fuera de rango.', v_fila->>'fila' using errcode = '22023';
     end if;
 
-    insert into public.stores (
-      client_id, name, business_channel, estado, municipio, address,
-      urbanizacion, ciudad, region, master_lat, master_lng, pdv_code
-    ) values (
-      v_cliente, btrim(v_fila->>'name'), v_fila->>'business_channel', v_fila->>'estado',
-      v_fila->>'municipio', v_fila->>'address',
-      nullif(btrim(v_fila->>'urbanizacion'), ''), nullif(btrim(v_fila->>'ciudad'), ''),
-      nullif(btrim(v_fila->>'region'), ''), v_lat, v_lng,
-      coalesce(v_codigo, public.fn_next_pdv())
-    );
+    begin
+      insert into public.stores (
+        client_id, name, business_channel, estado, municipio, address,
+        urbanizacion, ciudad, region, master_lat, master_lng, pdv_code
+      ) values (
+        v_cliente, btrim(v_fila->>'name'), v_fila->>'business_channel', v_fila->>'estado',
+        v_fila->>'municipio', v_fila->>'address',
+        nullif(btrim(v_fila->>'urbanizacion'), ''), nullif(btrim(v_fila->>'ciudad'), ''),
+        nullif(btrim(v_fila->>'region'), ''), v_lat, v_lng,
+        coalesce(v_codigo, public.fn_next_pdv())
+      );
+    exception when check_violation or unique_violation then
+      get stacked diagnostics v_restriccion = constraint_name;
+      raise exception 'Fila %: %.', v_fila->>'fila', case v_restriccion
+        when 'stores_business_channel_check' then 'canal no válido'
+        when 'stores_pdv_code_formato' then 'el código PDV debe tener la forma PDV-0000'
+        when 'stores_gps_completo' then 'falta la latitud o la longitud'
+        when 'stores_pdv_code_key' then 'el código PDV ya existe'
+        else format('dato no permitido (%s)', v_restriccion)
+      end using errcode = sqlstate;
+    end;
     v_insertadas := v_insertadas + 1;
   end loop;
 
@@ -602,6 +637,9 @@ grant execute on function public.fn_mercaderista_detalle(uuid, date, date) to pu
 -- ---------------------------------------------------------------------------
 -- Permisos de las funciones nuevas
 -- ---------------------------------------------------------------------------
+
+-- fn_next_pdv conserva el grant a authenticated: el default de la columna se evalua
+-- con los privilegios de quien inserta, y sin el grant fallarian los inserts.
 
 -- Solo corre como trigger.
 revoke all on function public.fn_stores_gps_historial() from public, anon, authenticated;
