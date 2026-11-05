@@ -80,6 +80,35 @@ test("archivo de cero bytes: failed, no se sube", async () => {
   assert.equal(s.uploads.length, 0);
 });
 
+test("archivo vacío con 0 intentos: failed, la lectura pudo ser pasajera", async () => {
+  const r = await uploadPhotos(supa({ fileBytes: 0 }), "u", "v", ["a"], { exists: yes, attempts: 0 });
+  assert.equal(r.failed.length, 1);
+  assert.deepEqual(r.missing, []);
+  assert.deepEqual(r.empty, []);
+});
+
+test("archivo vacío con 2 intentos: sigue en failed", async () => {
+  const r = await uploadPhotos(supa({ fileBytes: 0 }), "u", "v", ["a"], { exists: yes, attempts: 2 });
+  assert.equal(r.failed.length, 1);
+  assert.deepEqual(r.missing, []);
+});
+
+test("archivo vacío con 3 intentos y listado correcto: missing y marcado vacío", async () => {
+  const s = supa({ fileBytes: 0 });
+  const r = await uploadPhotos(s, "u", "v", ["a"], { exists: yes, attempts: 3 });
+  assert.deepEqual(r.missing, [0]);
+  assert.deepEqual(r.empty, [0]);
+  assert.deepEqual(r.failed, []);
+  assert.equal(s.uploads.length, 0);
+});
+
+test("archivo vacío con 3 intentos y listado caído: failed, nunca missing", async () => {
+  const r = await uploadPhotos(supa({ fileBytes: 0, listFails: true }), "u", "v", ["a"], { exists: yes, attempts: 3 });
+  assert.equal(r.failed.length, 1);
+  assert.deepEqual(r.missing, []);
+  assert.deepEqual(r.empty, []);
+});
+
 test("una lectura local que falla no lanza: queda en failed", async () => {
   const s = supa();
   globalThis.fetch = (async () => { throw new Error("no se pudo leer"); }) as any;

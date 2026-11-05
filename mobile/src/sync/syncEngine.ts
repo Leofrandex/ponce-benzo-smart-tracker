@@ -15,7 +15,7 @@ const NET_TIMEOUT_MS = 15_000;
 
 const MAX_PHOTO_WAIT_MS = 60 * 60_000;
 
-/** Tiempo máximo de una pasada para arrancar fotos. Los registros y los pings no lo miran. */
+/** Tiempo máximo de la fase de fotos para arrancar una. Los registros y los pings no lo miran ni lo gastan. */
 export const FLUSH_BUDGET_MS = 120_000;
 export const PING_BATCH = 100;
 
@@ -26,7 +26,7 @@ const worstKind = (a: ErrorKind | null, b: ErrorKind): ErrorKind => (a === 'serv
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : JSON.stringify(e));
 
-// Rechazos definitivos de fn_capturar_gps_tienda: tienda inexistente y coordenadas invalidas.
+// Rechazos definitivos de fn_capturar_gps_tienda: tienda inexistente, coordenadas invalidas y captura muy vieja.
 // Reintentar no puede funcionar. Todo lo demas (42501 incluido) sigue pendiente.
 const GPS_CAPTURE_REJECTED = new Set(['P0002', '22023']);
 
@@ -119,7 +119,6 @@ export async function flush(
   if (isFlushing) return { pushed: 0, failed: 0, busy: true, errorKind: null };
   isFlushing = true;
   const { onProgress, budgetMs = FLUSH_BUDGET_MS } = opts;
-  const startedAt = Date.now();
   let pushed = 0, failed = 0;
   let errorKind = null as ErrorKind | null;
   const noteKind = (k: ErrorKind) => { errorKind = worstKind(errorKind, k); };
@@ -250,7 +249,8 @@ export async function flush(
     }
 
     // 4) Fotos de registros ya subidos: se completan aparte y actualizan photo_urls.
-    // El presupuesto es uno solo para las dos tablas.
+    // El presupuesto es uno solo para las dos tablas y corre desde aquí: los registros no lo gastan.
+    const startedAt = Date.now();
     const phase: PhotoPhase = {
       overBudget: () => Date.now() - startedAt >= budgetMs,
       rowFailed: (errors) => { failed++; errors.forEach((err) => noteKind(classifyError(err))); },
@@ -299,7 +299,8 @@ async function flushPendingPhotos(
       if (!Array.isArray(uris)) throw new Error('photo_uri no es un arreglo');
       if (!uris.length) { await db.runAsync(`UPDATE ${table} SET photos_synced=1 WHERE ${idCol}=?`, id); continue; }
       let doneNow = 0;
-      const { listed, paths, missing, failed, stopped } = await uploadPhotos(supabase, r.user_id, id, uris, {
+      const { listed, paths, missing, empty, failed, stopped } = await uploadPhotos(supabase, r.user_id, id, uris, {
+        attempts: r.photo_attempts,
         shouldStop: phase.overBudget,
         // Queda guardado foto a foto: el banner descuenta en vivo y un cierre de la app no lo pierde.
         onPhotoDone: async () => {
@@ -330,7 +331,7 @@ async function flushPendingPhotos(
       if (!errors.length) {
         if (stopped) return; // Se acabó el presupuesto: no es un fallo y no gasta intento.
         // El log va antes del cierre: si la app muere en medio, es el único rastro de la foto perdida.
-        for (const i of missing) await logEvent(db, 'warn', 'photo_missing', `${id} foto ${i}`, r.user_id);
+        for (const i of missing) await logEvent(db, 'warn', 'photo_missing', `${id} foto ${i}${empty.includes(i) ? ' (archivo vacío)' : ''}`, r.user_id);
         // Primero se cierra y después se borra: un archivo solo se va con su foto confirmada arriba.
         await db.runAsync(`UPDATE ${table} SET photos_synced=1 WHERE ${idCol}=?`, id);
         await deletePhotos(uris);

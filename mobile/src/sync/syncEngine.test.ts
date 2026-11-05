@@ -183,9 +183,9 @@ const pendingVisit = (id: string, uris: string[], over: Row = {}): Row =>
 const baseTables = () => ({ sessions: [] as Row[], visits: [] as Row[], competition_reports: [] as Row[], location_pings: [] as Row[], restock_products: [] as Row[], sync_log: [] as Row[] });
 
 // Archivos locales simulados: expoPhotoFs es el fs por defecto de photoExists/deletePhotos.
-function fakeFiles(t: TestContext, missing: string[] = []) {
+function fakeFiles(t: TestContext, missing: string[] = [], empty: string[] = []) {
   const realFetch = globalThis.fetch;
-  globalThis.fetch = (async () => ({ arrayBuffer: async () => new ArrayBuffer(1) })) as any;
+  globalThis.fetch = (async (uri: string) => ({ arrayBuffer: async () => new ArrayBuffer(empty.includes(uri) ? 0 : 1) })) as any;
   t.after(() => { globalThis.fetch = realFetch; });
   t.mock.method(expoPhotoFs, 'exists', async (uri: string) => !missing.includes(uri));
   const remove = t.mock.method(expoPhotoFs, 'remove', async () => {});
@@ -372,6 +372,54 @@ test('todas las fotos perdidas: cierra, registra cada una y no toca photo_urls',
   assert.equal(supa.updates.length, 0);
   assert.equal(tables.visits[0].photos_synced, 1);
   assert.equal(tables.sync_log.filter((l) => l.event === 'photo_missing').length, 2);
+});
+
+test('archivo vacío con 0 intentos: la fila sigue abierta y gasta un intento', async (t) => {
+  const files = fakeFiles(t, [], ['b']);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a', 'b']));
+  const r = await flush(fakeDb(tables), fakeSupabase());
+  assert.equal(tables.visits[0].photos_synced, 0);
+  assert.equal(tables.visits[0].photo_attempts, 1);
+  assert.equal(r.failed, 1);
+  assert.equal(tables.sync_log.filter((l) => l.event === 'photo_missing').length, 0);
+  assert.deepEqual(files.removed(), []);
+});
+
+test('archivo vacío con 3 intentos: cierra, enlaza las otras y registra photo_missing con la nota', async (t) => {
+  const files = fakeFiles(t, [], ['b']);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a', 'b', 'c'], { photo_attempts: 3 }));
+  const supa = fakeSupabase();
+  const r = await flush(fakeDb(tables), supa);
+  assert.deepEqual(supa.updates.at(-1).payload.photo_urls, ['u1/v1/0.jpg', 'u1/v1/2.jpg']);
+  assert.equal(tables.visits[0].photos_synced, 1);
+  assert.equal(tables.visits[0].photos_done, 3);
+  assert.equal(r.failed, 0);
+  const logged = tables.sync_log.filter((l) => l.event === 'photo_missing');
+  assert.equal(logged.length, 1);
+  assert.match(logged[0].detail, /v1 foto 1/);
+  assert.match(logged[0].detail, /vac[ií]o/);
+  assert.deepEqual(files.removed(), ['a', 'b', 'c']);
+});
+
+test('archivo vacío con 3 intentos y listado caído: sigue abierta y no borra', async (t) => {
+  const files = fakeFiles(t, [], ['b']);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a', 'b'], { photo_attempts: 3 }));
+  const r = await flush(fakeDb(tables), fakeSupabase({ failList: true }));
+  assert.equal(tables.visits[0].photos_synced, 0);
+  assert.equal(r.failed, 1);
+  assert.equal(tables.sync_log.filter((l) => l.event === 'photo_missing').length, 0);
+  assert.deepEqual(files.removed(), []);
+});
+
+test('foto perdida de verdad no lleva la nota de archivo vacío', async (t) => {
+  fakeFiles(t, ['a']);
+  const tables = baseTables();
+  tables.visits.push(pendingVisit('v1', ['a']));
+  await flush(fakeDb(tables), fakeSupabase());
+  assert.doesNotMatch(tables.sync_log.find((l) => l.event === 'photo_missing')!.detail, /vac[ií]o/);
 });
 
 test('update sin filas afectadas no cierra la visita (P7)', async (t) => {
@@ -724,6 +772,20 @@ test('el presupuesto no frena registros ni pings, solo fotos (B3)', async (t) =>
   assert.equal(tables.visits[0].synced, 1);
   assert.equal(tables.location_pings[0].synced, 1);
   assert.ok(!supa.calls.some((c: string) => c.startsWith('storage:')));
+  assert.equal(r.failed, 0);
+});
+
+test('registros lentos no consumen el presupuesto: las fotos arrancan igual', async (t) => {
+  fakeFiles(t);
+  const tables = baseTables();
+  tables.sessions.push({ session_id: 's1', user_id: 'u1', synced: 0 });
+  tables.visits.push(visit('v1'), pendingVisit('v2', ['a']));
+  const tick = fakeClock(t, 1_000);
+  // Cada upsert tarda 10 veces el presupuesto.
+  const supa = fakeSupabase({ upsertError: () => { tick(); return null; } });
+  const r = await flush(fakeDb(tables), supa, undefined, { budgetMs: 100 });
+  assert.ok(supa.calls.includes('storage:upload:u1/v2/0.jpg'), supa.calls.join(','));
+  assert.equal(tables.visits[1].photos_synced, 1);
   assert.equal(r.failed, 0);
 });
 
