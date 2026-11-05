@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator,
+  View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -15,6 +15,7 @@ import { colors, radii, fonts } from '../theme';
 import type { RouteStoreItem, Store } from '../types';
 import { useRouteCtx } from '../context/RouteContext';
 import { fetchAllStores } from '../services/catalogApi';
+import { confirmEndRouteArgs } from '../session/confirmEndRoute';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
@@ -158,7 +159,7 @@ export function RouteScreen() {
             {!sessionEnded && (routeItems.length > 0) && (
               <Button
                 label={sessionActive ? 'Finalizar Ruta' : 'Empezar Ruta'}
-                onPress={sessionActive ? endSession : startSession}
+                onPress={sessionActive ? () => Alert.alert(...confirmEndRouteArgs(() => { endSession(); })) : startSession}
                 variant={sessionActive ? 'danger' : 'primary'}
                 style={styles.sessionBtn}
               />
