@@ -23,6 +23,7 @@ export interface Store {
   classification: "A" | "B" | "C" | null;
   client_id?: string | null;
   client_name?: string | null;
+  pdv_code: string | null;
 }
 
 export interface User {

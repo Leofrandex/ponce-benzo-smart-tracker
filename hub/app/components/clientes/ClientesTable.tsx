@@ -56,6 +56,7 @@ export function ClientesTable({ rows, loading = false }: { rows: ClientRow[]; lo
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
                   <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: r.active ? "var(--success)" : "var(--text-muted)" }} />
                   <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.name}>{r.name}</span>
+                  {r.pdv_code && <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", flexShrink: 0 }}>{r.pdv_code}</span>}
                 </div>
                 {/* Solo en teléfono: el header está oculto, así que la fecha lleva su etiqueta. */}
                 <div className="contactos-mobile-sub" style={{ paddingLeft: "15px" }}>

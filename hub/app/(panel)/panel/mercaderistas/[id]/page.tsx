@@ -18,6 +18,7 @@ import TimePeriodSelector, { rangoDeDias } from "@/app/components/dashboard/Time
 import RutaSemanal from "@/app/components/mercaderistas/RutaSemanal";
 import SectionError from "@/app/components/ui/SectionError";
 import { DetailSkeleton, Skeleton, SkeletonCard, SkeletonList, SkeletonScreen } from "@/app/components/ui/Skeleton";
+import { etiquetaDuracion } from "@/app/lib/queries/duracionVisita";
 
 const COLOR: Record<Resultado, string> = {
   completada: "var(--success)", anomalia: "var(--danger)", cubierta: "var(--accent)",
@@ -162,7 +163,7 @@ function PerfilInner() {
                               || (t.resultado === "anomalia" && t.anomaly_type ? t.anomaly_type.map(anomalyLabel).join(", ") : "")
                               || <span style={{ color: "var(--text-muted)" }}>–</span>}
                           </td>
-                          <td style={{ padding: "8px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: "var(--text-muted)" }}>{hora(t.check_in_time)}</td>
+                          <td style={{ padding: "8px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: "var(--text-muted)" }}>{t.check_in_time ? `${hora(t.check_in_time)} · ${etiquetaDuracion(t.started_at, t.check_in_time)}` : "—"}</td>
                         </tr>
                       ))}
                     </tbody>

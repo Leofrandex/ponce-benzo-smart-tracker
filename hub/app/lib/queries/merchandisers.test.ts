@@ -4,7 +4,7 @@ import { summarizeDetalle, groupByDay, toJornadas, type DetalleRow } from "./mer
 
 const row = (over: Partial<DetalleRow>): DetalleRow => ({
   fecha: "2026-09-25", store_id: "s1", store_name: "FTD CENTRO", client_name: "FARMATODO",
-  resultado: "completada", skip_reason: null, anomaly_type: null, visit_id: "v1", check_in_time: "2026-09-25T14:00:00Z",
+  resultado: "completada", skip_reason: null, anomaly_type: null, visit_id: "v1", check_in_time: "2026-09-25T14:00:00Z", started_at: null,
   ...over,
 });
 

@@ -5,7 +5,7 @@ import type { DetalleRow } from "./merchandisers";
 
 const tienda = (store_id: string): TiendaInfo => ({ store_id, name: `T-${store_id}`, client_name: "FARMATODO" });
 const det = (fecha: string, store_id: string, resultado: DetalleRow["resultado"]): DetalleRow => ({
-  fecha, store_id, store_name: "", client_name: null, resultado, skip_reason: null, anomaly_type: null, visit_id: null, check_in_time: null,
+  fecha, store_id, store_name: "", client_name: null, resultado, skip_reason: null, anomaly_type: null, visit_id: null, check_in_time: null, started_at: null,
 });
 
 test("lunesDe lleva cualquier día a su lunes (domingo cierra la semana)", () => {
