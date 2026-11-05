@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import { splitUploadable, photoCount, flush, pendingCounts, pendingPhotos } from './syncEngine';
 import { deriveSyncBanner } from './bannerState';
 import { expoPhotoFs } from '../services/photos/photoStore';
+import { memoryDb } from '../testing/sqliteAdapter';
+import { initSchema } from '../store/localStore';
+import { queueGpsCapture } from '../services/storeGps';
+import { toVisitPayload } from '../services/sync/payloads';
 
 test('splitUploadable: separa pings con y sin user_id', () => {
   const { ok, orphan } = splitUploadable([
@@ -97,10 +101,11 @@ function fakeDb(tables: Record<string, Row[]>) {
   } as any;
 }
 
-function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFailTables?: string[]; failUploadOnce?: string[]; noRowsOnUpdate?: boolean; failList?: boolean; upsertError?: (table: string, payload: any) => any; storageMessage?: string; onUpload?: () => void; existing?: string[] } = {}) {
+function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFailTables?: string[]; failUploadOnce?: string[]; noRowsOnUpdate?: boolean; failList?: boolean; upsertError?: (table: string, payload: any) => any; rpcError?: (args: any) => any; storageMessage?: string; onUpload?: () => void; existing?: string[] } = {}) {
   const calls: string[] = [];
   const updates: { table: string; payload: any }[] = [];
   const upserts: { table: string; payload: any }[] = [];
+  const rpcs: { fn: string; args: any }[] = [];
   const uploaded = new Set<string>(opts.existing);
   const failedOnce = new Set<string>();
   const result = (table: string) =>
@@ -113,6 +118,12 @@ function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFa
     calls,
     updates,
     upserts,
+    rpcs,
+    rpc: (fn: string, args: any) => {
+      calls.push(`rpc:${fn}`);
+      rpcs.push({ fn, args });
+      return Promise.resolve({ data: null, error: opts.rpcError?.(args) ?? null });
+    },
     from: (table: string) => ({
       upsert: (payload: any, _opts: any) => {
         calls.push(`upsert:${table}`);
@@ -794,4 +805,137 @@ test('fila esperando photo_next_try: flush sin fallos pero el banner no dice Tod
   const counts = await pendingCounts(db);
   assert.equal(counts.photos, 1);
   assert.equal(deriveSyncBanner({ status: 'synced', records: counts.records, photos: counts.photos })!.tone, 'pending');
+});
+
+// ── Capturas de GPS: SQLite real, solo Supabase falso ─────────────────────────
+
+async function realDb() { const db = memoryDb(); await initSchema(db); return db; }
+const gpsInput = (over = {}) => ({ storeId: 'st1', userId: 'u1', lat: 10.5, lng: -66.9, nowIso: '2026-11-04T14:00:00.000Z', ...over });
+const gpsRow = (db: any, id: string) => db.getFirstAsync(`SELECT synced FROM store_gps_captures WHERE capture_id=?`, id);
+const gpsLogs = (db: any) => db.getAllAsync(`SELECT event, detail, user_id, level FROM sync_log WHERE event='gps_capture_rejected'`);
+
+test('flush sube capturas antes que visitas', async () => {
+  const db = await realDb();
+  await db.runAsync(`INSERT INTO sessions (session_id, user_id, route_id, session_start) VALUES ('s1','u1','r1','t')`);
+  await db.runAsync(`INSERT INTO visits (visit_id, session_id, store_id, user_id, check_in_time, status, photos_synced) VALUES ('v1','s1','st1','u1','t','completed',0)`);
+  const id = await queueGpsCapture(db, gpsInput());
+  const supa = fakeSupabase();
+  const r = await flush(db, supa, 'u1');
+  assert.equal(r.failed, 0);
+  assert.equal(r.pushed, 3);
+  assert.deepEqual(supa.calls, ['upsert:sessions', 'rpc:fn_capturar_gps_tienda', 'upsert:visits']);
+  assert.deepEqual(supa.rpcs[0].args, {
+    p_capture_id: id, p_store_id: 'st1', p_lat: 10.5, p_lng: -66.9, p_captured_at: '2026-11-04T14:00:00.000Z',
+  });
+  assert.equal((await gpsRow(db, id)).synced, 1);
+});
+
+test('las capturas no dependen del presupuesto de fotos', async () => {
+  const db = await realDb();
+  const id = await queueGpsCapture(db, gpsInput());
+  const supa = fakeSupabase();
+  await flush(db, supa, 'u1', { budgetMs: 0 });
+  assert.equal(supa.rpcs.length, 1);
+  assert.equal((await gpsRow(db, id)).synced, 1);
+});
+
+test('captura de otra cuenta no se sube', async () => {
+  const db = await realDb();
+  const ajena = await queueGpsCapture(db, gpsInput({ userId: 'u2' }));
+  const propia = await queueGpsCapture(db, gpsInput());
+  const supa = fakeSupabase();
+  const r = await flush(db, supa, 'u1');
+  assert.equal(r.failed, 0);
+  assert.deepEqual(supa.rpcs.map((c: any) => c.args.p_capture_id), [propia]);
+  assert.equal((await gpsRow(db, ajena)).synced, 0);
+  assert.equal((await gpsRow(db, propia)).synced, 1);
+});
+
+test('captura repetida es idempotente: usa el mismo capture_id', async () => {
+  const db = await realDb();
+  const id = await queueGpsCapture(db, gpsInput());
+  let fallar = true;
+  const supa = fakeSupabase({ rpcError: () => (fallar ? { message: 'TypeError: Network request failed', code: '' } : null) });
+  const primera = await flush(db, supa, 'u1');
+  assert.equal(primera.failed, 1);
+  assert.equal(primera.errorKind, 'network');
+  assert.equal((await gpsRow(db, id)).synced, 0);
+  fallar = false;
+  const segunda = await flush(db, supa, 'u1');
+  assert.equal(segunda.failed, 0);
+  assert.deepEqual(supa.rpcs.map((c: any) => c.args.p_capture_id), [id, id]);
+  assert.equal((await gpsRow(db, id)).synced, 1);
+  await flush(db, supa, 'u1');
+  assert.equal(supa.rpcs.length, 2, 'ya subida no se vuelve a enviar');
+});
+
+test('tienda inexistente (P0002) se cierra con log y no se reintenta', async () => {
+  const db = await realDb();
+  const id = await queueGpsCapture(db, gpsInput());
+  const supa = fakeSupabase({ rpcError: () => ({ code: 'P0002', message: 'La tienda no existe.' }) });
+  const r = await flush(db, supa, 'u1');
+  assert.equal(r.failed, 0, 'reintentar no lo arregla: no es un fallo de la cola');
+  assert.equal(r.pushed, 0, 'no subio nada');
+  assert.equal(r.errorKind, null);
+  assert.equal((await gpsRow(db, id)).synced, 1);
+  const logs = await gpsLogs(db);
+  assert.equal(logs.length, 1);
+  assert.match(logs[0].detail, /P0002/);
+  assert.match(logs[0].detail, new RegExp(id));
+  assert.equal(logs[0].user_id, 'u1');
+  await flush(db, supa, 'u1');
+  assert.equal(supa.rpcs.length, 1, 'no se reintenta');
+});
+
+test('coordenadas invalidas (22023) tambien se cierran con log', async () => {
+  const db = await realDb();
+  const id = await queueGpsCapture(db, gpsInput());
+  const r = await flush(db, fakeSupabase({ rpcError: () => ({ code: '22023', message: 'Coordenadas fuera de rango.' }) }), 'u1');
+  assert.equal(r.failed, 0);
+  assert.equal((await gpsRow(db, id)).synced, 1);
+  const logs = await gpsLogs(db);
+  assert.equal(logs.length, 1);
+  assert.match(logs[0].detail, /22023/);
+});
+
+test('otro error de servidor queda pendiente', async () => {
+  for (const code of ['42501', 'PGRST202', '500']) {
+    const db = await realDb();
+    const id = await queueGpsCapture(db, gpsInput());
+    const r = await flush(db, fakeSupabase({ rpcError: () => ({ code, message: 'rechazado' }) }), 'u1');
+    assert.equal(r.failed, 1, code);
+    assert.equal(r.errorKind, 'server', code);
+    assert.equal((await gpsRow(db, id)).synced, 0, code);
+    assert.deepEqual(await gpsLogs(db), [], code);
+  }
+});
+
+test('una captura que falla no frena las visitas', async () => {
+  const db = await realDb();
+  await db.runAsync(`INSERT INTO visits (visit_id, store_id, user_id, check_in_time, status, photos_synced) VALUES ('v1','st1','u1','t','completed',0)`);
+  await queueGpsCapture(db, gpsInput());
+  const r = await flush(db, fakeSupabase({ rpcError: () => ({ code: '42501', message: 'no' }) }), 'u1');
+  assert.equal(r.failed, 1);
+  assert.equal((await db.getFirstAsync<any>(`SELECT synced FROM visits`))!.synced, 1);
+});
+
+test('toVisitPayload incluye started_at', () => {
+  const base = visit('v1') as any;
+  assert.equal(toVisitPayload({ ...base, started_at: '2026-11-04T14:00:00.000Z' }).started_at, '2026-11-04T14:00:00.000Z');
+  assert.equal(toVisitPayload({ ...base, started_at: null }).started_at, null);
+  // Fila vieja sin la columna: viaja null, no se omite.
+  const sinColumna = toVisitPayload(base);
+  assert.ok('started_at' in sinColumna);
+  assert.equal(sinColumna.started_at, null);
+});
+
+test('pendingCounts incluye capturas de GPS en records', async () => {
+  const db = await realDb();
+  assert.equal((await pendingCounts(db, 'u1')).records, 0);
+  const id = await queueGpsCapture(db, gpsInput());
+  await queueGpsCapture(db, gpsInput({ userId: 'u2' }));
+  assert.equal((await pendingCounts(db, 'u1')).records, 1, 'solo la propia');
+  assert.equal((await pendingCounts(db)).records, 2);
+  await db.runAsync(`UPDATE store_gps_captures SET synced=1 WHERE capture_id=?`, id);
+  assert.equal((await pendingCounts(db, 'u1')).records, 0);
 });

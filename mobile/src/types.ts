@@ -93,6 +93,8 @@ export interface VisitRecord {
   anomaly_products: Record<string, string[]>;
   /** product_ids repuestos. Solo se guardan si hay last_restock_date. */
   restock_products: string[];
+  /** Primera apertura del formulario de esta visita; null si no se pudo registrar. */
+  started_at: string | null;
 }
 
 export type GPSState = 'idle' | 'searching' | 'found' | 'error';

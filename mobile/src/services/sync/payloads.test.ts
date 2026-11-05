@@ -6,7 +6,7 @@ test("toSessionPayload: start_location como {lat,lng}", () => {
   assert.deepEqual(p.start_location, { lat:10.5, lng:-66.9 }); assert.equal(p.route_id,"r1"); assert.equal(p.session_end,null);
 });
 test("toVisitPayload: check_in_location y sin photo_urls", () => {
-  const p = toVisitPayload({ visit_id:"v1", session_id:"s1", store_id:"st1", user_id:"u1", check_in_time:"t", lat:1, lng:2, photo_uri:'["file://a"]', observations:"obs", status:"completed", anomaly_type:null, skip_reason:null, last_restock_date:null, synced:0 });
+  const p = toVisitPayload({ visit_id:"v1", session_id:"s1", store_id:"st1", user_id:"u1", check_in_time:"t", lat:1, lng:2, photo_uri:'["file://a"]', observations:"obs", status:"completed", anomaly_type:null, skip_reason:null, last_restock_date:null, synced:0, started_at:null });
   assert.deepEqual(p.check_in_location,{lat:1,lng:2}); assert.ok(!("photo_urls" in p)); assert.equal(p.status,"completed");
 });
 test("toCompetitionPayload: sin photo_urls", () => {
@@ -14,7 +14,7 @@ test("toCompetitionPayload: sin photo_urls", () => {
   assert.equal(p.report_id,"r1"); assert.ok(!("photo_urls" in p));
 });
 test("toVisitPayload: check_in_location null si faltan coords", () => {
-  const p = toVisitPayload({ visit_id:"v2", session_id:"s1", store_id:"st1", user_id:"u1", check_in_time:"t", lat:null, lng:null, photo_uri:null, observations:null, status:"skipped", anomaly_type:null, skip_reason:"sin_acceso", last_restock_date:null, synced:0 });
+  const p = toVisitPayload({ visit_id:"v2", session_id:"s1", store_id:"st1", user_id:"u1", check_in_time:"t", lat:null, lng:null, photo_uri:null, observations:null, status:"skipped", anomaly_type:null, skip_reason:"sin_acceso", last_restock_date:null, synced:0, started_at:null });
   assert.equal(p.check_in_location, null);
 });
 test("toPingPayload: shape mínimo", () => {
@@ -22,11 +22,11 @@ test("toPingPayload: shape mínimo", () => {
   assert.equal(p.ping_id,"p1"); assert.equal(p.user_id,"u1");
 });
 test("toVisitPayload: anomaly_type JSON se parsea a array", () => {
-  const p = toVisitPayload({ visit_id:"v3", session_id:"s1", store_id:"st1", user_id:"u1", check_in_time:"t", lat:1, lng:2, photo_uri:null, observations:null, status:"anomaly", anomaly_type:'["sin_stock","producto_danado"]', skip_reason:null, last_restock_date:null, synced:0 });
+  const p = toVisitPayload({ visit_id:"v3", session_id:"s1", store_id:"st1", user_id:"u1", check_in_time:"t", lat:1, lng:2, photo_uri:null, observations:null, status:"anomaly", anomaly_type:'["sin_stock","producto_danado"]', skip_reason:null, last_restock_date:null, synced:0, started_at:null });
   assert.deepEqual(p.anomaly_type, ["sin_stock", "producto_danado"]);
 });
 test("toVisitPayload: anomaly_type null queda null", () => {
-  const p = toVisitPayload({ visit_id:"v4", session_id:"s1", store_id:"st1", user_id:"u1", check_in_time:"t", lat:1, lng:2, photo_uri:null, observations:null, status:"completed", anomaly_type:null, skip_reason:null, last_restock_date:null, synced:0 });
+  const p = toVisitPayload({ visit_id:"v4", session_id:"s1", store_id:"st1", user_id:"u1", check_in_time:"t", lat:1, lng:2, photo_uri:null, observations:null, status:"completed", anomaly_type:null, skip_reason:null, last_restock_date:null, synced:0, started_at:null });
   assert.equal(p.anomaly_type, null);
 });
 

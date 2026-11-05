@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { toSessionPayload, toPingPayload, toVisitPayload, toCompetitionPayload, toAnomalyProductPayload, toRestockProductPayload } from '../services/sync/payloads';
+import { toSessionPayload, toPingPayload, toVisitPayload, toCompetitionPayload, toAnomalyProductPayload, toRestockProductPayload, toGpsCaptureArgs } from '../services/sync/payloads';
 import { shortError, uploadPhotos } from '../services/sync/photoUpload';
 import { deletePhotos } from '../services/photos/photoStore';
 import { logEvent } from '../diagnostics/log';
@@ -25,6 +25,10 @@ export type FlushResult = { pushed: number; failed: number; busy: boolean; error
 const worstKind = (a: ErrorKind | null, b: ErrorKind): ErrorKind => (a === 'server' ? a : b);
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : JSON.stringify(e));
+
+// Rechazos definitivos de fn_capturar_gps_tienda: tienda inexistente y coordenadas invalidas.
+// Reintentar no puede funcionar. Todo lo demas (42501 incluido) sigue pendiente.
+const GPS_CAPTURE_REJECTED = new Set(['P0002', '22023']);
 
 export function splitUploadable(pings: { ping_id: string; user_id: string | null }[]): { ok: string[]; orphan: string[] } {
   const ok: string[] = [], orphan: string[] = [];
@@ -101,7 +105,7 @@ let isFlushing = false;
 
 /**
  * Vacía la cola local hacia Supabase. Orden por valor del dato:
- * sesiones → REGISTROS de visita (sin fotos) → vínculos de anomalía → productos
+ * sesiones → capturas de GPS → REGISTROS de visita (sin fotos) → vínculos de anomalía → productos
  * repuestos → reportes (sin fotos) → fotos → pings.
  * El registro (pequeño, crítico) NUNCA espera por sus fotos (pesadas): sube primero
  * sin photo_urls y las fotos se completan en una fase aparte (photos_synced).
@@ -133,6 +137,26 @@ export async function flush(
         await db.runAsync(`UPDATE sessions SET synced=1 WHERE session_id=?`, s.session_id);
         done();
       } catch (e) { fail(e); console.warn(`[sync] session ${s.session_id} FAIL:`, errMsg(e)); }
+    }
+
+    // 1b) Capturas de GPS de la tienda. El capture_id las hace idempotentes en el servidor.
+    for (const c of await db.getAllAsync<any>(
+      `SELECT * FROM store_gps_captures WHERE synced = 0${ownedBy('user_id', userId)} ORDER BY captured_at`,
+      ...ownerArgs(userId),
+    )) {
+      try {
+        const { error } = await withDeadline(
+          supabase.rpc('fn_capturar_gps_tienda', toGpsCaptureArgs(c)),
+          NET_TIMEOUT_MS, `gps ${c.capture_id}`,
+        );
+        const code = (error as { code?: string } | null)?.code;
+        if (error && !GPS_CAPTURE_REJECTED.has(code ?? '')) throw error;
+        // El log va antes del cierre: si la app muere en medio, es el unico rastro del rechazo.
+        if (error) await logEvent(db, 'warn', 'gps_capture_rejected', `${c.capture_id} ${code}`, c.user_id);
+        await db.runAsync(`UPDATE store_gps_captures SET synced=1 WHERE capture_id=?`, c.capture_id);
+        if (!error) pushed++;
+        onProgress?.();
+      } catch (e) { fail(e); console.warn(`[sync] gps ${c.capture_id} FAIL:`, errMsg(e)); }
     }
 
     // 2) Registros de visita SIN esperar fotos.
@@ -333,7 +357,7 @@ export function pendingPhotos(rows: { photo_uri: string | null; photos_done: num
 }
 
 export interface PendingCounts {
-  /** Registros de negocio en cola: sesiones + visitas + reportes (lo que le importa al promotor). */
+  /** Registros de negocio en cola: sesiones + visitas + reportes + capturas de GPS (lo que le importa al promotor). */
   records: number;
   /** Fotos pendientes de registros que YA subieron (incluye las que esperan reintento). */
   photos: number;
@@ -351,7 +375,8 @@ export async function pendingCounts(db: SQLiteDatabase, userId?: string): Promis
      + (SELECT COUNT(*) FROM visits WHERE synced=0${own('user_id')})
      + (SELECT COUNT(*) FROM visit_anomaly_products ap JOIN visits v ON v.visit_id=ap.visit_id WHERE ap.synced=0${own('v.user_id')})
      + (SELECT COUNT(*) FROM restock_products rp JOIN visits v ON v.visit_id=rp.visit_id WHERE rp.synced=0${own('v.user_id')})
-     + (SELECT COUNT(*) FROM competition_reports WHERE synced=0${own('user_id')}) AS records,
+     + (SELECT COUNT(*) FROM competition_reports WHERE synced=0${own('user_id')})
+     + (SELECT COUNT(*) FROM store_gps_captures WHERE synced=0${own('user_id')}) AS records,
        (SELECT COUNT(*) FROM location_pings p LEFT JOIN sessions s ON s.session_id=p.session_id
          WHERE p.synced=0 AND COALESCE(p.user_id,s.user_id) IS NOT NULL${own('COALESCE(p.user_id,s.user_id)')}) AS pings`,
     userId ? { $u: userId } : {},

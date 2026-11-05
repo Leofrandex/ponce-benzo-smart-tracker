@@ -6,7 +6,7 @@ const OPTIONAL_COLUMNS: Record<string, Array<[string, string]>> = {
   // motor anterior (fotos-antes-que-registro); los inserts nuevos ponen 0 explícitamente.
   // photo_next_try nulo y photo_attempts 0: las filas con fotos pendientes de versiones
   // anteriores quedan elegibles de inmediato.
-  visits: [['anomaly_type', 'TEXT'], ['skip_reason', 'TEXT'], ['last_restock_date', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1'], ['supervisor_present_user_id', 'TEXT'], ['photo_attempts', 'INTEGER NOT NULL DEFAULT 0'], ['photo_next_try', 'TEXT'], ['photos_done', 'INTEGER NOT NULL DEFAULT 0']],
+  visits: [['anomaly_type', 'TEXT'], ['skip_reason', 'TEXT'], ['last_restock_date', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1'], ['supervisor_present_user_id', 'TEXT'], ['photo_attempts', 'INTEGER NOT NULL DEFAULT 0'], ['photo_next_try', 'TEXT'], ['photos_done', 'INTEGER NOT NULL DEFAULT 0'], ['started_at', 'TEXT']],
   competition_reports: [['visit_id', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1'], ['photo_attempts', 'INTEGER NOT NULL DEFAULT 0'], ['photo_next_try', 'TEXT'], ['photos_done', 'INTEGER NOT NULL DEFAULT 0']],
   location_pings: [['user_id', 'TEXT'], ['synced', 'INTEGER NOT NULL DEFAULT 0']],
   sessions: [['app_version', 'TEXT']],
@@ -61,6 +61,15 @@ const CREATE_SQL = `
   CREATE TABLE IF NOT EXISTS sync_log (
     log_id TEXT PRIMARY KEY, ts TEXT NOT NULL, level TEXT NOT NULL,
     event TEXT NOT NULL, detail TEXT, user_id TEXT, synced INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS store_gps_captures (
+    capture_id TEXT PRIMARY KEY, store_id TEXT NOT NULL, user_id TEXT NOT NULL,
+    lat REAL NOT NULL, lng REAL NOT NULL, captured_at TEXT NOT NULL,
+    synced INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS visit_starts (
+    user_id TEXT, store_id TEXT, day TEXT, started_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, store_id, day)
   );
 `;
 

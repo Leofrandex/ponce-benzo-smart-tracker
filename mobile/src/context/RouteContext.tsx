@@ -4,7 +4,8 @@ import { AppState } from 'react-native';
 import { useAuth } from './AuthContext';
 import { insertVisit, insertCompetitionReport, getTodayVisits, insertAnomalyProducts, insertRestockProducts } from '../services/db';
 import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
-import { resolveRouteLoad, saveRouteSnapshot, loadRouteSnapshot, mergeRecordedStatuses, type OnlineResult } from '../services/routeCache';
+import { resolveRouteLoad, saveRouteSnapshot, loadRouteSnapshot, mergeRecordedStatuses, updateSnapshotStoreGps, type OnlineResult } from '../services/routeCache';
+import { queueGpsCapture } from '../services/storeGps';
 import { useSyncCtx } from './SyncContext';
 import { getDb } from '../store/localStore';
 import { resolveToday, startSession as ssStart, endSession as ssEnd, closeStaleSessions, isAdhocSession } from '../session/sessionStore';
@@ -42,6 +43,7 @@ interface RouteContextValue {
     record: VisitRecord,
     competitionReport?: CompetitionReportRecord,
   ) => Promise<void>;
+  captureStoreGps: (storeId: string) => Promise<{ ok: boolean }>;
 }
 
 const RouteContext = createContext<RouteContextValue | null>(null);
@@ -315,6 +317,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
       skip_reason: record.status === 'skipped' ? record.skip_reason : null,
       last_restock_date: record.last_restock_date,
       supervisor_present_user_id: record.supervisor_present_user_id,
+      started_at: record.started_at,
       synced: 0,
     });
 
@@ -373,6 +376,32 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     flushNow();
   }
 
+  /** Nunca lanza: { ok: false } si la captura no quedo guardada en el telefono. */
+  async function captureStoreGps(storeId: string): Promise<{ ok: boolean }> {
+    if (!user || !currentLocation) return { ok: false };
+    const { lat, lng } = currentLocation;
+    try {
+      const db = await getDb();
+      await queueGpsCapture(db, { storeId, userId: user.id, lat, lng, nowIso: new Date().toISOString() });
+      setRouteItems((prev) =>
+        prev.map((item) =>
+          item.store.store_id === storeId
+            ? { ...item, store: { ...item.store, master_lat: lat, master_lng: lng } }
+            : item,
+        ),
+      );
+      // La captura ya esta en cola: si falla la copia de la ruta, latestLocalCapture la cubre.
+      updateSnapshotStoreGps(db, user.id, storeId, lat, lng)
+        .catch((e) => console.warn('[route] no se pudo actualizar la copia de la ruta:', (e as { message?: string })?.message ?? e));
+      refreshCount().catch(() => {});
+      flushNow();
+      return { ok: true };
+    } catch (e) {
+      console.warn('[route] captura de GPS FAIL:', (e as { message?: string })?.message ?? e);
+      return { ok: false };
+    }
+  }
+
   function setRouteMode(mode: 'normal' | 'special') {
     setRouteModeState(mode);
     // 'special' = ruta personalizable: arranca vacía y se arma a mano.
@@ -426,6 +455,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         startAdhocReport,
         stopAdhocGps,
         recordVisit,
+        captureStoreGps,
       }}
     >
       {children}

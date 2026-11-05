@@ -32,6 +32,8 @@ export interface VisitRow {
   /** 0 = fotos aún no subidas (el registro puede estar arriba sin ellas). */
   photos_synced?: number;
   supervisor_present_user_id?: string | null;
+  /** Primera apertura del formulario de esta visita; null si no se pudo registrar. */
+  started_at: string | null;
 }
 
 export interface CompetitionReportRow {
@@ -64,8 +66,8 @@ export interface CompetitionRawRow {
 export async function insertVisit(db: SQLiteDatabase, data: VisitRow): Promise<void> {
   await db.runAsync(
     `INSERT OR REPLACE INTO visits
-      (visit_id, session_id, store_id, user_id, check_in_time, lat, lng, photo_uri, observations, status, anomaly_type, skip_reason, last_restock_date, synced, photos_synced, supervisor_present_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+      (visit_id, session_id, store_id, user_id, check_in_time, lat, lng, photo_uri, observations, status, anomaly_type, skip_reason, last_restock_date, synced, photos_synced, supervisor_present_user_id, started_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
     data.visit_id,
     data.session_id ?? null,
     data.store_id,
@@ -81,6 +83,7 @@ export async function insertVisit(db: SQLiteDatabase, data: VisitRow): Promise<v
     data.last_restock_date ?? null,
     data.synced,
     data.supervisor_present_user_id ?? null,
+    data.started_at ?? null,
   );
 }
 

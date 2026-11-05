@@ -78,6 +78,19 @@ test("purgeLocal borra visitas de +30 dias con sus vinculos, pings y logs de +7 
   assert.equal(await count(db, "sessions"), 1); // las sesiones no se purgan
 });
 
+test("purgeLocal borra capturas de GPS sincronizadas de +30 dias y nunca las pendientes", async () => {
+  const db = await fresh();
+  const cap = (id: string, days: number, synced: number) => db.runAsync(
+    `INSERT INTO store_gps_captures (capture_id, store_id, user_id, lat, lng, captured_at, synced) VALUES (?, 's', 'u', 1, 2, ?, ?)`,
+    id, ago(days), synced);
+  await cap("vieja", 31, 1);
+  await cap("reciente", 29, 1);
+  await cap("pendiente", 90, 0);
+  await purgeLocal(db, NOW);
+  const ids = (await db.getAllAsync<any>(`SELECT capture_id AS id FROM store_gps_captures ORDER BY id`)).map((r) => r.id);
+  assert.deepEqual(ids, ["pendiente", "reciente"]);
+});
+
 function fakeFs(files: { uri: string; modifiedMs: number }[]) {
   const removed: string[] = [];
   const fs: PhotoFs = {
