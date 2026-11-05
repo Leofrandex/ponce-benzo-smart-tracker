@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext';
 import { insertVisit, insertCompetitionReport, getTodayVisits, insertAnomalyProducts, insertRestockProducts } from '../services/db';
 import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
 import { resolveRouteLoad, saveRouteSnapshot, loadRouteSnapshot, mergeRecordedStatuses, updateSnapshotStoreGps, type OnlineResult } from '../services/routeCache';
-import { queueGpsCapture } from '../services/storeGps';
+import { captureWithFreshFix, type LatLng } from '../services/storeGps';
 import { useSyncCtx } from './SyncContext';
 import { getDb } from '../store/localStore';
 import { resolveToday, startSession as ssStart, endSession as ssEnd, closeStaleSessions, isAdhocSession } from '../session/sessionStore';
@@ -43,7 +43,7 @@ interface RouteContextValue {
     record: VisitRecord,
     competitionReport?: CompetitionReportRecord,
   ) => Promise<void>;
-  captureStoreGps: (storeId: string) => Promise<{ ok: boolean }>;
+  captureStoreGps: (storeId: string) => Promise<{ ok: boolean; coords?: LatLng }>;
 }
 
 const RouteContext = createContext<RouteContextValue | null>(null);
@@ -376,13 +376,20 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
     flushNow();
   }
 
-  /** Nunca lanza: { ok: false } si la captura no quedo guardada en el telefono. */
-  async function captureStoreGps(storeId: string): Promise<{ ok: boolean }> {
-    if (!user || !currentLocation) return { ok: false };
-    const { lat, lng } = currentLocation;
+  /**
+   * Pide un fix nuevo: nunca usa currentLocation, que puede ser viejo. Nunca lanza:
+   * { ok: false } si no llego el fix a tiempo o la captura no quedo guardada en el telefono.
+   */
+  async function captureStoreGps(storeId: string): Promise<{ ok: boolean; coords?: LatLng }> {
+    if (!user) return { ok: false };
     try {
       const db = await getDb();
-      await queueGpsCapture(db, { storeId, userId: user.id, lat, lng, nowIso: new Date().toISOString() });
+      const coords = await captureWithFreshFix(
+        db, { storeId, userId: user.id },
+        () => Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+      );
+      if (!coords) return { ok: false };
+      const { lat, lng } = coords;
       setRouteItems((prev) =>
         prev.map((item) =>
           item.store.store_id === storeId
@@ -395,7 +402,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         .catch((e) => console.warn('[route] no se pudo actualizar la copia de la ruta:', (e as { message?: string })?.message ?? e));
       refreshCount().catch(() => {});
       flushNow();
-      return { ok: true };
+      return { ok: true, coords };
     } catch (e) {
       console.warn('[route] captura de GPS FAIL:', (e as { message?: string })?.message ?? e);
       return { ok: false };

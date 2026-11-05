@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { memoryDb } from '../testing/sqliteAdapter';
 import { initSchema } from '../store/localStore';
-import { queueGpsCapture, latestLocalCapture, effectiveStoreCoords } from './storeGps';
+import { queueGpsCapture, latestLocalCapture, effectiveStoreCoords, captureWithFreshFix, FRESH_FIX_TIMEOUT_MS } from './storeGps';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 async function fake() { const db = memoryDb(); await initSchema(db); return db; }
@@ -43,11 +43,61 @@ test('latestLocalCapture: la mas reciente de esa tienda, de cualquier cuenta del
   assert.deepEqual(await latest(db, 's1'), { lat: 4, lng: 4 });
 });
 
-test('latestLocalCapture: sigue contando una captura ya sincronizada', async () => {
+test('latestLocalCapture: una captura cerrada (subida o rechazada) ya no cuenta, manda el servidor', async () => {
   const db = await fake();
   const id = await queueGpsCapture(db, input({ lat: 7, lng: 8 }));
-  await db.runAsync(`UPDATE store_gps_captures SET synced=1 WHERE capture_id=?`, id);
   assert.deepEqual(await latest(db, 's1'), { lat: 7, lng: 8 });
+  await db.runAsync(`UPDATE store_gps_captures SET synced=1 WHERE capture_id=?`, id);
+  assert.equal(await latestLocalCapture(db, 's1'), null);
+});
+
+test('latestLocalCapture: entre una cerrada mas nueva y una pendiente, usa la pendiente', async () => {
+  const db = await fake();
+  await queueGpsCapture(db, input({ lat: 1, lng: 1, nowIso: '2026-11-04T14:00:00.000Z' }));
+  const nueva = await queueGpsCapture(db, input({ lat: 2, lng: 2, nowIso: '2026-11-04T15:00:00.000Z' }));
+  await db.runAsync(`UPDATE store_gps_captures SET synced=1 WHERE capture_id=?`, nueva);
+  assert.deepEqual(await latest(db, 's1'), { lat: 1, lng: 1 });
+});
+
+const fix = (latitude: number, longitude: number) => ({ coords: { latitude, longitude } });
+const capturas = (db: any) => db.getAllAsync(`SELECT lat, lng FROM store_gps_captures`);
+
+test('captureWithFreshFix encola las coordenadas del fix nuevo y las devuelve', async () => {
+  const db = await fake();
+  const out = await captureWithFreshFix(db, { storeId: 's1', userId: 'u1' }, async () => fix(3, 4));
+  assert.deepEqual(out, { lat: 3, lng: 4 });
+  const filas: any[] = await capturas(db);
+  assert.equal(filas.length, 1);
+  assert.equal(filas[0].lat, 3);
+  assert.equal(filas[0].lng, 4);
+});
+
+test('captureWithFreshFix: si el fix falla no escribe nada', async () => {
+  const db = await fake();
+  const out = await captureWithFreshFix(db, { storeId: 's1', userId: 'u1' }, async () => { throw new Error('sin permiso'); });
+  assert.equal(out, null);
+  assert.deepEqual(await capturas(db), []);
+});
+
+test('captureWithFreshFix: si el fix no llega a tiempo no escribe nada, ni aunque llegue tarde', async () => {
+  const db = await fake();
+  let llegar: (v: ReturnType<typeof fix>) => void = () => {};
+  const tarde = new Promise<ReturnType<typeof fix>>((res) => { llegar = res; });
+  const out = await captureWithFreshFix(db, { storeId: 's1', userId: 'u1' }, () => tarde, 5);
+  assert.equal(out, null);
+  llegar(fix(3, 4));
+  await new Promise((res) => setTimeout(res, 5));
+  assert.deepEqual(await capturas(db), []);
+});
+
+test('captureWithFreshFix: el plazo por defecto es de 10 s', () => {
+  assert.equal(FRESH_FIX_TIMEOUT_MS, 10_000);
+});
+
+test('captureWithFreshFix lanza si SQLite no pudo guardar', async () => {
+  const db = await fake();
+  await db.execAsync(`DROP TABLE store_gps_captures`);
+  await assert.rejects(captureWithFreshFix(db, { storeId: 's1', userId: 'u1' }, async () => fix(3, 4)));
 });
 
 test('effectiveStoreCoords: la captura local gana sobre el parametro de navegacion', () => {

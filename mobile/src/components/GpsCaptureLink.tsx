@@ -14,13 +14,16 @@ interface GpsCaptureLinkProps {
 
 export function GpsCaptureLink({ gpsState, hasLocation, storeHasGps, onCapture }: GpsCaptureLinkProps) {
   const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
   // Dos toques rapidos pueden abrir dos avisos: solo el primer "Capturar" cuenta. Se suelta si falla.
   const locked = useRef(false);
 
   async function capture() {
     if (locked.current) return;
     locked.current = true;
+    setBusy(true);
     const { ok } = await onCapture();
+    setBusy(false);
     if (ok) {
       setDone(true);
     } else {
@@ -41,6 +44,7 @@ export function GpsCaptureLink({ gpsState, hasLocation, storeHasGps, onCapture }
   }
 
   if (done) return <Text style={styles.done}>GPS actualizado</Text>;
+  if (busy) return <Text style={styles.busy}>Obteniendo GPS…</Text>;
   if (gpsState !== 'found' || !hasLocation) return null;
   return (
     <TouchableOpacity onPress={confirm} style={styles.link} hitSlop={8} accessibilityRole="button">
@@ -52,5 +56,6 @@ export function GpsCaptureLink({ gpsState, hasLocation, storeHasGps, onCapture }
 const styles = StyleSheet.create({
   link: { alignSelf: 'flex-start', marginTop: 8 },
   linkText: { fontSize: 12, color: colors.accent, textDecorationLine: 'underline', ...fonts.medium },
+  busy: { fontSize: 12, color: colors.textMuted, marginTop: 8, ...fonts.medium },
   done: { fontSize: 12, color: colors.success, marginTop: 8, ...fonts.medium },
 });

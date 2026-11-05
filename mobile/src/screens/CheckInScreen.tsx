@@ -194,10 +194,8 @@ export function CheckInScreen() {
   }, [currentLocation, storeCoords]);
 
   async function handleCaptureGps(): Promise<{ ok: boolean }> {
-    // Misma lectura del contexto que usa captureStoreGps: son las coordenadas que quedaron en cola.
-    const coords = currentLocation;
     const res = await captureStoreGps(store.store_id);
-    if (res.ok && coords) setLocalCapture(coords);
+    if (res.coords) setLocalCapture(res.coords);
     return res;
   }
 
@@ -237,9 +235,10 @@ export function CheckInScreen() {
         started_at: startedAt,
       };
       await recordVisit(store.store_id, record, competitionDraft ?? undefined);
-      // La visita ya está guardada: si esto falla no se avisa ni se reintenta.
+      // La visita ya está guardada: sin await, una escritura trabada no deja la pantalla
+      // cargando, y si falla no se avisa ni se reintenta.
       if (user) {
-        await getDb()
+        getDb()
           .then((db) => clearVisitStart(db, user.id, store.store_id, openedAt.current))
           .catch((e) => console.warn('[checkin] clearVisitStart FAIL:', (e as { message?: string })?.message ?? e));
       }

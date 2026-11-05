@@ -4,6 +4,7 @@ import { memoryDb } from "../testing/sqliteAdapter";
 import { initSchema, getMeta } from "./localStore";
 import { purgeLocal, purgeOrphanPhotos, purgeIfDue, resetPurgeBackoff } from "./purge";
 import type { PhotoFs } from "../services/photos/photoStore";
+import { fechaLocalISO } from "../utils/localDate";
 
 const DAY = 86_400_000;
 const NOW = Date.parse("2026-11-05T12:00:00Z");
@@ -89,6 +90,17 @@ test("purgeLocal borra capturas de GPS sincronizadas de +30 dias y nunca las pen
   await purgeLocal(db, NOW);
   const ids = (await db.getAllAsync<any>(`SELECT capture_id AS id FROM store_gps_captures ORDER BY id`)).map((r) => r.id);
   assert.deepEqual(ids, ["pendiente", "reciente"]);
+});
+
+test("purgeLocal borra inicios de visita de hace mas de 2 dias", async () => {
+  const db = await fresh();
+  const dia = (days: number) => fechaLocalISO(new Date(NOW - days * DAY));
+  for (const days of [30, 3, 2, 1, 0]) {
+    await db.runAsync(`INSERT INTO visit_starts (user_id, store_id, day, started_at) VALUES ('u', 's', ?, ?)`, dia(days), ago(days));
+  }
+  await purgeLocal(db, NOW);
+  const dias = (await db.getAllAsync<any>(`SELECT day FROM visit_starts ORDER BY day DESC`)).map((r) => r.day);
+  assert.deepEqual(dias, [dia(0), dia(1), dia(2)]);
 });
 
 function fakeFs(files: { uri: string; modifiedMs: number }[]) {

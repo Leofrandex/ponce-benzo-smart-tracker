@@ -2,6 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { getMeta, setMeta } from './localStore';
 import { deletePhotos, type PhotoFs } from '../services/photos/photoStore';
 import { logEvent } from '../diagnostics/log';
+import { fechaLocalISO } from '../utils/localDate';
 
 const DAY = 86_400_000;
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -18,6 +19,8 @@ export async function purgeLocal(db: SQLiteDatabase, nowMs: number): Promise<voi
   await db.runAsync(`DELETE FROM visits WHERE visit_id IN (${eligible})`, old);
   await db.runAsync(`DELETE FROM competition_reports WHERE synced = 1 AND photos_synced = 1 AND created_at < ?`, old);
   await db.runAsync(`DELETE FROM store_gps_captures WHERE synced = 1 AND captured_at < ?`, old);
+  // Formularios abiertos y nunca guardados. `day` es la fecha local YYYY-MM-DD.
+  await db.runAsync(`DELETE FROM visit_starts WHERE day < ?`, fechaLocalISO(new Date(nowMs - 2 * DAY)));
   const week = iso(nowMs - 7 * DAY);
   await db.runAsync(`DELETE FROM location_pings WHERE synced = 1 AND timestamp < ?`, week);
   await db.runAsync(`DELETE FROM sync_log WHERE synced = 1 AND ts < ?`, week);
