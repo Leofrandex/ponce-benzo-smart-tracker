@@ -36,7 +36,7 @@ export function UpdateBanner() {
 
 const styles = StyleSheet.create({
   wrap: { position: 'absolute', left: 16, right: 16 },
-  card: { backgroundColor: '#FFFFFF', borderWidth: 1, borderRadius: radii.sm, paddingHorizontal: 12, paddingVertical: 10, elevation: 4 },
+  card: { backgroundColor: colors.white, borderWidth: 1, borderRadius: radii.sm, paddingHorizontal: 12, paddingVertical: 10, elevation: 4 },
   row: { flexDirection: 'row', alignItems: 'center' },
   icon: { marginRight: 7 },
   text: { flex: 1, fontSize: 13, ...fonts.medium },
