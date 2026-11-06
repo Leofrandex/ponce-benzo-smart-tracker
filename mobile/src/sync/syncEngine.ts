@@ -3,6 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { toSessionPayload, toPingPayload, toVisitPayload, toCompetitionPayload, toAnomalyProductPayload, toRestockProductPayload, toGpsCaptureArgs } from '../services/sync/payloads';
 import { shortError, uploadPhotos } from '../services/sync/photoUpload';
 import { deletePhotos } from '../services/photos/photoStore';
+import { ensureSpecialRoute, localDay } from '../services/adhocRoute';
 import { logEvent } from '../diagnostics/log';
 import { nextPhotoRetry } from './photoRetry';
 import { classifyError, type ErrorKind } from './errorKind';
@@ -101,6 +102,36 @@ export async function flushPings(db: SQLiteDatabase, supabase: SupabaseClient, u
   return out;
 }
 
+// Hasta la 1.4.0, empezar una ruta especial sin ruta asignada guardaba este valor, que el
+// servidor rechaza siempre (no es un uuid): la sesión, sus visitas y sus pings quedaban atascados.
+const UNKNOWN_ROUTE = 'unknown';
+
+/**
+ * Le da ruta real a una sesión vieja con UNKNOWN_ROUTE: la especial de su día, con la tienda de
+ * su primera visita. Sin visitas no hay nada que conservar y, ya cerrada, sale de la cola (null).
+ * Abierta y sin visitas, espera: aún puede recibir una visita y necesitará estar en el servidor.
+ */
+async function repairUnknownRoute(db: SQLiteDatabase, supabase: SupabaseClient, s: { session_id: string; user_id: string; session_start: string; session_end: string | null }): Promise<string | null> {
+  const first = await db.getFirstAsync<{ store_id: string }>(
+    `SELECT store_id FROM visits WHERE session_id = ? AND store_id IS NOT NULL LIMIT 1`, s.session_id,
+  );
+  if (first) {
+    const routeId = await withDeadline(
+      ensureSpecialRoute(supabase, s.user_id, first.store_id, localDay(new Date(s.session_start))),
+      NET_TIMEOUT_MS, `ruta especial ${s.session_id}`,
+    );
+    await db.runAsync(`UPDATE sessions SET route_id=? WHERE session_id=?`, routeId, s.session_id);
+    return routeId;
+  }
+  if (s.session_end) {
+    // El log va antes del cierre: es el único rastro de la sesión descartada.
+    await logEvent(db, 'warn', 'session_unknown_route_discarded', s.session_id, s.user_id);
+    await db.runAsync(`UPDATE location_pings SET synced=1 WHERE session_id=?`, s.session_id);
+    await db.runAsync(`UPDATE sessions SET synced=1 WHERE session_id=?`, s.session_id);
+  }
+  return null;
+}
+
 let isFlushing = false;
 
 /**
@@ -128,6 +159,11 @@ export async function flush(
     // 1) Sesiones (las visitas referencian session_id).
     for (const s of await db.getAllAsync<any>(`SELECT * FROM sessions WHERE synced = 0${ownedBy('user_id', userId)}`, ...ownerArgs(userId))) {
       try {
+        if (s.route_id === UNKNOWN_ROUTE) {
+          const routeId = await repairUnknownRoute(db, supabase, s);
+          if (!routeId) { onProgress?.(); continue; }
+          s.route_id = routeId;
+        }
         const { error } = await withDeadline(
           supabase.from('sessions').upsert(toSessionPayload(s), { onConflict: 'session_id' }),
           NET_TIMEOUT_MS, `session ${s.session_id}`,
@@ -302,6 +338,7 @@ async function flushPendingPhotos(
       let doneNow = 0;
       const { listed, paths, missing, empty, failed, stopped } = await uploadPhotos(supabase, r.user_id, id, uris, {
         attempts: r.photo_attempts,
+        resume: r.photo_attempts > 0 || r.photos_done > 0,
         shouldStop: phase.overBudget,
         // Queda guardado foto a foto: el banner descuenta en vivo y un cierre de la app no lo pierde.
         onPhotoDone: async () => {

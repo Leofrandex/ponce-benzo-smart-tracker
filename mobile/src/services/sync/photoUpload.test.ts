@@ -8,18 +8,26 @@ afterEach(() => { globalThis.fetch = realFetch; });
 const yes = async () => true;
 const no = async () => false;
 
-function supa(o: { failPaths?: string[]; existing?: string[]; listFails?: boolean; listThrows?: boolean; fileBytes?: number } = {}) {
+function supa(o: { failPaths?: string[]; existing?: string[]; listFails?: boolean; listThrows?: boolean; fileBytes?: number; emptyOnServer?: string[]; infoError?: unknown } = {}) {
   globalThis.fetch = (async () => ({ arrayBuffer: async () => new ArrayBuffer(o.fileBytes ?? 1) })) as any;
   const uploads: string[] = [];
+  const infos: string[] = [];
   return {
     uploads,
+    infos,
     storage: {
       from: () => ({
-        list: async () => {
+        list: async () => { throw new Error("list no se usa: en producción agota el tiempo"); },
+        info: async (path: string) => {
+          infos.push(path);
           if (o.listThrows) throw new Error("Network request failed");
-          return o.listFails
-            ? { data: null, error: { message: "listado caído" } }
-            : { data: (o.existing ?? []).map((name) => ({ name })), error: null };
+          if (o.infoError) return { data: null, error: o.infoError };
+          if (o.listFails) return { data: null, error: { message: "consulta caída", status: 500 } };
+          const name = path.split("/").pop()!;
+          if (o.emptyOnServer?.includes(name)) return { data: { size: 0 }, error: null };
+          return o.existing?.includes(name)
+            ? { data: { size: 1 }, error: null }
+            : { data: null, error: { message: "Object not found", status: 400, statusCode: "404" } };
         },
         upload: async (path: string) => {
           if (o.failPaths?.includes(path)) return { error: { message: "foto no subió" } };
@@ -61,9 +69,52 @@ test("archivo ausente sin poder listar Storage: failed, nunca missing", async ()
   assert.equal(r.listed, false);
 });
 
-test("listed es true cuando el listado funcionó", async () => {
+test("listed es true cuando todas subieron", async () => {
   const r = await uploadPhotos(supa(), "u", "v", ["a"], { exists: yes });
   assert.equal(r.listed, true);
+});
+
+test("primer intento con archivos presentes: sube directo, sin consultar Storage", async () => {
+  const s = supa();
+  const r = await uploadPhotos(s, "u", "v", ["a", "b"], { exists: yes, attempts: 0 });
+  assert.deepEqual(r.paths, ["u/v/0.jpg", "u/v/1.jpg"]);
+  assert.deepEqual(s.infos, []);
+});
+
+test("reintento: la foto ya arriba no se vuelve a subir", async () => {
+  const s = supa({ existing: ["0.jpg"] });
+  const r = await uploadPhotos(s, "u", "v", ["a", "b"], { exists: yes, attempts: 1 });
+  assert.deepEqual(r.paths, ["u/v/0.jpg", "u/v/1.jpg"]);
+  assert.deepEqual(s.uploads, ["u/v/1.jpg"]);
+});
+
+test("reintento: un objeto vacío en Storage se vuelve a subir", async () => {
+  const s = supa({ emptyOnServer: ["0.jpg"] });
+  const r = await uploadPhotos(s, "u", "v", ["a"], { exists: yes, attempts: 1 });
+  assert.deepEqual(s.uploads, ["u/v/0.jpg"]);
+  assert.deepEqual(r.failed, []);
+});
+
+test("archivo ausente con token vencido (404 Bucket not found): failed, nunca missing", async () => {
+  const r = await uploadPhotos(
+    supa({ infoError: { message: "Bucket not found", status: 400, statusCode: "404" } }),
+    "u", "v", ["a"], { exists: no },
+  );
+  assert.deepEqual(r.missing, []);
+  assert.equal(r.failed.length, 1);
+  assert.equal(r.listed, false);
+});
+
+test("subida fallida que Storage confirma ausente: se puede enlazar lo demás", async () => {
+  const r = await uploadPhotos(supa({ failPaths: ["u/v/0.jpg"] }), "u", "v", ["a", "b"], { exists: yes });
+  assert.deepEqual(r.paths, ["u/v/1.jpg"]);
+  assert.equal(r.listed, true);
+});
+
+test("subida fallida sin poder confirmar: no se enlaza", async () => {
+  const r = await uploadPhotos(supa({ failPaths: ["u/v/0.jpg"], listFails: true }), "u", "v", ["a", "b"], { exists: yes });
+  assert.deepEqual(r.paths, ["u/v/1.jpg"]);
+  assert.equal(r.listed, false);
 });
 
 test("archivo ausente con listado que lanza: failed, nunca missing", async () => {

@@ -144,13 +144,16 @@ function fakeSupabase(opts: { failTables?: string[]; failStorage?: boolean; fkFa
     }),
     storage: {
       from: (_bucket: string) => ({
-        list: (folder: string) => {
+        list: () => {
           calls.push('storage:list');
-          if (opts.failList) return Promise.resolve({ data: null, error: { message: 'listado caído' } });
-          return Promise.resolve({
-            data: [...uploaded].filter((p) => p.startsWith(folder + '/')).map((p) => ({ name: p.slice(folder.length + 1) })),
-            error: null,
-          });
+          throw new Error('list no se usa: en producción agota el tiempo');
+        },
+        info: (path: string) => {
+          calls.push(`storage:info:${path}`);
+          if (opts.failList) return Promise.resolve({ data: null, error: { message: 'consulta caída', status: 500 } });
+          return Promise.resolve(uploaded.has(path)
+            ? { data: { size: 1 }, error: null }
+            : { data: null, error: { message: 'Object not found', status: 400, statusCode: '404' } });
         },
         upload: (path: string) => {
           calls.push(`storage:upload:${path}`);
@@ -895,6 +898,74 @@ test('fila esperando photo_next_try: flush sin fallos pero el banner no dice Tod
 // ── Capturas de GPS: SQLite real, solo Supabase falso ─────────────────────────
 
 async function realDb() { const db = memoryDb(); await initSchema(db); return db; }
+
+// Cliente mínimo para la reparación: la ruta especial y los upserts.
+function routeSupabase(o: { failRoutes?: boolean } = {}) {
+  const inserts: any[] = [];
+  const upserts: { table: string; payload: any }[] = [];
+  const supa: any = {
+    inserts,
+    upserts,
+    from: (table: string) => ({
+      upsert: async (payload: any) => { upserts.push({ table, payload }); return { error: null }; },
+      select: () => {
+        const q: any = { eq: () => q, maybeSingle: async () => (o.failRoutes ? { data: null, error: { message: 'sin red' } } : { data: null, error: null }) };
+        return q;
+      },
+      insert: (row: any) => {
+        inserts.push(row);
+        return { select: () => ({ single: async () => ({ data: { route_id: 'esp-1' }, error: null }) }) };
+      },
+    }),
+    storage: { from: () => ({}) },
+  };
+  return supa;
+}
+
+const UNKNOWN_SESSION = `INSERT INTO sessions (session_id, user_id, route_id, session_start, session_end, synced) VALUES ('s1', 'u1', 'unknown', '2026-11-05T22:00:00.000Z', '2026-11-05T22:30:00.000Z', 0)`;
+
+test('sesión con ruta "unknown" y visitas: crea la ruta especial y sube todo', async () => {
+  const db = await realDb();
+  await db.runAsync(UNKNOWN_SESSION);
+  await db.runAsync(`INSERT INTO visits (visit_id, session_id, store_id, user_id, check_in_time, lat, lng, status, synced) VALUES ('v1', 's1', 'st9', 'u1', '2026-11-05T22:10:00.000Z', 10, -66, 'completed', 0)`);
+  const supa = routeSupabase();
+  const r = await flush(db, supa);
+  assert.equal(r.failed, 0);
+  assert.equal(supa.inserts[0].store_ids[0], 'st9');
+  assert.equal(supa.inserts[0].is_special, true);
+  assert.equal(supa.upserts.find((u: any) => u.table === 'sessions').payload.route_id, 'esp-1');
+  assert.deepEqual(supa.upserts.map((u: any) => u.table), ['sessions', 'visits']);
+  const c = await pendingCounts(db);
+  assert.equal(c.records, 0);
+});
+
+test('sesión con ruta "unknown" sin visitas: sale de la cola, nunca llega al servidor y queda en el log', async () => {
+  const db = await realDb();
+  await db.runAsync(UNKNOWN_SESSION);
+  await db.runAsync(`INSERT INTO location_pings (ping_id, session_id, user_id, timestamp, lat, lng, synced) VALUES ('p1', 's1', 'u1', '2026-11-05T22:01:00.000Z', 10, -66, 0)`);
+  const supa = routeSupabase();
+  const r = await flush(db, supa);
+  assert.equal(r.failed, 0);
+  assert.deepEqual(supa.upserts, []);
+  const c = await pendingCounts(db);
+  assert.equal(c.records, 0);
+  assert.equal(c.pings, 0);
+  const logs = await db.getAllAsync<any>(`SELECT event FROM sync_log`);
+  assert.ok(logs.some((l) => l.event === 'session_unknown_route_discarded'));
+});
+
+test('sesión con ruta "unknown" y visitas sin poder crear la ruta: sigue en cola, no se pierde', async () => {
+  const db = await realDb();
+  await db.runAsync(UNKNOWN_SESSION);
+  await db.runAsync(`INSERT INTO visits (visit_id, session_id, store_id, user_id, check_in_time, lat, lng, status, synced) VALUES ('v1', 's1', 'st9', 'u1', '2026-11-05T22:10:00.000Z', 10, -66, 'completed', 0)`);
+  const supa = routeSupabase({ failRoutes: true });
+  const r = await flush(db, supa);
+  assert.ok(r.failed >= 1);
+  assert.deepEqual(supa.upserts.filter((u: any) => u.table === 'sessions'), []);
+  const s = await db.getFirstAsync<any>(`SELECT route_id, synced FROM sessions WHERE session_id='s1'`);
+  assert.equal(s.synced, 0);
+  assert.equal(s.route_id, 'unknown');
+});
 
 test('REGRESIÓN: finalizar la ruta durante la subida de la sesión no pierde session_end', async () => {
   const db = await realDb();

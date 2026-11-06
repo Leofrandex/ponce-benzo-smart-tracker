@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
-import { AppState } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import { useAuth } from './AuthContext';
 import { insertVisit, insertCompetitionReport, getTodayVisits, insertAnomalyProducts, insertRestockProducts } from '../services/db';
 import { fetchTodayRoute, fetchStoresByIds } from '../services/routesApi';
@@ -11,9 +11,9 @@ import { getDb } from '../store/localStore';
 import { resolveToday, startSession as ssStart, endSession as ssEnd, closeStaleSessions, isAdhocSession } from '../session/sessionStore';
 import { logEvent } from '../diagnostics/log';
 import { APP_VERSION } from '../diagnostics/version';
-import { withTimeout } from '../utils/withTimeout';
+import { withDeadline, withTimeout } from '../utils/withTimeout';
 import { startTracking, stopBackground, ensureTracking, requestPermissions, requestBatteryExemption } from '../location/locationTracker';
-import { ensureSpecialRoute } from '../services/adhocRoute';
+import { ensureSpecialRoute, localDay, resolveStartRoute } from '../services/adhocRoute';
 import { supabase } from '../services/supabase';
 import type { RouteStoreItem, VisitRecord, StoreStatus, GPSState, CompetitionReportRecord, Store } from '../types';
 
@@ -197,7 +197,18 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         lat = pos.coords.latitude;
         lng = pos.coords.longitude;
       }
-      await ssStart(db, { userId: user.id, routeId: routeId.current ?? 'unknown', startLat: lat, startLng: lng, appVersion: APP_VERSION });
+      const startRouteId = await resolveStartRoute(routeId.current, routeItems[0]?.store.store_id, (storeId) =>
+        withDeadline(ensureSpecialRoute(supabase, user.id, storeId, localDay(new Date())), 15_000, 'ruta especial'),
+      );
+      if (!startRouteId) {
+        await logEvent(db, 'warn', 'session_start_blocked', 'sin ruta valida', user.id);
+        Alert.alert(
+          'No se pudo empezar la ruta',
+          'No tienes ruta asignada hoy y no se pudo crear una especial. Revisa tu conexión o pide que te asignen una ruta.',
+        );
+        return;
+      }
+      await ssStart(db, { userId: user.id, routeId: startRouteId, startLat: lat, startLng: lng, appVersion: APP_VERSION });
       if (lat != null) setCurrentLocation({ lat, lng: lng! });
       setSessionActive(true);
       setSessionEnded(false);
@@ -239,9 +250,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
    */
   async function startAdhocReport(store: Store) {
     if (!user) throw new Error('sin usuario');
-    const d = new Date();
-    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const routeIdSpecial = await ensureSpecialRoute(supabase, user.id, store.store_id, today);
+    const routeIdSpecial = await ensureSpecialRoute(supabase, user.id, store.store_id, localDay(new Date()));
 
     const db = await getDb();
     const existing = await resolveToday(db, user.id);
