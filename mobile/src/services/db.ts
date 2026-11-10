@@ -11,6 +11,7 @@ export interface SessionRow {
   start_lat: number | null;
   start_lng: number | null;
   app_version?: string | null;
+  ota_update_id?: string | null;
   synced: number;
 }
 

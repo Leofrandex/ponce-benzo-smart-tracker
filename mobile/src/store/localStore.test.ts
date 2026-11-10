@@ -23,7 +23,7 @@ test('buildMigrations: sin faltantes devuelve []', () => {
     visits: new Set(['anomaly_type', 'skip_reason', 'last_restock_date', 'photos_synced', 'supervisor_present_user_id', 'photo_attempts', 'photo_next_try', 'photos_done', 'started_at']),
     location_pings: new Set(['user_id', 'synced']),
     competition_reports: new Set(['visit_id', 'photos_synced', 'photo_attempts', 'photo_next_try', 'photos_done']),
-    sessions: new Set(['app_version']),
+    sessions: new Set(['app_version', 'ota_update_id']),
   };
   assert.deepEqual(buildMigrations(full), []);
 });
@@ -50,6 +50,7 @@ test('buildMigrations: columnas de reintento de fotos dejan elegibles las filas 
 test("buildMigrations: agrega sessions.app_version si falta y no la repite", () => {
   const faltan = buildMigrations({ sessions: new Set(["session_id"]) });
   assert.ok(faltan.includes("ALTER TABLE sessions ADD COLUMN app_version TEXT"));
-  const ya = buildMigrations({ sessions: new Set(["session_id", "app_version"]) });
+  assert.ok(faltan.includes("ALTER TABLE sessions ADD COLUMN ota_update_id TEXT"));
+  const ya = buildMigrations({ sessions: new Set(["session_id", "app_version", "ota_update_id"]) });
   assert.ok(!ya.some((s) => s.startsWith("ALTER TABLE sessions")));
 });
