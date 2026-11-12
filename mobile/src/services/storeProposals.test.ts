@@ -33,3 +33,8 @@ test('canSaveProposal: exige nombre no vacío y ubicación', () => {
   assert.equal(canSaveProposal({ name: '   ', lat: 10, lng: -66 }), false);
   assert.equal(canSaveProposal({ name: 'Farmacia X', lat: null, lng: null }), false);
 });
+
+test('nearbyStores: ignora las sucursales sin GPS', () => {
+  const out = nearbyStores([{ store_id: 'sin', master_lat: null, master_lng: null }, st('a', 10.4901, -66.85)], 10.49, -66.85);
+  assert.deepEqual(out.map((s) => s.store_id), ['a']);
+});
