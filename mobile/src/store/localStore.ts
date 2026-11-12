@@ -4,10 +4,14 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 const OPTIONAL_COLUMNS: Record<string, Array<[string, string]>> = {
   // photos_synced DEFAULT 1: las filas viejas ya sincronizadas subieron sus fotos con el
   // motor anterior (fotos-antes-que-registro); los inserts nuevos ponen 0 explícitamente.
-  visits: [['anomaly_type', 'TEXT'], ['skip_reason', 'TEXT'], ['last_restock_date', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1'], ['supervisor_present_user_id', 'TEXT']],
-  competition_reports: [['visit_id', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1']],
+  // photo_next_try nulo y photo_attempts 0: las filas con fotos pendientes de versiones
+  // anteriores quedan elegibles de inmediato.
+  visits: [['anomaly_type', 'TEXT'], ['skip_reason', 'TEXT'], ['last_restock_date', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1'], ['supervisor_present_user_id', 'TEXT'], ['photo_attempts', 'INTEGER NOT NULL DEFAULT 0'], ['photo_next_try', 'TEXT'], ['photos_done', 'INTEGER NOT NULL DEFAULT 0'], ['started_at', 'TEXT']],
+  competition_reports: [['visit_id', 'TEXT'], ['photos_synced', 'INTEGER NOT NULL DEFAULT 1'], ['photo_attempts', 'INTEGER NOT NULL DEFAULT 0'], ['photo_next_try', 'TEXT'], ['photos_done', 'INTEGER NOT NULL DEFAULT 0']],
   location_pings: [['user_id', 'TEXT'], ['synced', 'INTEGER NOT NULL DEFAULT 0']],
-  sessions: [['app_version', 'TEXT']],
+  sessions: [['app_version', 'TEXT'], ['ota_update_id', 'TEXT']],
+  // La 1.4.0 de octubre creó store_proposals sin las columnas de reintento de fotos.
+  store_proposals: [['photo_attempts', 'INTEGER NOT NULL DEFAULT 0'], ['photo_next_try', 'TEXT'], ['photos_done', 'INTEGER NOT NULL DEFAULT 0']],
 };
 
 /** Pura: dada la columna existente por tabla, devuelve los ALTER TABLE faltantes. */
@@ -65,6 +69,25 @@ const CREATE_SQL = `
     log_id TEXT PRIMARY KEY, ts TEXT NOT NULL, level TEXT NOT NULL,
     event TEXT NOT NULL, detail TEXT, user_id TEXT, synced INTEGER NOT NULL DEFAULT 0
   );
+  CREATE TABLE IF NOT EXISTS store_gps_captures (
+    capture_id TEXT PRIMARY KEY, store_id TEXT NOT NULL, user_id TEXT NOT NULL,
+    lat REAL NOT NULL, lng REAL NOT NULL, captured_at TEXT NOT NULL,
+    synced INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS visit_starts (
+    user_id TEXT, store_id TEXT, day TEXT, started_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, store_id, day)
+  );
+`;
+
+// Van DESPUES de las columnas opcionales: referencian synced/photos_synced/user_id, que en BD viejas se agregan por migracion.
+const INDEX_SQL = `
+  CREATE INDEX IF NOT EXISTS idx_visits_user_sync ON visits(user_id, synced, photos_synced);
+  CREATE INDEX IF NOT EXISTS idx_visits_checkin ON visits(check_in_time);
+  CREATE INDEX IF NOT EXISTS idx_reports_user_sync ON competition_reports(user_id, synced, photos_synced);
+  CREATE INDEX IF NOT EXISTS idx_pings_synced ON location_pings(synced);
+  CREATE INDEX IF NOT EXISTS idx_pings_ts ON location_pings(timestamp);
+  CREATE INDEX IF NOT EXISTS idx_synclog_sync_user ON sync_log(synced, user_id);
 `;
 
 export async function initSchema(db: SQLiteDatabase): Promise<void> {
@@ -78,6 +101,7 @@ export async function initSchema(db: SQLiteDatabase): Promise<void> {
   for (const stmt of buildMigrations(existing)) {
     await db.execAsync(stmt);
   }
+  await db.execAsync(INDEX_SQL);
 }
 
 let dbPromise: Promise<SQLiteDatabase> | null = null;

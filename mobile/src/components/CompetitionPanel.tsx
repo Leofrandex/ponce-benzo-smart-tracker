@@ -109,7 +109,7 @@ export function CompetitionPanel({ visible, storeName, initial, onClose, onDone 
               <Text style={styles.label}>¿Cuál fue la activación?</Text>
               <TouchableOpacity style={styles.field} onPress={() => setActivationSheet(true)} activeOpacity={0.75}>
                 <Text style={[styles.fieldText, !activationType && styles.placeholder]}>
-                  {ACTIVATION_OPTIONS.find((o) => o.value === activationType)?.label ?? 'Seleccioná la activación'}
+                  {ACTIVATION_OPTIONS.find((o) => o.value === activationType)?.label ?? 'Selecciona la activación'}
                 </Text>
                 <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
               </TouchableOpacity>
@@ -117,7 +117,7 @@ export function CompetitionPanel({ visible, storeName, initial, onClose, onDone 
               <Text style={styles.label}>¿Qué marca?</Text>
               <TouchableOpacity style={styles.field} onPress={() => setBrandSheet(true)} activeOpacity={0.75}>
                 <Text style={[styles.fieldText, !brandId && styles.placeholder]}>
-                  {brandOptions.find((o) => o.value === brandId)?.label ?? 'Seleccioná la marca'}
+                  {brandOptions.find((o) => o.value === brandId)?.label ?? 'Selecciona la marca'}
                 </Text>
                 <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
               </TouchableOpacity>

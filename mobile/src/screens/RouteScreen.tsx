@@ -15,6 +15,7 @@ import { colors, radii, fonts } from '../theme';
 import type { RouteStoreItem, Store } from '../types';
 import { useRouteCtx } from '../context/RouteContext';
 import { fetchAllStores } from '../services/catalogApi';
+import { ConfirmEndRouteDialog } from '../components/ConfirmEndRouteDialog';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
@@ -61,6 +62,7 @@ export function RouteScreen() {
   }
 
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [confirmEndOpen, setConfirmEndOpen] = useState(false);
   const [allStores, setAllStores] = useState<Store[]>([]);
 
   useEffect(() => {
@@ -85,6 +87,9 @@ export function RouteScreen() {
             <Text style={styles.headerDate}>{formatToday()}</Text>
           </View>
         </View>
+        <View style={styles.bannerSlot}>
+          <SyncBanner />
+        </View>
         <View style={styles.centeredState}>
           <ActivityIndicator size="large" />
           <Text style={styles.centeredStateText}>Cargando tu ruta…</Text>
@@ -102,6 +107,9 @@ export function RouteScreen() {
             <Text style={styles.headerTitle}>Ruta del Día</Text>
             <Text style={styles.headerDate}>{formatToday()}</Text>
           </View>
+        </View>
+        <View style={styles.bannerSlot}>
+          <SyncBanner />
         </View>
         <View style={styles.centeredState}>
           <Ionicons name="alert-circle-outline" size={40} color={colors.danger} />
@@ -152,7 +160,7 @@ export function RouteScreen() {
             {!sessionEnded && (routeItems.length > 0) && (
               <Button
                 label={sessionActive ? 'Finalizar Ruta' : 'Empezar Ruta'}
-                onPress={sessionActive ? endSession : startSession}
+                onPress={sessionActive ? () => setConfirmEndOpen(true) : startSession}
                 variant={sessionActive ? 'danger' : 'primary'}
                 style={styles.sessionBtn}
               />
@@ -189,8 +197,8 @@ export function RouteScreen() {
             <Text style={styles.emptyTitle}>Tu ruta está vacía</Text>
             <Text style={styles.emptyText}>
               {routeMode === 'special'
-                ? 'Agregá una o más sucursales para empezar.'
-                : 'No tenés ruta asignada para hoy.'}
+                ? 'Agrega una o más sucursales para empezar.'
+                : 'No tienes ruta asignada para hoy.'}
             </Text>
           </View>
         }
@@ -205,6 +213,11 @@ export function RouteScreen() {
         }}
         onClose={() => setPickerOpen(false)}
         onRegisterNew={(q) => navigation.navigate('NewStore', { initialName: q })}
+      />
+      <ConfirmEndRouteDialog
+        visible={confirmEndOpen}
+        onCancel={() => setConfirmEndOpen(false)}
+        onConfirm={() => { setConfirmEndOpen(false); endSession(); }}
       />
     </SafeAreaView>
   );
@@ -225,6 +238,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgSurface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  bannerSlot: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
   headerTitle: {
     fontSize: 20,

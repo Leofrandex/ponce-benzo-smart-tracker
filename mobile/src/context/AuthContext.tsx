@@ -7,6 +7,7 @@ import {
   type ProfileOnline,
 } from '../services/userCache';
 import { logEvent } from '../diagnostics/log';
+import { stopBackground } from '../location/locationTracker';
 
 // El perfil no debe colgar el arranque: si la red no responde en este tiempo,
 // caemos al perfil cacheado (offline) en vez de esperar indefinidamente.
@@ -68,12 +69,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: email.trim().toLowerCase(),
       password,
     });
-    if (error) return { error: 'Credenciales incorrectas. Verificá tu email y contraseña.' };
+    if (error) return { error: 'Credenciales incorrectas. Verifica tu email y contraseña.' };
     return { error: null };
   }
 
   async function signOut(): Promise<void> {
     const current = user;
+    // El GPS de la jornada no sigue con la sesión cerrada (teléfono compartido).
+    // La jornada queda abierta en el teléfono y se retoma si el usuario vuelve a entrar.
+    try { await stopBackground(); } catch { /* no bloquear el logout */ }
     await supabase.auth.signOut();
     if (current) {
       try { await clearUserProfile(await getDb(), current.id); } catch { /* no bloquear el logout */ }

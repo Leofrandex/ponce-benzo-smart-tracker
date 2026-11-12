@@ -44,7 +44,7 @@ El agente es responsable de mantener la coherencia y actualización del Segundo 
 
 ### ⚠️ Regla de Cierre: Actualización del Vault
 * **Actualizar el vault es SIEMPRE el último paso obligatorio de toda tarea o sesión de desarrollo antes de darla por finalizada.** No des una tarea por completada sin haber actualizado la documentación correspondiente en el vault (Bitácora, Roadmap, Pendientes, etc.).
-* **Protocolo Inbox V.O.L.T.:** Al finalizar una sesión o completar un hito, ESTÁ ESTRICTAMENTE PROHIBIDO hacer append al final del archivo tracker. Es OBLIGATORIO abrir la ruta `C:\Users\sebastian.castro\Documents\oito\V.O.L.T\volt_brain\oito\proyectos\poncebenzo\poncebenzo-tracker.md` y REEMPLAZAR únicamente el contenido de la sección `## 2. Estado Operativo` con los datos actualizados de la sesión. NUNCA alteres las secciones comerciales o financieras.
+* **Protocolo Inbox V.O.L.T.:** Al finalizar una sesión o completar un hito, ESTÁ ESTRICTAMENTE PROHIBIDO hacer append al final del archivo tracker. Es OBLIGATORIO abrir la ruta `C:\Users\sebastian.castro\Documents\oito\V.O.L.T\vault\proyectos\poncebenzo\poncebenzo-tracker.md` y REEMPLAZAR únicamente el contenido de la sección `## 2. Estado Operativo` con los datos actualizados de la sesión. NUNCA alteres las secciones comerciales o financieras.
 
 ### 📂 Estructura y Flexibilidad del Vault
 * Eres libre de modificar y crear nuevas carpetas o notas en el vault siempre que lo veas necesario para organizar mejor la información.
@@ -111,11 +111,11 @@ Usa los bloques de notas enriquecidas para enfatizar información clave:
 
 ## Protocolo de Cierre de Sesión — Bóveda Central de Oito (V.O.L.T.)
 
-Al TERMINAR cualquier sesión de trabajo en este proyecto, además de actualizar este vault local, es OBLIGATORIO sincronizar la Bóveda central en `C:\Users\sebastian.castro\Documents\oito\V.O.L.T\volt_brain\oito\` (agentes Claude: invocar la skill `cierre-sesion`; otros agentes: seguir estos pasos):
+Al TERMINAR cualquier sesión de trabajo en este proyecto, además de actualizar este vault local, es OBLIGATORIO sincronizar la Bóveda central en `C:\Users\sebastian.castro\Documents\oito\V.O.L.T\vault\` (agentes Claude: invocar la skill `cierre-sesion`; otros agentes: seguir estos pasos):
 
-1. **Prepend** (nunca append) una entrada nueva al inicio de `volt_brain/oito/proyectos/poncebenzo/poncebenzo-bitacora.md`: fecha + hecho / decidido / pendiente. Máximo ~10 líneas.
-2. **Reemplazar** el estado en `volt_brain/oito/proyectos/poncebenzo/poncebenzo-tracker.md`: frontmatter (`resumen`, `fase`, `siguiente_paso`, `updated`) y secciones. El tracker es estado PURO, sin historial.
-3. **Actualizar** la fila del proyecto en `volt_brain/oito/proyectos/index.md`.
+1. **Prepend** (nunca append) una entrada nueva al inicio de `vault/proyectos/poncebenzo/poncebenzo-bitacora.md`: fecha + hecho / decidido / pendiente. Máximo ~10 líneas.
+2. **Reemplazar** el estado en `vault/proyectos/poncebenzo/poncebenzo-tracker.md`: frontmatter (`resumen`, `fase`, `siguiente_paso`, `updated`) y secciones. El tracker es estado PURO, sin historial.
+3. **Actualizar** la fila del proyecto en `vault/proyectos/index.md`.
 
 **Sube SIEMPRE:** dinero, alcance, fechas, compromisos con el cliente, cambios de fase, bloqueos. **NO sube NUNCA:** detalle técnico (nodos, bugs, código, specs) — eso vive aquí y V.O.L.T. lo consulta vía el puntero `vault_local` del tracker central. Mantén al día el archivo de entrada de este vault (ponce-benzo-vault/Home.md): es la puerta que V.O.L.T. usa para profundizar.
 

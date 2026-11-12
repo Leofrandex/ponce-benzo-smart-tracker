@@ -22,3 +22,8 @@ export function canConfigure(role: string | null | undefined): boolean {
 export function canRegisterRestock(role: string | null | undefined): boolean {
   return role === "admin" || role === "vendedor";
 }
+
+// Crear tiendas desde el hub: vendedores y admins. La protección real es RLS.
+export function canCreateStore(role: string | null | undefined): boolean {
+  return role === "admin" || role === "vendedor";
+}

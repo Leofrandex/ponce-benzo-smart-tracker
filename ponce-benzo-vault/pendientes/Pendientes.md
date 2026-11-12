@@ -13,6 +13,54 @@ Este documento almacena las preguntas por resolver, datos necesarios por parte d
 
 ---
 
+## 📱 App 1.4.0 y OTA (2026-11-06)
+
+Ver [[logs/Log-2026-11-06|Log 2026-11-06]] y [[decisiones/ADR-018-Actualizaciones-OTA|ADR-018]].
+
+> [!IMPORTANT]
+> El link del APK no se envía al equipo hasta terminar lo de abajo. No enviar el APK 1.4.0 anterior.
+
+- [ ] Confirmar en teléfono: barra de descarga, aviso "App lista", sello `ef939bc` y diálogo de finalizar ruta (No, tocar fuera y Sí).
+- [ ] Probar en una ruta real el GPS de fondo y la duración. Comprobar si cerrar la app aplica la actualización con una ruta activa; si no, agregar el botón "Actualizar ahora".
+- [ ] Aclarar cómo llegó la 1.4.0 al teléfono de Willian Fermín. Hoy lleva 2 visitas subidas y ninguna completada sin fotos; revisar si recibió las OTA.
+- [ ] Compilar el APK para el equipo, subir `VERSION_VIGENTE` a la versión compilada y entregar el link.
+- [ ] Colaborador: entrar una vez en el teléfono para que la versión nueva repare o descarte la sesión `unknown`.
+- [ ] Decidir si se borra lo del 26-oct de Colaborador en el servidor: sesión `bce4e605`, 3 visitas, 3 pings y 1 reporte de competencia, sin fotos. Entrar con Colaborador antes de borrar.
+- [ ] Carlos Zurita: 2 visitas con tienda `store-001` rechazadas (22P02) en su cola. Revisar cómo limpiarlas antes o durante la instalación del APK.
+- [ ] Reporte suelto sin finalizar: se cierra solo al día siguiente con duración cero. Decidir si se cambia.
+- [ ] Correr `tools/backfill-pdv-codes.ts --commit` cuando Sebastián lo autorice: 311 códigos, hoy 0 en producción. Faltan 117 del archivo de Diego.
+- [ ] Decidir: 28 tiendas repetidas, clientes de Diana Delgado, `npm audit` y política lenta `visit_photos_select_scoped`.
+- [ ] Borrar el usuario de prueba o sus 2 visitas cuando ya no hagan falta. Hoy aparece en la lista de supervisores de la app.
+
+---
+
+## 🗺️ Rutas fijas (2026-10-30)
+
+Ver [[decisiones/ADR-017-Rutas-Fijas-Versionadas|ADR-017]] y [[logs/Log-2026-10-30|Log 2026-10-30]].
+
+> [!WARNING]
+> Sin ruta fija, un mercaderista se queda sin ruta desde el 01-01-2027 (las filas del CSV llegan hasta el 31-12-2026).
+
+- [x] Rutas fijas de los 7 mercaderistas cargadas desde el CSV del 2-nov, vigentes desde el 09-11-2026 (Eduward con ruta vacía: vacaciones). Ver [[logs/Log-2026-11-02|Log 2026-11-02]].
+- [x] Rutas de Elvis, Willian y Zurita reemplazadas por `Rutas_Caracas_9-13nov_v3.csv`, permanentes desde el 09-11-2026. Ver [[logs/Log-2026-11-06|Log 2026-11-06]].
+- [x] Editor semana a semana ([[decisiones/ADR-019-Editor-Semana-A-Semana|ADR-019]]): probado como admin, unido a `master` y publicado el 2026-11-12.
+- [ ] Explicar al equipo la rutina de los viernes (ajustar la ruta de la semana que viene).
+- [ ] Confirmar con el negocio qué pasa con las 48 tiendas activas de Caracas que quedaron sin ruta (Guarenas, Guatire, varias Gama, Plaza's, Locatel y SAAS). Lista y plan anterior en `datos/respaldos/rutas-fijas-antes-2026-11-06.json`.
+- [ ] Confirmar FTD LIDER: está en la ruta de Eduward (lunes) y en la de Carlos Zurita (martes).
+- [ ] Avisar a Elvis, Willian y Zurita de la ruta nueva antes del lunes 9-nov.
+- [ ] Cuando Eduward vuelva de vacaciones: armarle la ruta en el editor.
+- [ ] Cargar "Excelsior Gama" (PDV-0194, Carlos Zurita, viernes semanas 1 y 3) cuando el negocio diga qué sucursal es: agregarla en el editor.
+- [ ] Revisar el GPS de las 8 tiendas creadas el 2-nov (varias sin coordenadas).
+- [ ] Verificar el editor en el navegador como admin (no se hizo: sin credenciales de admin).
+- [ ] Archivar `tools/cargar-rutas-csv.ts` y `revisar-rutas-*.ts` (reemplazados por `tools/cargar-rutas-fijas-csv.ts`).
+- [ ] `fn_extender_rutas` debe omitir usuarios inactivos (`users.active = false`); hoy siguen recibiendo rutas y bajarían el cumplimiento. Mientras tanto: guardarles una ruta vacía al darlos de baja.
+- [ ] Tomar el lock por usuario (`pg_advisory_xact_lock`) también en la extensión nocturna, para que no choque con un guardado a la 01:00.
+- [ ] El error "Hay sucursales inactivas en la ruta." debería nombrar la sucursal y la fecha de la versión.
+- [ ] Editor: anuncios de lector de pantalla en español, foco en el panel de la tienda, aviso al usar atrás/adelante del navegador.
+- [ ] Revisar la sesión del 2026-07-29 ligada a una ruta del 2026-12-28 (posible dato de prueba o bug viejo de `pickRoute`).
+
+---
+
 ## 🎨 Auditoría UX smart-ux (2026-09-29)
 
 > [!IMPORTANT]
@@ -45,7 +93,7 @@ Fuente: [[largo-plazo/Reunion 2026-09-25 - Ajustes Tracker y Pipeline|Resumen de
 4. [x] **Clientes y tiendas** ✅ *(Bloque 5, publicado en producción el 2026-09-27)*: filtros por estado, municipio y vendedor en la URL; Tiendas con columna "Última visita". Clasificación ABC sigue esperando la data de P&B. Ver [[logs/Log-2026-09-27|Log 2026-09-27]].
 5. [x] **Dashboard dentro de Tareas** ✅ *(Bloque 1, publicado en producción el 2026-09-27)*: resumen reactivo con abiertas por antigüedad, tabla por vendedor y ranking de quiebres. Los filtros viven en la URL. Ver [[logs/Log-2026-09-27|Log 2026-09-27]].
 6. [x] **Rediseñar los filtros del mapa** ✅ *(Bloque 5, publicado en producción el 2026-09-27)*: agrupado por cadena, "todas/ninguna", buscador, vendedor, resumen y filtros en la URL. Ver [[logs/Log-2026-09-27|Log 2026-09-27]].
-7. [ ] **Móvil — app 1.3.0** 🟡 *(Bloque 7, publicado 2026-09-28: hub + APK 1.3.0 listo)*: fotos livianas con reintento sin re-subir, productos repuestos, versión reportada y columna "App" en el panel. Falta instalar el APK (https://expo.dev/artifacts/eas/rWHqxwkfzUaTqNTskYdJemQ0KQZMB27UphXoM2yV8R0.apk) en los 5 teléfonos y verificar en campo a la semana. Ver [[logs/Log-2026-09-28|Log 2026-09-28]]. — Antes: **foto obligatoria**: 🔎 *(2026-09-26)* la app ya la exige desde `3d5cc69`. El problema real era `BUG-029`: las fotos se subían pero no quedaban enlazadas; ya se corrigió en el servidor y se recuperaron 632 visitas. Queda para la versión móvil: comprimir fotos, dar más plazo con mala señal, reportar la versión de la app y actualizar a Willian (tiene una versión anterior al 15-jul). La nota "falta distribuir la app" estaba desactualizada: 4 de 5 teléfonos ya tienen la versión del 17-ago.
+7. [ ] **Móvil — app 1.3.0** 🟡 *(Bloque 7, publicado 2026-09-28: hub + APK 1.3.0 listo)*: fotos livianas con reintento sin re-subir, productos repuestos, versión reportada y columna "App" en el panel. **2026-11-03: Elvis y Carlos Zurita siguen con la versión vieja y son los únicos con visitas sin fotos (`BUG-032`); instalarles la 1.3.2 primero: https://expo.dev/artifacts/eas/nYY865pNOLD1yEPmvhfYNyy4Wq_OPS6it-05rbve3Bk.apk** Falta instalar el APK (https://expo.dev/artifacts/eas/rWHqxwkfzUaTqNTskYdJemQ0KQZMB27UphXoM2yV8R0.apk) en los 5 teléfonos y verificar en campo a la semana. Ver [[logs/Log-2026-09-28|Log 2026-09-28]]. — Antes: **foto obligatoria**: 🔎 *(2026-09-26)* la app ya la exige desde `3d5cc69`. El problema real era `BUG-029`: las fotos se subían pero no quedaban enlazadas; ya se corrigió en el servidor y se recuperaron 632 visitas. Queda para la versión móvil: comprimir fotos, dar más plazo con mala señal, reportar la versión de la app y actualizar a Willian (tiene una versión anterior al 15-jul). La nota "falta distribuir la app" estaba desactualizada: 4 de 5 teléfonos ya tienen la versión del 17-ago.
 8. [x] **Reposiciones** ✅ *(Bloque 6, publicado en producción el 2026-09-28)*: "Última reposición" con días desde, registro desde la ficha (vendedor/admin) con fecha, productos y nota, y pestaña de historial. Productos repuestos desde la app llegan con el Bloque 7. Ver [[decisiones/ADR-009-Reposiciones-Como-Registro-Propio|ADR-009]].
 9. [ ] **Catálogo Corpañal**: segundo catálogo (P&B solo hace el trade marketing, no vende). El mercaderista ve productos de P&B y de Corpañal; hace falta una vista solo Corpañal. Diego envía la lista de productos.
 10. [x] **Anomalías por producto** ✅ *(Bloque 1)*: filtros por anomalía, producto y línea (`products.line`, que se edita en el Bloque 3) y ranking "Más quiebres de stock".
@@ -167,6 +215,7 @@ Para realizar la migración completa a producción y conectar a los vendedores r
   * Distribuir el build con los fixes (OTA vía `expo-updates` si el canal lo permite — no se agregaron módulos nativos a propósito; si no, APK nuevo).
   * Investigar por qué el teléfono de Elvis no subió ni los `device_logs` del 15-jul (¿app nunca abierta con conexión? ¿auth caducada?).
   * Considerar dead-letter para fotos con URI perdida (hoy reintentan por siempre; el registro ya está a salvo).
+  * [ ] *(2026-11-03, `BUG-032`)* Copiar las fotos de la caché a `documentDirectory` al capturarlas (Android puede borrar la caché) y registrar en `device_logs` los fallos de subida de fotos.
 - [x] **Configuración de Variables de Entorno:** ✅ *(2026-06-07)* `hub/.env.local` y `.env` raíz con las claves del proyecto nuevo `poncebenzo`; handshake Python verificado.
 - [x] **Modificar Ingesta de Excel:** ✅ *(2026-06-08)* `tools/import-data.ts` reescrito como pipeline idempotente (`tools/ingesta/`). Cargó 6 usuarios + 192 tiendas + 20 rutas. **Cambio de fuente:** las tiendas salen de `RUTAS`, no de MAESTRO (ver [[arquitectura/Ingesta - Mapeo de Datos|Mapeo]]). Falta el **enriquecimiento** de sucursales (dirección/encargado/clasificación/GPS) → [[pendientes/Solicitud de Datos a P&B|Solicitud a P&B]].
 - [ ] **Validación de RLS Móvil:**

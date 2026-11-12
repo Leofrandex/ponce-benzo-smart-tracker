@@ -3,10 +3,12 @@ import * as IntentLauncher from 'expo-intent-launcher';
 import { Platform } from 'react-native';
 import { BACKGROUND_LOCATION_TASK } from './backgroundTask';
 import { getDb } from '../store/localStore';
-import { resolveToday } from '../session/sessionStore';
+import { resolveToday, isAdhocSession } from '../session/sessionStore';
+import { trackingAction } from './trackingAction';
 import { logEvent } from '../diagnostics/log';
 
 const STALE_PING_MS = 90_000;
+let lastRestartMs: number | null = null; // espera entre reinicios; vive mientras viva el proceso
 
 export async function requestPermissions(): Promise<{ foreground: boolean; background: boolean }> {
   const fg = await Location.requestForegroundPermissionsAsync();
@@ -40,6 +42,7 @@ async function startBackground(): Promise<void> {
       notificationColor: '#00205C',
     },
   });
+  lastRestartMs = Date.now(); // recien arrancado: el watchdog no lo reinicia por no tener pings todavia
 }
 
 export async function stopBackground(): Promise<void> {
@@ -47,24 +50,38 @@ export async function stopBackground(): Promise<void> {
   if (running) await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
 }
 
-export async function startTracking(onUI: (loc: { lat: number; lng: number }) => void): Promise<() => void> {
+/** `background: false` = solo el seguimiento de UI en primer plano (reporte suelto: sin servicio de fondo ni pings). */
+export async function startTracking(
+  onUI: (loc: { lat: number; lng: number }) => void,
+  opts: { background?: boolean } = {},
+): Promise<() => void> {
   const sub = await Location.watchPositionAsync(
     { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 0 },
     (loc) => onUI({ lat: loc.coords.latitude, lng: loc.coords.longitude }), // SÓLO UI
   );
-  await startBackground();
+  if (opts.background !== false) await startBackground();
   return () => sub.remove();
 }
 
 export async function ensureTracking(userId: string): Promise<void> {
   const db = await getDb();
-  const { state } = await resolveToday(db, userId);
+  const { state, session } = await resolveToday(db, userId);
   if (state !== 'ACTIVE') return;
+  if (await isAdhocSession(db, session?.session_id)) return; // el reporte suelto no usa GPS de fondo
   const running = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
   const last = await db.getFirstAsync<{ ts: string }>(`SELECT timestamp AS ts FROM location_pings ORDER BY timestamp DESC LIMIT 1`);
-  const stale = !last?.ts || Date.now() - new Date(last.ts).getTime() > STALE_PING_MS;
-  if (!running || stale) {
-    await logEvent(db, 'warn', 'tracking_restart', `running=${running} stale=${stale}`, userId);
+  const nowMs = Date.now();
+  const stale = !last?.ts || nowMs - new Date(last.ts).getTime() > STALE_PING_MS;
+  const action = trackingAction({ running, stale, lastRestartMs, nowMs });
+  if (action === 'none') return;
+  lastRestartMs = nowMs;
+  try {
+    if (action === 'restart') {
+      await logEvent(db, 'warn', 'tracking_restart', `running=${running} stale=${stale}`, userId);
+      await stopBackground();
+    }
     await startBackground();
+  } catch (e) {
+    await logEvent(db, 'error', 'tracking_restart_failed', (e as Error)?.message ?? String(e), userId);
   }
 }

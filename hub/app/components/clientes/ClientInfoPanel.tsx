@@ -52,7 +52,7 @@ export function ClientInfoPanel({ store, lastRestock, onEdit }: { store: Store; 
         <Row label="Clasificación" value={store.classification ?? "—"} />
         <div style={{ padding: "9px 0 12px" }}>
           <div style={LABEL}>Coordenadas GPS</div>
-          <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontFamily: "monospace", fontVariantNumeric: "tabular-nums" }}>{store.master_lat.toFixed(4)}, {store.master_lng.toFixed(4)}</div>
+          <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontFamily: "monospace", fontVariantNumeric: "tabular-nums" }}>{store.master_lat != null && store.master_lng != null ? `${store.master_lat.toFixed(4)}, ${store.master_lng.toFixed(4)}` : "Pendiente"}</div>
         </div>
       </div>
     </div>

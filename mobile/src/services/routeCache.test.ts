@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveRouteLoad, parseSnapshot, serializeSnapshot, mergeRecordedStatuses, type RouteSnapshot, type RecordedVisit } from './routeCache';
+import { resolveRouteLoad, parseSnapshot, serializeSnapshot, mergeRecordedStatuses, withStoreGps, updateSnapshotStoreGps, saveRouteSnapshot, loadRouteSnapshot, type RouteSnapshot, type RecordedVisit } from './routeCache';
+import { memoryDb } from '../testing/sqliteAdapter';
+import { initSchema } from '../store/localStore';
 import type { Store, RouteStoreItem } from '../types';
 
 function makeStore(id: string): Store {
@@ -113,4 +115,27 @@ test('mergeRecordedStatuses: no muta el arreglo de entrada', () => {
     { store_id: 's1', status: 'completed', check_in_time: '2026-07-09T10:00:00.000Z' },
   ]);
   assert.equal(items[0].status, 'pending');
+});
+
+test('withStoreGps cambia solo las coordenadas de esa tienda', () => {
+  const out = withStoreGps(snapshot, 's2', 1.5, 2.5);
+  assert.equal(out.stores[1].master_lat, 1.5);
+  assert.equal(out.stores[1].master_lng, 2.5);
+  assert.equal(out.stores[1].name, 'Tienda s2');
+  assert.deepEqual(out.stores[0], snapshot.stores[0]);
+  assert.equal(out.route_id, snapshot.route_id);
+  assert.equal(out.cached_at, snapshot.cached_at);
+  assert.equal(snapshot.stores[1].master_lat, 10.5, 'no muta el original');
+});
+
+test('updateSnapshotStoreGps persiste en la copia del usuario y no crea una si no hay', async () => {
+  const db = memoryDb();
+  await initSchema(db);
+  await updateSnapshotStoreGps(db, 'u1', 's1', 1, 2);
+  assert.equal(await loadRouteSnapshot(db, 'u1'), null);
+  await saveRouteSnapshot(db, 'u1', snapshot);
+  await saveRouteSnapshot(db, 'u2', snapshot);
+  await updateSnapshotStoreGps(db, 'u1', 's1', 1, 2);
+  assert.equal((await loadRouteSnapshot(db, 'u1'))!.stores[0].master_lat, 1);
+  assert.equal((await loadRouteSnapshot(db, 'u2'))!.stores[0].master_lat, 10.5);
 });

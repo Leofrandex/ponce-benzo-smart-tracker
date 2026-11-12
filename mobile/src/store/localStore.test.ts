@@ -20,10 +20,11 @@ test('buildMigrations: agrega columnas faltantes y omite las presentes', () => {
 
 test('buildMigrations: sin faltantes devuelve []', () => {
   const full = {
-    visits: new Set(['anomaly_type', 'skip_reason', 'last_restock_date', 'photos_synced', 'supervisor_present_user_id']),
+    visits: new Set(['anomaly_type', 'skip_reason', 'last_restock_date', 'photos_synced', 'supervisor_present_user_id', 'photo_attempts', 'photo_next_try', 'photos_done', 'started_at']),
     location_pings: new Set(['user_id', 'synced']),
-    competition_reports: new Set(['visit_id', 'photos_synced']),
-    sessions: new Set(['app_version']),
+    competition_reports: new Set(['visit_id', 'photos_synced', 'photo_attempts', 'photo_next_try', 'photos_done']),
+    sessions: new Set(['app_version', 'ota_update_id']),
+    store_proposals: new Set(['photo_attempts', 'photo_next_try', 'photos_done']),
   };
   assert.deepEqual(buildMigrations(full), []);
 });
@@ -38,9 +39,19 @@ test('buildMigrations: existing vacío emite TODAS las columnas opcionales', () 
   assert.ok(stmts.some((s) => s.includes('ALTER TABLE location_pings ADD COLUMN synced')));
 });
 
+test('buildMigrations: columnas de reintento de fotos dejan elegibles las filas existentes', () => {
+  const stmts = buildMigrations({});
+  for (const t of ['visits', 'competition_reports', 'store_proposals']) {
+    assert.ok(stmts.includes(`ALTER TABLE ${t} ADD COLUMN photo_attempts INTEGER NOT NULL DEFAULT 0`));
+    assert.ok(stmts.includes(`ALTER TABLE ${t} ADD COLUMN photo_next_try TEXT`));
+    assert.ok(stmts.includes(`ALTER TABLE ${t} ADD COLUMN photos_done INTEGER NOT NULL DEFAULT 0`));
+  }
+});
+
 test("buildMigrations: agrega sessions.app_version si falta y no la repite", () => {
   const faltan = buildMigrations({ sessions: new Set(["session_id"]) });
   assert.ok(faltan.includes("ALTER TABLE sessions ADD COLUMN app_version TEXT"));
-  const ya = buildMigrations({ sessions: new Set(["session_id", "app_version"]) });
+  assert.ok(faltan.includes("ALTER TABLE sessions ADD COLUMN ota_update_id TEXT"));
+  const ya = buildMigrations({ sessions: new Set(["session_id", "app_version", "ota_update_id"]) });
   assert.ok(!ya.some((s) => s.startsWith("ALTER TABLE sessions")));
 });

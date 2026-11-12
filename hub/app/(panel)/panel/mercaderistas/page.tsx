@@ -8,6 +8,9 @@ import { fetchCumplimiento } from "@/app/lib/queries/dashboard";
 import { fetchMerchandisers } from "@/app/lib/queries/sessions";
 import { fetchResumenesDetalle } from "@/app/lib/queries/merchandisers";
 import { estadoVersion, fetchVersiones } from "@/app/lib/queries/appVersion";
+import { fetchUsuariosConPlan } from "@/app/lib/queries/rutaPlan";
+import { useAuth } from "@/app/lib/auth-context";
+import { canConfigure } from "@/app/lib/roles";
 import { parsePeriodo, serializePeriodo } from "@/app/lib/queries/period";
 import TimePeriodSelector, { rangoDeDias } from "@/app/components/dashboard/TimePeriodSelector";
 import { MercaderistasSkeleton, SkeletonTable } from "@/app/components/ui/Skeleton";
@@ -34,6 +37,10 @@ function MercaderistasInner() {
 
   const { data: anom } = useSupabaseQuery(() => fetchResumenesDetalle(ids, desde, hasta), [idsKey, desde, hasta], "merch:resumenes");
   const { data: versiones } = useSupabaseQuery(fetchVersiones, [], "app:versiones");
+  const { profile } = useAuth();
+  const esAdmin = canConfigure(profile?.role);
+  // Solo el admin edita rutas: al resto no se le pide el set.
+  const { data: conPlan } = useSupabaseQuery(() => (esAdmin ? fetchUsuariosConPlan() : Promise.resolve(null)), [esAdmin], "merch:conplan");
 
   // Todos los del roster, aunque no tengan rutas en el periodo; luego quien
   // aparezca en el cumplimiento sin estar en el roster (p. ej. supervisores).
@@ -46,6 +53,7 @@ function MercaderistasInner() {
     }).sort((a, b) => (a.c?.pct ?? 101) - (b.c?.pct ?? 101) || a.nombre.localeCompare(b.nombre, "es"));
   }, [cumpl, roster, ids, anom]);
 
+  const enRoster = useMemo(() => new Set((roster ?? []).map((r) => r.user_id)), [roster]);
   const qs = serializePeriodo(desde, hasta);
 
   return (
@@ -75,6 +83,7 @@ function MercaderistasInner() {
                 <th className="mz-num" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Hechas / planificadas</th>
                 <th className="mz-num" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>Anomalías</th>
                 <th className="mz-num" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600 }}>App</th>
+                <th className="mz-num" style={{ padding: "10px 14px" }}><span className="sr-only">Ruta</span></th>
               </tr>
             </thead>
             <tbody>
@@ -82,6 +91,9 @@ function MercaderistasInner() {
                 <tr key={f.id} style={{ borderTop: "1px solid var(--border)" }}>
                   <td style={{ padding: "10px 14px" }}>
                     <Link href={`/panel/mercaderistas/${f.id}?${qs}`} style={{ fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>{f.nombre}</Link>
+                    {esAdmin && conPlan && enRoster.has(f.id) && !conPlan.has(f.id) && (
+                      <span title="La ruta cargada por CSV termina el 31-12-2026. Ármale su ruta fija en el editor." style={{ marginLeft: "8px", fontSize: "var(--text-2xs)", fontWeight: 600, color: "var(--warning)" }}>Sin ruta fija</span>
+                    )}
                   </td>
                   <td className="mz-num" style={{ padding: "10px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600, color: f.c ? tono(f.c.pct) : undefined }}>
                     {f.c ? `${f.c.pct}%` : <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>Sin rutas</span>}
@@ -98,6 +110,9 @@ function MercaderistasInner() {
                         </span>
                       );
                     })() : <span style={{ color: "var(--text-muted)" }}>–</span>}
+                  </td>
+                  <td className="mz-num" style={{ padding: "10px 14px", textAlign: "right" }}>
+                    <Link href={`/panel/mercaderistas/${f.id}?${qs}&ver=ruta`} style={{ color: "var(--accent)", fontWeight: 600, textDecoration: "none" }}>Ver ruta</Link>
                   </td>
                 </tr>
               ))}

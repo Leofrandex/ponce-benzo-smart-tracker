@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import type { Store } from "@/app/lib/types";
@@ -22,12 +23,17 @@ function storeIcon(color: string): L.DivIcon {
 export function StoreMarkersLayer({ stores }: { stores: Store[] }) {
   return (
     <>
-      {stores.map((s) => (
-        <Marker key={s.store_id} position={[s.master_lat, s.master_lng]}
+      {stores.filter((s) => s.master_lat != null && s.master_lng != null).map((s) => (
+        <Marker key={s.store_id} position={[s.master_lat!, s.master_lng!]}
           icon={storeIcon(s.business_channel ? (CHANNEL_COLOR[s.business_channel] ?? CHANNEL_COLOR.otro) : CHANNEL_COLOR.otro)}>
           <Popup>
             <strong>{s.name}</strong><br />
             {s.business_channel ?? "—"}{s.classification ? ` · ${s.classification}` : ""}
+            {/* Leaflet fuerza color en <a> (.leaflet-container a, más específico que .btn), por eso el color va inline */}
+            <Link href={`/panel/tiendas/${s.store_id}`} className="btn btn-secondary btn-sm"
+              style={{ display: "block", marginTop: 8, color: "var(--text-primary)" }}>
+              Ver ficha
+            </Link>
           </Popup>
         </Marker>
       ))}

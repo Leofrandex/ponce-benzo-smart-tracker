@@ -80,7 +80,7 @@ function RangeCalendar({ range, onPick }: { range: DateRange; onPick: (r: DateRa
         })}
       </div>
       <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)", marginTop: "8px", textAlign: "center" }}>
-        {pendingFrom ? "Ahora elegí la fecha final" : "Elegí la fecha inicial"}
+        {pendingFrom ? "Ahora elige la fecha final" : "Elige la fecha inicial"}
       </div>
     </div>
   );

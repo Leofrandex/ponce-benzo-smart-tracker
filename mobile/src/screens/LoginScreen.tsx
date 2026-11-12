@@ -18,7 +18,7 @@ export function LoginScreen() {
 
   async function handleLogin() {
     if (!email.trim() || !password) {
-      setError('Completá todos los campos.');
+      setError('Completa todos los campos.');
       return;
     }
     setError(null);
@@ -27,7 +27,7 @@ export function LoginScreen() {
       const { error: err } = await signIn(email.trim(), password);
       if (err) setError(err);
     } catch (e) {
-      setError('Error inesperado. Intentá de nuevo.');
+      setError('Error inesperado. Intenta de nuevo.');
     } finally {
       setLoading(false);
     }

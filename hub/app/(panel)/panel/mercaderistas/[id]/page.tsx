@@ -15,8 +15,10 @@ import { hoyCaracas } from "@/app/lib/queries/taskFilters";
 import { parsePeriodo, serializePeriodo } from "@/app/lib/queries/period";
 import { ActivityFeed } from "@/app/components/clientes/ActivityFeed";
 import TimePeriodSelector, { rangoDeDias } from "@/app/components/dashboard/TimePeriodSelector";
+import RutaSemanal from "@/app/components/mercaderistas/RutaSemanal";
 import SectionError from "@/app/components/ui/SectionError";
 import { DetailSkeleton, Skeleton, SkeletonCard, SkeletonList, SkeletonScreen } from "@/app/components/ui/Skeleton";
+import { etiquetaDuracion } from "@/app/lib/queries/duracionVisita";
 
 const COLOR: Record<Resultado, string> = {
   completada: "var(--success)", anomalia: "var(--danger)", cubierta: "var(--accent)",
@@ -116,6 +118,8 @@ function PerfilInner() {
             {incluyeHoy && <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: "8px" }}>Hoy no cuenta hasta que termina el día.</div>}
           </div>
 
+          <RutaSemanal userId={id} />
+
           <style>{`
             .mz-dia:hover, .mz-dia:focus-visible, .mz-tiendas tr:hover { background: var(--bg-base); }
             .mz-dia:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -159,7 +163,7 @@ function PerfilInner() {
                               || (t.resultado === "anomalia" && t.anomaly_type ? t.anomaly_type.map(anomalyLabel).join(", ") : "")
                               || <span style={{ color: "var(--text-muted)" }}>–</span>}
                           </td>
-                          <td style={{ padding: "8px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: "var(--text-muted)" }}>{hora(t.check_in_time)}</td>
+                          <td style={{ padding: "8px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: "var(--text-muted)" }}>{t.check_in_time ? `${hora(t.check_in_time)} · ${etiquetaDuracion(t.started_at, t.check_in_time)}` : "—"}</td>
                         </tr>
                       ))}
                     </tbody>

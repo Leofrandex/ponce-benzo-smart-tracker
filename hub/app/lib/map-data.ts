@@ -40,12 +40,13 @@ export function getPingsInRange(merchIds: string[], from: Date, to: Date): [numb
     // Each store is covered by one merchandiser (round-robin over the full roster).
     const coveringMerch = allIds[idx % allIds.length];
     if (!selected.includes(coveringMerch)) return;
+    if (store.master_lat == null || store.master_lng == null) return;
     const visitsPerDay = 4 + Math.floor(rand() * 6); // 4-9 pings per day per store
     const total = Math.min(60, Math.round((visitsPerDay * days) / 3));
     for (let i = 0; i < total; i++) {
       points.push([
-        store.master_lat + (rand() - 0.5) * 0.004,
-        store.master_lng + (rand() - 0.5) * 0.004,
+        store.master_lat! + (rand() - 0.5) * 0.004,
+        store.master_lng! + (rand() - 0.5) * 0.004,
       ]);
     }
   });

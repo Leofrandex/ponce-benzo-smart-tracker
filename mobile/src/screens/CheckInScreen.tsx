@@ -1,13 +1,14 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, Image, Platform,
+  ScrollView, StyleSheet, Image, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { GPSChip } from '../components/GPSChip';
+import { GpsCaptureLink } from '../components/GpsCaptureLink';
 import { CameraModal } from '../components/CameraModal';
 import { Button } from '../components/Button';
 import { BottomSheetSelect, type SelectOption } from '../components/BottomSheetSelect';
@@ -26,14 +27,18 @@ import {
 } from '../services/catalogCache';
 import { ProductPickerSheet } from '../components/ProductPickerSheet';
 import { newId } from '../services/sync/ids';
+import { latestLocalCapture, effectiveStoreCoords, type LatLng } from '../services/storeGps';
+import { getOrCreateVisitStart, clearVisitStart } from '../services/visitStart';
 import { fechaLocalISO, fechaDesdeISO } from '../utils/localDate';
 import { haversineMeters } from '../utils/geo';
+import { withTimeout } from '../utils/withTimeout';
 import type { StoreStatus, VisitRecord, Visit, AnomalyType, Product, SupervisorOption, CompetitionReportRecord } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type CheckInRouteProp = RouteProp<RootStackParamList, 'CheckIn'>;
 
 const MAX_DISTANCE_METERS = 200;
+const VISIT_START_WAIT_MS = 1_000;
 
 type StatusOption = { value: StoreStatus; label: string; icon: keyof typeof Ionicons.glyphMap };
 const STATUS_OPTIONS: StatusOption[] = [
@@ -66,8 +71,17 @@ export function CheckInScreen() {
   const navigation = useNavigation();
   const { params } = useRoute<CheckInRouteProp>();
   const { store } = params;
-  const { recordVisit, gpsState, currentLocation } = useRouteCtx();
+  const { recordVisit, captureStoreGps, gpsState, currentLocation } = useRouteCtx();
   const { user } = useAuth();
+
+  // Dos toques en el mismo cuadro ven el mismo estado `submitting` y crearian dos visitas.
+  const submitLock = useRef(false);
+  // Cronometro: nunca bloquea la visita, si falla started_at viaja null.
+  const visitStart = useRef<Promise<string | null>>(Promise.resolve(null));
+  // El dia de la clave: guardar pasada la medianoche debe limpiar la fila de cuando se abrio.
+  const openedAt = useRef(new Date());
+  // `store` llega por navegacion y no se entera de una captura: esta la reemplaza.
+  const [localCapture, setLocalCapture] = useState<LatLng | null>(null);
 
   const [selectedStatus, setSelectedStatus] = useState<StoreStatus>('completed');
   const [observations, setObservations] = useState('');
@@ -94,6 +108,26 @@ export function CheckInScreen() {
 
   const [competitionDraft, setCompetitionDraft] = useState<CompetitionReportRecord | null>(null);
   const [competitionOpen, setCompetitionOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    visitStart.current = getDb()
+      .then((db) => getOrCreateVisitStart(db, user.id, store.store_id, openedAt.current))
+      .catch((e) => {
+        console.warn('[checkin] sin inicio de visita:', (e as { message?: string })?.message ?? e);
+        return null;
+      });
+  }, [user?.id, store.store_id]);
+
+  useEffect(() => {
+    let alive = true;
+    getDb()
+      .then((db) => latestLocalCapture(db, store.store_id))
+      // Una captura hecha mientras tanto es mas nueva que esta lectura.
+      .then((found) => { if (alive && found) setLocalCapture((prev) => prev ?? found); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [store.store_id]);
 
   useEffect(() => {
     let alive = true;
@@ -137,14 +171,23 @@ export function CheckInScreen() {
     });
   }, [anomalyTypes]);
 
+  const storeCoords = useMemo(() => effectiveStoreCoords(store, localCapture), [store, localCapture]);
+
   const locationVerified = useMemo(() => {
-    if (!currentLocation) return null;
+    // Tienda sin GPS: no hay contra que verificar, no se muestra el aviso.
+    if (!currentLocation || !storeCoords) return null;
     const dist = haversineMeters(
       currentLocation.lat, currentLocation.lng,
-      store.master_lat, store.master_lng,
+      storeCoords.lat, storeCoords.lng,
     );
     return dist <= MAX_DISTANCE_METERS;
-  }, [currentLocation, store]);
+  }, [currentLocation, storeCoords]);
+
+  async function handleCaptureGps(): Promise<{ ok: boolean }> {
+    const res = await captureStoreGps(store.store_id);
+    if (res.coords) setLocalCapture(res.coords);
+    return res;
+  }
 
   const statusValid =
     selectedStatus === 'completed' ||
@@ -154,33 +197,48 @@ export function CheckInScreen() {
   const canSubmit = !submitting && gpsState === 'found' && photoUris.length > 0 && statusValid;
 
   async function handleSubmit() {
-    if (!canSubmit) return;
+    if (!canSubmit || submitLock.current) return;
+    submitLock.current = true;
     setSubmitting(true);
 
-    const record: VisitRecord = {
-      visit_id: newId(),
-      store_id: store.store_id,
-      check_in_time: new Date().toISOString(),
-      check_in_location: currentLocation,
-      photo_uris: photoUris,
-      observations,
-      status: selectedStatus,
-      synced: false,
-      anomaly_type: selectedStatus === 'anomaly' ? anomalyTypes : null,
-      skip_reason: selectedStatus === 'skipped' ? skipReason : null,
-      last_restock_date: lastRestockDate,
-      supervisor_present_user_id: supervisorId,
-      anomaly_products: selectedStatus === 'anomaly' ? anomalyProducts : {},
-      restock_products: lastRestockDate ? restockProducts : [],
-    };
-
-    // recordVisit actualiza la lista (optimista) y persiste en SQLite; la subida a
-    // Supabase corre en segundo plano. No se espera la red para cerrar: así el
-    // registro vuelve al menú de inmediato en vez de quedarse trabado.
-    recordVisit(store.store_id, record, competitionDraft ?? undefined).catch((e) =>
-      console.warn('[checkin] recordVisit FAIL:', (e as { message?: string })?.message ?? e),
-    );
-    navigation.goBack();
+    // recordVisit solo espera a SQLite (la subida corre en segundo plano). Si falla, la
+    // visita NO se guardó: el formulario (fotos incluidas) sigue intacto para reintentar.
+    // Todo lo posterior al insert de la visita va en try/catch dentro de recordVisit, así que
+    // una visita guardada nunca llega a este aviso (evita duplicarla al reintentar).
+    try {
+      const startedAt = await withTimeout(visitStart.current, VISIT_START_WAIT_MS, null);
+      const record: VisitRecord = {
+        visit_id: newId(),
+        store_id: store.store_id,
+        check_in_time: new Date().toISOString(),
+        check_in_location: currentLocation,
+        photo_uris: photoUris,
+        observations,
+        status: selectedStatus,
+        synced: false,
+        anomaly_type: selectedStatus === 'anomaly' ? anomalyTypes : null,
+        skip_reason: selectedStatus === 'skipped' ? skipReason : null,
+        last_restock_date: lastRestockDate,
+        supervisor_present_user_id: supervisorId,
+        anomaly_products: selectedStatus === 'anomaly' ? anomalyProducts : {},
+        restock_products: lastRestockDate ? restockProducts : [],
+        started_at: startedAt,
+      };
+      await recordVisit(store.store_id, record, competitionDraft ?? undefined);
+      // La visita ya está guardada: sin await, una escritura trabada no deja la pantalla
+      // cargando, y si falla no se avisa ni se reintenta.
+      if (user) {
+        getDb()
+          .then((db) => clearVisitStart(db, user.id, store.store_id, openedAt.current))
+          .catch((e) => console.warn('[checkin] clearVisitStart FAIL:', (e as { message?: string })?.message ?? e));
+      }
+      navigation.goBack();
+    } catch (e) {
+      console.warn('[checkin] recordVisit FAIL:', (e as { message?: string })?.message ?? e);
+      Alert.alert('No se pudo guardar la visita', 'Tus datos siguen aquí. Intenta de nuevo.');
+      submitLock.current = false;
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -203,6 +261,12 @@ export function CheckInScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ubicación GPS</Text>
           <GPSChip state={gpsState} coords={currentLocation ?? undefined} />
+          <GpsCaptureLink
+            gpsState={gpsState}
+            hasLocation={currentLocation !== null}
+            storeHasGps={storeCoords !== null}
+            onCapture={handleCaptureGps}
+          />
 
           {gpsState === 'found' && locationVerified !== null && (
             <View style={[styles.fraudBanner, locationVerified ? styles.fraudOk : styles.fraudWarn]}>
@@ -221,7 +285,7 @@ export function CheckInScreen() {
 
           {gpsState === 'error' && (
             <Text style={styles.gpsErrorNote}>
-              No se pudo obtener la ubicación. Volvé a la ruta y reiniciá la sesión.
+              No se pudo obtener la ubicación. Vuelve a la ruta y reinicia la sesión.
             </Text>
           )}
         </View>
@@ -285,7 +349,7 @@ export function CheckInScreen() {
               activeOpacity={0.75}
             >
               <Text style={[styles.dropdownText, !skipReason && styles.dropdownPlaceholder]}>
-                {SKIP_REASON_OPTIONS.find((o) => o.value === skipReason)?.label ?? 'Seleccioná un motivo'}
+                {SKIP_REASON_OPTIONS.find((o) => o.value === skipReason)?.label ?? 'Selecciona un motivo'}
               </Text>
               <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
             </TouchableOpacity>
@@ -303,7 +367,7 @@ export function CheckInScreen() {
             >
               <Text style={[styles.dropdownText, anomalyTypes.length === 0 && styles.dropdownPlaceholder]}>
                 {anomalyTypes.length === 0
-                  ? 'Seleccioná el/los tipo(s)'
+                  ? 'Selecciona el/los tipo(s)'
                   : anomalyTypes.length <= 2
                     ? anomalyTypes.map((v) => ANOMALY_TYPE_OPTIONS.find((o) => o.value === v)?.label ?? v).join(', ')
                     : `${anomalyTypes.length} seleccionadas`}
@@ -423,7 +487,7 @@ export function CheckInScreen() {
           <Text style={styles.sectionTitle}>Observaciones</Text>
           <TextInput
             style={styles.textArea}
-            placeholder="Describí novedades, faltantes, anomalías observadas..."
+            placeholder="Describe novedades, faltantes, anomalías observadas..."
             placeholderTextColor={colors.textMuted}
             value={observations}
             onChangeText={setObservations}
@@ -442,10 +506,10 @@ export function CheckInScreen() {
               <Text style={styles.blockingItem}>• Foto requerida para registrar la visita</Text>
             )}
             {selectedStatus === 'skipped' && !skipReason && (
-              <Text style={styles.blockingItem}>• Seleccioná el motivo de omisión</Text>
+              <Text style={styles.blockingItem}>• Selecciona el motivo de omisión</Text>
             )}
             {selectedStatus === 'anomaly' && anomalyTypes.length === 0 && (
-              <Text style={styles.blockingItem}>• Seleccioná al menos un tipo de anomalía</Text>
+              <Text style={styles.blockingItem}>• Selecciona al menos un tipo de anomalía</Text>
             )}
           </View>
         )}

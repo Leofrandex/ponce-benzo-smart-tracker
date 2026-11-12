@@ -4,12 +4,10 @@ import Link from "next/link";
 import { Building2, ChevronRight, AlertTriangle } from "lucide-react";
 import type { ClientRow } from "@/app/lib/queries/derive";
 import { fechaCaracas } from "@/app/lib/queries/taskFilters";
+import { CANAL_LABEL as CHANNEL_LABELS } from "@/app/lib/carga/canales";
 import { SkeletonTable } from "@/app/components/ui/Skeleton";
 
-export const CHANNEL_LABELS: Record<string, string> = {
-  drogueria: "Droguería", farmacia: "Farmacia", supermercado: "Supermercado",
-  autoservicio: "Autoservicio", mayorista: "Mayorista", otro: "Otro",
-};
+export { CANAL_LABEL as CHANNEL_LABELS } from "@/app/lib/carga/canales";
 const CLASS_COLORS: Record<string, string> = {
   A: "var(--success)", B: "var(--warning)", C: "var(--text-muted)",
 };
@@ -58,10 +56,12 @@ export function ClientesTable({ rows, loading = false }: { rows: ClientRow[]; lo
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
                   <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: r.active ? "var(--success)" : "var(--text-muted)" }} />
                   <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.name}>{r.name}</span>
+                  {r.pdv_code && <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", flexShrink: 0 }}>{r.pdv_code}</span>}
                 </div>
                 {/* Solo en teléfono: el header está oculto, así que la fecha lleva su etiqueta. */}
                 <div className="contactos-mobile-sub" style={{ paddingLeft: "15px" }}>
                   {[
+                    r.pdv_code || null,
                     r.business_channel ? (CHANNEL_LABELS[r.business_channel] ?? r.business_channel) : null,
                     r.classification ? `Clase ${r.classification}` : null,
                     r.last_visit_date ? `Visita ${fechaCaracas(r.last_visit_date)}` : "Sin visitas",

@@ -6,8 +6,9 @@ export interface Store {
   store_id: string;
   name: string;
   address: string | null;
-  master_lat: number;
-  master_lng: number;
+  // null = tienda cargada sin GPS (pendiente de coordenada).
+  master_lat: number | null;
+  master_lng: number | null;
   active: boolean;
   created_at: string;
   contact_name: string | null;
@@ -22,6 +23,7 @@ export interface Store {
   classification: "A" | "B" | "C" | null;
   client_id?: string | null;
   client_name?: string | null;
+  pdv_code: string | null;
 }
 
 export interface User {
@@ -221,4 +223,28 @@ export interface CompetitionReport {
   notes: string | null;
   created_at: string;
   synced: boolean;
+}
+
+// Alta de tienda desde el hub (nombres = columnas de la base).
+export interface TiendaInput {
+  client_id: string | null;
+  name: string;
+  business_channel: string;
+  estado: string;
+  municipio: string;
+  address: string;
+  urbanizacion?: string;
+  ciudad?: string;
+  region?: string;
+  master_lat?: number | null;
+  master_lng?: number | null;
+  pdv_code?: string;
+}
+
+// Alta de cliente (cadena) desde el hub; se crea con fn_crear_cliente.
+export interface ClienteInput {
+  name: string;
+  business_channel: string;
+  rif?: string;
+  vendedor_id?: string | null;
 }

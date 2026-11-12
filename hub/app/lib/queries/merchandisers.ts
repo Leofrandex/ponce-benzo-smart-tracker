@@ -7,6 +7,7 @@ export type DetalleRow = {
   fecha: string; store_id: string; store_name: string; client_name: string | null;
   resultado: Resultado; skip_reason: string | null; anomaly_type: string[] | null;
   visit_id: string | null; check_in_time: string | null;
+  started_at: string | null;
 };
 
 export type ResumenDetalle = {
