@@ -43,7 +43,8 @@ Ver [[decisiones/ADR-017-Rutas-Fijas-Versionadas|ADR-017]] y [[logs/Log-2026-10-
 
 - [x] Rutas fijas de los 7 mercaderistas cargadas desde el CSV del 2-nov, vigentes desde el 09-11-2026 (Eduward con ruta vacía: vacaciones). Ver [[logs/Log-2026-11-02|Log 2026-11-02]].
 - [x] Rutas de Elvis, Willian y Zurita reemplazadas por `Rutas_Caracas_9-13nov_v3.csv`, permanentes desde el 09-11-2026. Ver [[logs/Log-2026-11-06|Log 2026-11-06]].
-- [ ] Editor semana a semana ([[decisiones/ADR-019-Editor-Semana-A-Semana|ADR-019]]): probar como admin, commit de `feat/rutas-semana-a-semana` y publicar el hub. Explicar al equipo la rutina de los viernes.
+- [x] Editor semana a semana ([[decisiones/ADR-019-Editor-Semana-A-Semana|ADR-019]]): probado como admin, unido a `master` y publicado el 2026-11-12.
+- [ ] Explicar al equipo la rutina de los viernes (ajustar la ruta de la semana que viene).
 - [ ] Confirmar con el negocio qué pasa con las 48 tiendas activas de Caracas que quedaron sin ruta (Guarenas, Guatire, varias Gama, Plaza's, Locatel y SAAS). Lista y plan anterior en `datos/respaldos/rutas-fijas-antes-2026-11-06.json`.
 - [ ] Confirmar FTD LIDER: está en la ruta de Eduward (lunes) y en la de Carlos Zurita (martes).
 - [ ] Avisar a Elvis, Willian y Zurita de la ruta nueva antes del lunes 9-nov.
