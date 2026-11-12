@@ -260,13 +260,15 @@ export function CheckInScreen() {
         {/* GPS — viene del contexto, ya activo desde "Empezar Ruta" */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ubicación GPS</Text>
-          <GPSChip state={gpsState} coords={currentLocation ?? undefined} />
-          <GpsCaptureLink
-            gpsState={gpsState}
-            hasLocation={currentLocation !== null}
-            storeHasGps={storeCoords !== null}
-            onCapture={handleCaptureGps}
-          />
+          <View style={styles.gpsRow}>
+            <GPSChip state={gpsState} coords={currentLocation ?? undefined} />
+            <GpsCaptureLink
+              gpsState={gpsState}
+              hasLocation={currentLocation !== null}
+              storeHasGps={storeCoords !== null}
+              onCapture={handleCaptureGps}
+            />
+          </View>
 
           {gpsState === 'found' && locationVerified !== null && (
             <View style={[styles.fraudBanner, locationVerified ? styles.fraudOk : styles.fraudWarn]}>
@@ -595,6 +597,7 @@ export function CheckInScreen() {
 }
 
 const styles = StyleSheet.create({
+  gpsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   safe: { flex: 1, backgroundColor: colors.bgBase },
   header: {
     flexDirection: 'row',

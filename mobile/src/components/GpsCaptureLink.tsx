@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { colors, fonts } from '../theme';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, fonts, radii } from '../theme';
 import type { GPSState } from '../types';
 
 const AVISO = 'Esto es solo para capturar o actualizar el GPS de la tienda. El cambio es irreversible.';
@@ -47,15 +48,21 @@ export function GpsCaptureLink({ gpsState, hasLocation, storeHasGps, onCapture }
   if (busy) return <Text style={styles.busy}>Obteniendo GPS…</Text>;
   if (gpsState !== 'found' || !hasLocation) return null;
   return (
-    <TouchableOpacity onPress={confirm} style={styles.link} hitSlop={8} accessibilityRole="button">
-      <Text style={styles.linkText}>¿Capturar GPS?</Text>
+    <TouchableOpacity onPress={confirm} style={styles.btn} hitSlop={8} activeOpacity={0.8} accessibilityRole="button">
+      <Ionicons name="locate" size={13} color={colors.accent} style={styles.icon} />
+      <Text style={styles.btnText}>Capturar GPS</Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  link: { alignSelf: 'flex-start', marginTop: 8 },
-  linkText: { fontSize: 12, color: colors.accent, textDecorationLine: 'underline', ...fonts.medium },
-  busy: { fontSize: 12, color: colors.textMuted, marginTop: 8, ...fonts.medium },
-  done: { fontSize: 12, color: colors.success, marginTop: 8, ...fonts.medium },
+  // Mismo formato que el chip de ubicación, con los colores del botón secundario.
+  btn: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: radii.full, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.borderAccent,
+  },
+  icon: { marginRight: 5 },
+  btnText: { fontSize: 12, color: colors.accent, ...fonts.semibold },
+  busy: { fontSize: 12, color: colors.textMuted, ...fonts.medium },
+  done: { fontSize: 12, color: colors.success, ...fonts.medium },
 });
