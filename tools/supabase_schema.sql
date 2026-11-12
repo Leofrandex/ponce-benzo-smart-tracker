@@ -1558,6 +1558,7 @@ grant execute on function public.fn_registrar_reposicion(uuid, date, uuid[], tex
 -- Versión de la app (Bloque 7, 2026-09-28)
 -- ============================================================
 alter table public.sessions add column if not exists app_version text;
+alter table public.sessions add column if not exists ota_update_id text;
 
 -- ============================================================
 -- Rutas fijas: modelo y materializacion (2026-10-29)

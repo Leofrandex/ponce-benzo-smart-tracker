@@ -7,6 +7,13 @@ import { startSession, endSession, isAdhocSession } from "./sessionStore";
 const P = { userId: "u", routeId: "r", startLat: null, startLng: null, appVersion: "t" };
 async function fresh() { const db = memoryDb(); await initSchema(db); return db; }
 
+test("startSession: guarda el id del OTA", async () => {
+  const db = await fresh();
+  const sid = await startSession(db, { ...P, otaId: "ota-1" });
+  const r = await db.getFirstAsync<{ ota_update_id: string }>("SELECT ota_update_id FROM sessions WHERE session_id = ?", sid);
+  assert.equal(r?.ota_update_id, "ota-1");
+});
+
 test("isAdhocSession: solo la jornada abierta como reporte suelto", async () => {
   const db = await fresh();
   const sid = await startSession(db, { ...P, adhoc: true });

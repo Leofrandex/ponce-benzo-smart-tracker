@@ -10,7 +10,7 @@ import { useSyncCtx } from './SyncContext';
 import { getDb } from '../store/localStore';
 import { resolveToday, startSession as ssStart, endSession as ssEnd, closeStaleSessions, isAdhocSession } from '../session/sessionStore';
 import { logEvent } from '../diagnostics/log';
-import { APP_VERSION } from '../diagnostics/version';
+import { APP_VERSION, OTA_ID } from '../diagnostics/version';
 import { withDeadline, withTimeout } from '../utils/withTimeout';
 import { startTracking, stopBackground, ensureTracking, requestPermissions, requestBatteryExemption } from '../location/locationTracker';
 import { ensureSpecialRoute, localDay, resolveStartRoute } from '../services/adhocRoute';
@@ -208,7 +208,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         );
         return;
       }
-      await ssStart(db, { userId: user.id, routeId: startRouteId, startLat: lat, startLng: lng, appVersion: APP_VERSION });
+      await ssStart(db, { userId: user.id, routeId: startRouteId, startLat: lat, startLng: lng, appVersion: APP_VERSION, otaId: OTA_ID });
       if (lat != null) setCurrentLocation({ lat, lng: lng! });
       setSessionActive(true);
       setSessionEnded(false);
@@ -265,7 +265,7 @@ export function RouteProvider({ children }: { children: React.ReactNode }) {
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }), 3000, null,
       );
       if (pos) { lat = pos.coords.latitude; lng = pos.coords.longitude; }
-      await ssStart(db, { userId: user.id, routeId: routeIdSpecial, startLat: lat, startLng: lng, appVersion: APP_VERSION, adhoc: true });
+      await ssStart(db, { userId: user.id, routeId: routeIdSpecial, startLat: lat, startLng: lng, appVersion: APP_VERSION, otaId: OTA_ID, adhoc: true });
       if (lat != null) setCurrentLocation({ lat, lng: lng! });
       setSessionActive(true);
       setSessionEnded(false);

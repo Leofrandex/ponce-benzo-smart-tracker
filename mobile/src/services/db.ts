@@ -11,6 +11,7 @@ export interface SessionRow {
   start_lat: number | null;
   start_lng: number | null;
   app_version?: string | null;
+  ota_update_id?: string | null;
   synced: number;
 }
 
@@ -106,16 +107,6 @@ export async function getTodayVisits(db: SQLiteDatabase, userId: string): Promis
     userId,
     startIso,
     endIso,
-  );
-}
-
-/** Visitas del usuario en los ultimos 7 dias, solo SQLite (la purga local conserva 30 dias). */
-export async function getRecentVisits(db: SQLiteDatabase, userId: string, now = new Date()): Promise<{ check_in_time: string; status: string }[]> {
-  const since = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).toISOString();
-  return db.getAllAsync(
-    `SELECT check_in_time, status FROM visits WHERE user_id = ? AND check_in_time >= ?`,
-    userId,
-    since,
   );
 }
 

@@ -62,3 +62,9 @@ test("toSessionPayload: envía app_version y null si falta (jornada de app vieja
   assert.equal(toSessionPayload({ ...base, app_version: "1.3.0" }).app_version, "1.3.0");
   assert.equal(toSessionPayload(base).app_version, null);
 });
+
+test("toSessionPayload: envía ota_update_id y null si falta", () => {
+  const base = { session_id:"s1", user_id:"u1", route_id:"r1", session_start:"t0", session_end:null, start_lat:10.5, start_lng:-66.9, synced:0 };
+  assert.equal(toSessionPayload({ ...base, ota_update_id: "abc" }).ota_update_id, "abc");
+  assert.equal(toSessionPayload(base).ota_update_id, null);
+});

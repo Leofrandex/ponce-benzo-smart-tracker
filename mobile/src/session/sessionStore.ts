@@ -31,7 +31,7 @@ export async function closeStaleSessions(db: SQLiteDatabase, userId: string): Pr
 
 export async function startSession(
   db: SQLiteDatabase,
-  p: { userId: string; routeId: string; startLat: number | null; startLng: number | null; appVersion: string; adhoc?: boolean },
+  p: { userId: string; routeId: string; startLat: number | null; startLng: number | null; appVersion: string; otaId?: string | null; adhoc?: boolean },
 ): Promise<string> {
   const sid = newId();
   // Una jornada normal limpia la marca: un id viejo no puede apagar el rastreo.
@@ -39,9 +39,9 @@ export async function startSession(
   else await db.runAsync(`DELETE FROM meta WHERE key = ?`, ADHOC_META);
   const startIso = new Date().toISOString();
   await db.runAsync(
-    `INSERT INTO sessions (session_id, user_id, route_id, session_start, start_lat, start_lng, app_version, synced)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
-    sid, p.userId, p.routeId, startIso, p.startLat ?? null, p.startLng ?? null, p.appVersion,
+    `INSERT INTO sessions (session_id, user_id, route_id, session_start, start_lat, start_lng, app_version, ota_update_id, synced)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+    sid, p.userId, p.routeId, startIso, p.startLat ?? null, p.startLng ?? null, p.appVersion, p.otaId ?? null,
   );
   if (p.startLat != null && p.startLng != null) {
     await db.runAsync(
