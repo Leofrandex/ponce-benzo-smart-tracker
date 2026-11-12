@@ -110,16 +110,6 @@ export async function getTodayVisits(db: SQLiteDatabase, userId: string): Promis
   );
 }
 
-/** Visitas del usuario en los ultimos 7 dias, solo SQLite (la purga local conserva 30 dias). */
-export async function getRecentVisits(db: SQLiteDatabase, userId: string, now = new Date()): Promise<{ check_in_time: string; status: string }[]> {
-  const since = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).toISOString();
-  return db.getAllAsync(
-    `SELECT check_in_time, status FROM visits WHERE user_id = ? AND check_in_time >= ?`,
-    userId,
-    since,
-  );
-}
-
 // ── Competition reports ──────────────────────────────────────────────────────
 
 export async function insertCompetitionReport(
