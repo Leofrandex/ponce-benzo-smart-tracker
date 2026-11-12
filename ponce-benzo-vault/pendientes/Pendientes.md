@@ -175,13 +175,13 @@ Para realizar la migración completa a producción y conectar a los vendedores r
 
 ## ⚙️ Pendientes de Desarrollo Técnico
 
-- [ ] **Sucursales nuevas desde la app ([[decisiones/ADR-014-Sucursales-Propuestas|ADR-014]], 2026-10-15)** — rama `feat/sucursales-nuevas`, unida con `master` el 2026-11-12 (sync sobre el motor nuevo de fotos).
+- [ ] **Sucursales nuevas desde la app ([[decisiones/ADR-014-Sucursales-Propuestas|ADR-014]], 2026-10-15)** — **publicado el 2026-11-12** ([[logs/Log-2026-11-12-sucursales|Log]]). Falta probar en un teléfono.
   * **Orden de salida (obligatorio):**
     1. [x] Aplicar la migración `2026-10-14-sucursales-nuevas.sql` con OK de Sebastián (2026-11-12).
     2. [x] Verificar el nombre de la FK: `store_proposals_user_id_fkey` ✅.
     3. [x] Verificaciones de `tools/check_store_proposals.sql`: 7/7 en producción, todo con rollback.
-    4. [ ] Solo entonces, mergear/desplegar el hub.
-    5. [ ] Publicar la OTA (misma 1.4.0, sin APK nuevo).
+    4. [x] Hub publicado el 2026-11-12 (`457ea77`).
+    5. [x] OTA publicada el 2026-11-12 (`01a1d166`, canal `preview`).
   * [ ] Avisar a los mercaderistas del botón "Registrar sucursal nueva" (prioridad: Maracaibo/Barcelona).
   * [ ] Avisar a Diego de la pestaña Sucursales nuevas.
 
