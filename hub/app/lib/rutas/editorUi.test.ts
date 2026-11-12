@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { armarVersionesAGuardar, avisoFecha, baseParaFecha, buscarTiendas, esConflictoVersion, fechaCorta, numerosDelDia, rangoSemana } from "./editorUi";
+import { buscarTiendas, esConflictoVersion, fechaCorta, numerosDelDia, proximoLunes, rangoSemana, semanaComoPlantilla, versionesAGuardar } from "./editorUi";
 import type { Parada, Version } from "./plan";
 
 const p = (weekday: Parada["weekday"], position: number, store_id: string, every_n_weeks: Parada["every_n_weeks"] = 1, anchor_monday = "2026-11-16"): Parada =>
@@ -28,57 +28,33 @@ test("buscarTiendas: activas, no repetidas en el día, sin acentos, por cliente 
   assert.deepEqual(buscarTiendas(ts, "  ", new Set()), []);
 });
 
-test("armarVersionesAGuardar sin futuras o sin aplicar: solo la editada", () => {
-  const stops = [p(1, 1, "a")];
-  const fut: Version[] = [{ plan_id: "x", effective_from: "2026-12-07", created_at: "t", stops: [p(2, 1, "z")] }];
-  assert.deepEqual(armarVersionesAGuardar([], stops, "2026-11-16", [], true), [{ effective_from: "2026-11-16", stops }]);
-  assert.deepEqual(armarVersionesAGuardar([], stops, "2026-11-16", fut, false), [{ effective_from: "2026-11-16", stops }]);
-});
-
-test("armarVersionesAGuardar aplica el diff a las futuras", () => {
-  const base = [p(1, 1, "a"), p(1, 2, "b")];
-  const stops = [p(1, 1, "b"), p(1, 2, "c"), p(2, 1, "a", 2)]; // quita a del lunes, agrega c, a pasa al martes cada 2
-  const fut: Version[] = [{ plan_id: "x", effective_from: "2026-12-07", created_at: "t", stops: [p(1, 1, "a"), p(1, 2, "b"), p(3, 1, "z")] }];
-  const [primera, segunda] = armarVersionesAGuardar(base, stops, "2026-11-16", fut, true);
-  assert.deepEqual(primera, { effective_from: "2026-11-16", stops });
-  assert.equal(segunda.effective_from, "2026-12-07");
-  const ids = (w: number) => segunda.stops.filter((s) => s.weekday === w).sort((x, y) => x.position - y.position).map((s) => s.store_id);
-  assert.deepEqual(ids(1), ["b", "c"]);
-  assert.deepEqual(ids(2), ["a"]);
-  assert.deepEqual(ids(3), ["z"]); // lo propio de la futura se conserva
-  assert.equal(segunda.stops.find((s) => s.store_id === "a")!.every_n_weeks, 2);
-});
-
 const v = (effective_from: string, stops: Parada[]): Version => ({ plan_id: effective_from, effective_from, created_at: "t", stops });
 
-test("baseParaFecha: la versión vigente en la fecha elegida", () => {
-  const nov = [p(1, 1, "a")];
-  const dic = [p(2, 1, "b")];
-  const vs = [v("2026-11-16", nov), v("2026-12-01", dic)];
-  assert.deepEqual(baseParaFecha(vs, "2026-12-01"), dic);
-  assert.deepEqual(baseParaFecha(vs, "2026-11-20"), nov);
-  assert.deepEqual(baseParaFecha(vs, "2026-11-10"), []);
+test("proximoLunes: la semana que viene, desde cualquier día", () => {
+  assert.equal(proximoLunes("2026-11-13"), "2026-11-16"); // viernes
+  assert.equal(proximoLunes("2026-11-09"), "2026-11-16"); // lunes: no la semana en curso
+  assert.equal(proximoLunes("2026-11-08"), "2026-11-09"); // domingo: mañana
 });
 
-test("avisoFecha: versión programada entre la base y la nueva fecha", () => {
-  const vs = [v("2026-11-16", []), v("2026-12-01", [])];
-  assert.equal(avisoFecha(vs, "2026-11-20", "2026-11-27"), null);
-  assert.deepEqual(avisoFecha(vs, "2026-11-20", "2026-12-01"), { tipo: "reemplaza", fecha: "2026-12-01" });
-  assert.deepEqual(avisoFecha(vs, "2026-11-20", "2026-12-08"), { tipo: "rige-antes", fecha: "2026-12-01" });
-  assert.equal(avisoFecha(vs, "2026-12-01", "2026-12-08"), null); // la base ya es esa versión
+test("semanaComoPlantilla: lo que toca esa semana, todo semanal desde ese lunes", () => {
+  // b cada 2 desde el 9 nov: toca el 23, no el 16. Desde el 18 rige otra versión (a, c).
+  const v1 = v("2026-11-09", [p(1, 1, "a", 1, "2026-11-09"), p(1, 2, "b", 2, "2026-11-09"), p(3, 1, "x")]);
+  const vs = [v1, v("2026-11-18", [p(1, 1, "a"), p(3, 1, "c")])];
+  assert.deepEqual(semanaComoPlantilla(vs, "2026-11-16"), [p(1, 1, "a"), p(3, 1, "c")]); // lunes de v1, miércoles de v2
+  const sem23 = semanaComoPlantilla([v1], "2026-11-23");
+  assert.deepEqual(sem23.map((s) => s.store_id), ["a", "b", "x"]);
+  assert.ok(sem23.every((s) => s.every_n_weeks === 1 && s.anchor_monday === "2026-11-23"));
+  assert.deepEqual(semanaComoPlantilla([], "2026-11-16"), []);
 });
 
-test("avisoFecha: fecha anterior a la base adelanta la versión programada", () => {
-  const vs = [v("2026-11-16", []), v("2026-12-01", [])];
-  // base armada desde el 1 dic (versión G), fecha movida al 20 nov → G empezaría a regir antes
-  assert.deepEqual(avisoFecha(vs, "2026-12-03", "2026-11-20"), { tipo: "adelanta", fecha: "2026-12-01" });
-  assert.deepEqual(avisoFecha(vs, "2026-12-01", "2026-11-30"), { tipo: "adelanta", fecha: "2026-12-01" });
-  // la base sigue siendo la misma versión → sin aviso
-  assert.equal(avisoFecha(vs, "2026-11-27", "2026-11-20"), null);
-  assert.equal(avisoFecha(vs, "2026-12-08", "2026-12-01"), null);
-  // sin versiones o base vacía antes de toda versión
-  assert.equal(avisoFecha([], "2026-12-03", "2026-11-20"), null);
-  assert.equal(avisoFecha(vs, "2026-11-12", "2026-11-10"), null);
+test("versionesAGuardar: rige desde el lunes y pisa las versiones programadas después", () => {
+  const stops = [p(1, 1, "a")];
+  const vs = [v("2026-11-09", []), v("2026-11-16", []), v("2026-12-07", [p(2, 1, "z")])];
+  assert.deepEqual(versionesAGuardar(stops, "2026-11-16", vs), [
+    { effective_from: "2026-11-16", stops },
+    { effective_from: "2026-12-07", stops },
+  ]);
+  assert.deepEqual(versionesAGuardar(stops, "2026-11-16", []), [{ effective_from: "2026-11-16", stops }]);
 });
 
 test("numerosDelDia: nada antes de que rija, sin contar inactivas", () => {

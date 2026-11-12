@@ -1,7 +1,7 @@
 import { normalizeText } from "../queries/taskFilters";
-import { sumarDias } from "../queries/rutas";
+import { lunesDe, sumarDias } from "../queries/rutas";
 import type { TiendaBuscable } from "../queries/rutaPlan";
-import { aplicarDiff, diffPlan, paradasDelDia, versionVigente, type Parada, type Version } from "./plan";
+import { paradasDelDia, versionVigente, type Parada, type Version, type Weekday } from "./plan";
 
 // Piezas puras del editor de ruta fija (formato, búsqueda y armado del guardado).
 
@@ -31,28 +31,6 @@ export function buscarTiendas(tiendas: TiendaBuscable[], q: string, yaEnDia: Set
     .slice(0, max);
 }
 
-// El editor arranca desde la versión vigente en la fecha "aplica desde".
-export function baseParaFecha(versiones: Version[], fecha: string): Parada[] {
-  return versionVigente(versiones, fecha)?.stops ?? [];
-}
-
-export type AvisoFecha = { tipo: "reemplaza" | "rige-antes" | "adelanta"; fecha: string } | null;
-
-// Cambios armados sobre la ruta vigente en `fechaBase` y movidos a `fecha`: ¿queda una versión
-// programada en medio? Igual a `fecha` → guardar la reemplaza; antes de `fecha` → rige antes.
-// Fecha anterior a la base y la base es una versión que empieza después de `fecha` → su contenido se adelanta.
-export function avisoFecha(versiones: Version[], fechaBase: string, fecha: string): AvisoFecha {
-  if (fecha < fechaBase) {
-    const desde = versionVigente(versiones, fechaBase)?.effective_from;
-    return desde && desde > fecha ? { tipo: "adelanta", fecha: desde } : null;
-  }
-  let ultima: string | null = null;
-  for (const v of versiones) {
-    if (v.effective_from > fechaBase && v.effective_from <= fecha && (!ultima || v.effective_from > ultima)) ultima = v.effective_from;
-  }
-  return ultima ? { tipo: ultima === fecha ? "reemplaza" : "rige-antes", fecha: ultima } : null;
-}
-
 // Número de orden de cada parada en `fecha`, como lo materializa el servidor: nada antes de que
 // rija la ruta (`desde`) y sin contar sucursales inactivas.
 export function numerosDelDia(stops: Parada[], fecha: string, desde: string, activa: (storeId: string) => boolean): Map<string, number> {
@@ -63,12 +41,21 @@ export function numerosDelDia(stops: Parada[], fecha: string, desde: string, act
 // Rechazo del guardado porque otra persona guardó antes (ver fn_guardar_ruta).
 export const esConflictoVersion = (mensaje: string) => mensaje.startsWith("La ruta cambió mientras la editabas");
 
-// La versión editada, y si se pide, el mismo cambio aplicado a cada versión futura.
-export function armarVersionesAGuardar(
-  base: Parada[], stops: Parada[], effectiveFrom: string, futuras: Version[], aplicarAFuturas: boolean,
-): Pick<Version, "effective_from" | "stops">[] {
-  const primera = { effective_from: effectiveFrom, stops };
-  if (!aplicarAFuturas || futuras.length === 0) return [primera];
-  const diff = diffPlan(base, stops);
-  return [primera, ...futuras.map((f) => ({ effective_from: f.effective_from, stops: aplicarDiff(f.stops, diff) }))];
+// El editor trabaja semana a semana: siempre la semana que viene.
+export const proximoLunes = (hoy: string) => sumarDias(lunesDe(hoy), 7);
+
+// La semana `lunes` tal como la haría el mercaderista con la ruta vigente, convertida en
+// plantilla semanal: lo que toca ese día pasa a visitarse todas las semanas desde `lunes`.
+export function semanaComoPlantilla(versiones: Version[], lunes: string): Parada[] {
+  return ([1, 2, 3, 4, 5] as Weekday[]).flatMap((w) => {
+    const fecha = sumarDias(lunes, w - 1);
+    return paradasDelDia(versionVigente(versiones, fecha)?.stops ?? [], fecha)
+      .map((p, i): Parada => ({ ...p, position: i + 1, every_n_weeks: 1, anchor_monday: lunes }));
+  });
+}
+
+// Lo guardado rige desde `lunes` en adelante: también pisa las versiones ya programadas después.
+export function versionesAGuardar(stops: Parada[], lunes: string, versiones: Version[]): Pick<Version, "effective_from" | "stops">[] {
+  const fechas = [lunes, ...versiones.map((v) => v.effective_from).filter((f) => f > lunes)];
+  return fechas.map((effective_from) => ({ effective_from, stops }));
 }

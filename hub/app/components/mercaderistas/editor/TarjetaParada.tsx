@@ -26,9 +26,6 @@ export function CuerpoTarjeta({ parada, tienda, numero, anterior = false }: {
         {inactiva && (
           <span style={{ display: "block", fontSize: "var(--text-2xs)", color: "var(--danger)", fontWeight: 600, marginTop: "2px" }}>Sucursal inactiva</span>
         )}
-        <span className={`ed-chip${parada.every_n_weeks > 1 ? " ed-chip-n" : ""}`}>
-          {parada.every_n_weeks === 1 ? "Semanal" : `Cada ${parada.every_n_weeks} sem`}
-        </span>
       </span>
     </>
   );
