@@ -7,7 +7,7 @@ import { canConfigure } from "@/app/lib/roles";
 import { useSupabaseQuery } from "@/app/lib/hooks/useSupabaseQuery";
 import { fetchUserName } from "@/app/lib/queries/merchandisers";
 import { fetchTiendasBuscables, fetchVersiones } from "@/app/lib/queries/rutaPlan";
-import { proximoLunes } from "@/app/lib/rutas/editorUi";
+import { semanasEditables } from "@/app/lib/rutas/editorUi";
 import { hoyCaracas } from "@/app/lib/queries/taskFilters";
 import EditorRuta from "@/app/components/mercaderistas/editor/EditorRuta";
 import SectionError from "@/app/components/ui/SectionError";
@@ -33,7 +33,9 @@ function Cargador({ id }: { id: string }) {
   const qVersiones = useSupabaseQuery(() => fetchVersiones(id), [id]);
   const qTiendas = useSupabaseQuery(fetchTiendasBuscables, []);
   const { data: nombre } = useSupabaseQuery(() => fetchUserName(id), [id], "merch:name");
-  const [lunes] = useState(() => proximoLunes(hoyCaracas()));
+  const [semanas] = useState(() => semanasEditables(hoyCaracas()));
+  const [clave, setClave] = useState<"actual" | "proxima">("proxima");
+  const semana = semanas.find((x) => x.clave === clave) ?? semanas[semanas.length - 1];
   // Tras un conflicto de versión: datos frescos y el editor se vuelve a montar desde cero.
   const [generacion, setGeneracion] = useState(0);
   const recargar = async () => {
@@ -58,5 +60,10 @@ function Cargador({ id }: { id: string }) {
       </SkeletonScreen>
     );
   }
-  return <EditorRuta key={generacion} onRecargar={recargar} userId={id} nombre={nombre ?? "Mercaderista"} versiones={qVersiones.data} tiendas={qTiendas.data} lunes={lunes} />;
+  return (
+    <EditorRuta
+      key={`${generacion}-${semana.clave}`} onRecargar={recargar} userId={id} nombre={nombre ?? "Mercaderista"}
+      versiones={qVersiones.data} tiendas={qTiendas.data} semana={semana} semanas={semanas} onCambiarSemana={setClave}
+    />
+  );
 }

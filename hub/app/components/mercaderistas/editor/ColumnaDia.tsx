@@ -5,6 +5,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { Parada, Weekday } from "@/app/lib/rutas/plan";
 import { numerosDelDia } from "@/app/lib/rutas/editorUi";
+import { sumarDias } from "@/app/lib/queries/rutas";
 import type { TiendaBuscable } from "@/app/lib/queries/rutaPlan";
 import TarjetaParada, { idTarjeta } from "./TarjetaParada";
 import AgregarSucursal from "./AgregarSucursal";
@@ -36,7 +37,7 @@ export default function ColumnaDia({ weekday, nombre, fechaVista, desde, stops, 
         </span>
       </h2>
       {anterior && (
-        <p style={{ margin: "0 4px 8px", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Sigue la ruta anterior</p>
+        <p style={{ margin: "0 4px 8px", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{fechaVista === sumarDias(desde, -1) ? "Hoy · no se cambia" : "Ya pasó · no se cambia"}</p>
       )}
       <SortableContext id={idColumna(weekday)} items={stops.map(idTarjeta)} strategy={verticalListSortingStrategy}>
         <ol ref={setNodeRef} className="ed-list">
@@ -55,7 +56,7 @@ export default function ColumnaDia({ weekday, nombre, fechaVista, desde, stops, 
           {stops.length === 0 && <li style={{ padding: "8px 4px", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Sin sucursales</li>}
         </ol>
       </SortableContext>
-      <AgregarSucursal dia={nombre} tiendas={tiendas} yaEnDia={yaEnDia} bloqueado={bloqueado} onAgregar={onAgregar} />
+      {!anterior && <AgregarSucursal dia={nombre} tiendas={tiendas} yaEnDia={yaEnDia} bloqueado={bloqueado} onAgregar={onAgregar} />}
     </section>
   );
 }

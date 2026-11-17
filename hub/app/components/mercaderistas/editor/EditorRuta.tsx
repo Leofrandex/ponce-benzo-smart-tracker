@@ -13,7 +13,7 @@ import { sumarDias } from "@/app/lib/queries/rutas";
 import { guardarRuta, ultimaVersionVista, type TiendaBuscable } from "@/app/lib/queries/rutaPlan";
 import type { Parada, Version, Weekday } from "@/app/lib/rutas/plan";
 import { contarCambios, iniciarEditor, reducir, stopsDelDia } from "@/app/lib/rutas/editorState";
-import { esConflictoVersion, numerosDelDia, rangoSemana, semanaComoPlantilla, versionesAGuardar } from "@/app/lib/rutas/editorUi";
+import { esConflictoVersion, fechaCorta, numerosDelDia, rangoSemana, semanaComoPlantilla, versionesAGuardar, type SemanaEditable } from "@/app/lib/rutas/editorUi";
 import ColumnaDia from "./ColumnaDia";
 import { CuerpoTarjeta, idTarjeta } from "./TarjetaParada";
 import PanelParada from "./PanelParada";
@@ -32,11 +32,15 @@ const diaDe = (id: UniqueIdentifier): Weekday => {
 };
 const tiendaDe = (id: UniqueIdentifier) => { const s = String(id); return s.slice(s.indexOf("|") + 1); };
 
-// Semana a semana: se edita la semana que viene (`lunes`), arrancando de lo que el mercaderista
-// haría esa semana con la ruta vigente. Lo guardado se repite todas las semanas hasta el próximo cambio.
-export default function EditorRuta({ userId, nombre, versiones, tiendas, lunes, onRecargar }: {
-  userId: string; nombre: string; versiones: Version[]; tiendas: TiendaBuscable[]; lunes: string; onRecargar: () => Promise<void>;
+// Semana a semana: se edita la semana elegida (la que viene o la en curso), arrancando de lo que el
+// mercaderista haría esa semana con la ruta vigente. Lo guardado rige desde `semana.desde` y se repite
+// todas las semanas hasta el próximo cambio. En la semana en curso, hoy y los días pasados no se tocan.
+export default function EditorRuta({ userId, nombre, versiones, tiendas, semana, semanas, onCambiarSemana, onRecargar }: {
+  userId: string; nombre: string; versiones: Version[]; tiendas: TiendaBuscable[];
+  semana: SemanaEditable; semanas: SemanaEditable[]; onCambiarSemana: (clave: SemanaEditable["clave"]) => void;
+  onRecargar: () => Promise<void>;
 }) {
+  const { lunes, desde } = semana;
   const router = useRouter();
   const [s, dispatch] = useReducer(reducir, undefined, () => iniciarEditor(semanaComoPlantilla(versiones, lunes), lunes));
   const [recargando, setRecargando] = useState(false);
@@ -51,6 +55,13 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, lunes, 
   const cambios = contarCambios(s);
   const perfil = `/panel/mercaderistas/${userId}`;
   const conflicto = error !== null && esConflictoVersion(error);
+  const fijo = (w: Weekday) => sumarDias(lunes, w - 1) < desde; // ya pasó o es hoy
+
+  const cambiarSemana = (clave: SemanaEditable["clave"]) => {
+    if (clave === semana.clave) return;
+    if (cambios > 0 && !window.confirm("Se perderán los cambios sin guardar. ¿Cambiar de semana?")) return;
+    onCambiarSemana(clave);
+  };
 
   const recargar = async () => {
     if (cambios > 0 && !window.confirm("Se perderán los cambios sin guardar. ¿Recargar la ruta?")) return;
@@ -93,6 +104,7 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, lunes, 
     if (!over) return;
     const desde = diaDe(active.id);
     const hacia = diaDe(over.id);
+    if (fijo(hacia)) return;
     const destino = stopsDelDia(s, hacia);
     let indice = destino.length; // soltada en el hueco de la columna: al final
     if (!String(over.id).startsWith("dia-")) {
@@ -107,13 +119,13 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, lunes, 
   const seleccionada = sel ? s.stops.find((p) => idTarjeta(p) === sel) ?? null : null;
   const enArrastre = arrastrada ? s.stops.find((p) => idTarjeta(p) === arrastrada) ?? null : null;
   const numeroEnSemana = (p: Parada) =>
-    numerosDelDia(stopsDelDia(s, p.weekday), sumarDias(lunes, p.weekday - 1), lunes, (id) => porId.get(id)?.active !== false)
+    numerosDelDia(stopsDelDia(s, p.weekday), sumarDias(lunes, p.weekday - 1), desde, (id) => porId.get(id)?.active !== false)
       .get(p.store_id) ?? null;
 
   async function guardar() {
     setSel(null); setGuardando(true); setError(null);
     try {
-      await guardarRuta(userId, versionesAGuardar(s.stops, lunes, versiones), ultimaVersionVista(versiones));
+      await guardarRuta(userId, versionesAGuardar(s.stops, desde, versiones), ultimaVersionVista(versiones));
       saliendo.current = true;
       router.push(`${perfil}?ver=ruta&semana=${lunes}`);
     } catch (e) {
@@ -137,8 +149,19 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, lunes, 
           <h1 style={{ flex: 1, minWidth: "200px", margin: 0, fontSize: "var(--text-md)", fontWeight: 600 }}>
             Ruta de {nombre} · semana del {rangoSemana(lunes)}
           </h1>
+          {semanas.length > 1 && (
+            <div className="ed-seg" role="group" aria-label="Semana a editar" style={{ margin: 0, minWidth: "240px" }}>
+              {semanas.map((x) => (
+                <button key={x.clave} type="button" className={x.clave === semana.clave ? "on" : undefined} aria-pressed={x.clave === semana.clave} disabled={guardando} onClick={() => cambiarSemana(x.clave)}>
+                  {x.etiqueta}
+                </button>
+              ))}
+            </div>
+          )}
           <span style={{ flexBasis: "100%", color: "var(--text-secondary)" }}>
-            Lo que guardes se repite todas las semanas hasta que lo vuelvas a cambiar.
+            {desde === lunes
+              ? "Lo que guardes se repite todas las semanas hasta que lo vuelvas a cambiar."
+              : `Los cambios rigen desde mañana (${fechaCorta(desde)}) y se repiten todas las semanas. Hoy y los días anteriores no se cambian.`}
           </span>
         </div>
 
@@ -151,14 +174,14 @@ export default function EditorRuta({ userId, nombre, versiones, tiendas, lunes, 
                   weekday={w}
                   nombre={dia}
                   fechaVista={sumarDias(lunes, w - 1)}
-                  desde={lunes}
+                  desde={desde}
                   stops={stopsDelDia(s, w)}
                   tiendas={tiendas}
                   porId={porId}
                   seleccion={sel}
-                  bloqueado={guardando}
-                  resaltada={overDia === w && enArrastre?.weekday !== w}
-                  onAbrir={(p) => { if (!guardando) setSel(idTarjeta(p)); }}
+                  bloqueado={guardando || fijo(w)}
+                  resaltada={overDia === w && enArrastre?.weekday !== w && !fijo(w)}
+                  onAbrir={(p) => { if (!guardando && !fijo(w)) setSel(idTarjeta(p)); }}
                   onAgregar={(store_id) => dispatch({ tipo: "agregar", weekday: w, store_id })}
                 />
               ))}

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buscarTiendas, esConflictoVersion, fechaCorta, numerosDelDia, proximoLunes, rangoSemana, semanaComoPlantilla, versionesAGuardar } from "./editorUi";
+import { buscarTiendas, esConflictoVersion, fechaCorta, numerosDelDia, proximoLunes, rangoSemana, semanaComoPlantilla, semanasEditables, versionesAGuardar } from "./editorUi";
 import type { Parada, Version } from "./plan";
 
 const p = (weekday: Parada["weekday"], position: number, store_id: string, every_n_weeks: Parada["every_n_weeks"] = 1, anchor_monday = "2026-11-16"): Parada =>
@@ -34,6 +34,16 @@ test("proximoLunes: la semana que viene, desde cualquier día", () => {
   assert.equal(proximoLunes("2026-11-13"), "2026-11-16"); // viernes
   assert.equal(proximoLunes("2026-11-09"), "2026-11-16"); // lunes: no la semana en curso
   assert.equal(proximoLunes("2026-11-08"), "2026-11-09"); // domingo: mañana
+});
+
+test("semanasEditables: la semana en curso solo de lunes a jueves, desde mañana", () => {
+  assert.deepEqual(semanasEditables("2026-11-17").map((x) => [x.clave, x.lunes, x.desde]), [
+    ["actual", "2026-11-16", "2026-11-18"], // martes
+    ["proxima", "2026-11-23", "2026-11-23"],
+  ]);
+  assert.deepEqual(semanasEditables("2026-11-19").map((x) => x.desde), ["2026-11-20", "2026-11-23"]); // jueves: queda el viernes
+  assert.deepEqual(semanasEditables("2026-11-20").map((x) => x.clave), ["proxima"]); // viernes
+  assert.deepEqual(semanasEditables("2026-11-22").map((x) => x.clave), ["proxima"]); // domingo
 });
 
 test("semanaComoPlantilla: lo que toca esa semana, todo semanal desde ese lunes", () => {

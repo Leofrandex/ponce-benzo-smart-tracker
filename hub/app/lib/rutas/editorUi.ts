@@ -41,8 +41,19 @@ export function numerosDelDia(stops: Parada[], fecha: string, desde: string, act
 // Rechazo del guardado porque otra persona guardó antes (ver fn_guardar_ruta).
 export const esConflictoVersion = (mensaje: string) => mensaje.startsWith("La ruta cambió mientras la editabas");
 
-// El editor trabaja semana a semana: siempre la semana que viene.
+// El editor trabaja semana a semana: por defecto la semana que viene.
 export const proximoLunes = (hoy: string) => sumarDias(lunesDe(hoy), 7);
+
+// Semanas que se pueden editar. `desde`: primer día que cambia (el servidor solo acepta desde mañana).
+// La semana en curso entra solo de lunes a jueves: desde mañana hasta el viernes queda algo por editar.
+export type SemanaEditable = { clave: "actual" | "proxima"; lunes: string; desde: string; etiqueta: string };
+export function semanasEditables(hoy: string): SemanaEditable[] {
+  const proxima = proximoLunes(hoy);
+  const manana = sumarDias(hoy, 1);
+  const lunes = lunesDe(hoy);
+  const actual: SemanaEditable[] = manana <= sumarDias(lunes, 4) ? [{ clave: "actual", lunes, desde: manana, etiqueta: "Esta semana" }] : [];
+  return [...actual, { clave: "proxima", lunes: proxima, desde: proxima, etiqueta: "Semana que viene" }];
+}
 
 // La semana `lunes` tal como la haría el mercaderista con la ruta vigente, convertida en
 // plantilla semanal: lo que toca ese día pasa a visitarse todas las semanas desde `lunes`.

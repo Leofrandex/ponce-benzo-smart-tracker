@@ -35,10 +35,16 @@ El editor de [[decisiones/ADR-017-Rutas-Fijas-Versionadas|ADR-017]] pedía frecu
 
 ### Negativas / Riesgos 👎
 - Una parada cada 2 o más semanas (cargada por CSV) pasa a semanal o desaparece, según si toca la semana editada, la primera vez que se guarda esa ruta.
-- No se puede editar la semana en curso desde el editor. Si se necesita un cambio para hoy, se usa una ruta especial.
+- ~~No se puede editar la semana en curso desde el editor.~~ Ver *Actualización 2026-11-17*. Hoy sigue sin poder cambiarse: para eso, ruta especial.
 - Si nadie edita, la última ruta guardada se sigue repitiendo (no hay recordatorio de los viernes).
+
+## Actualización 2026-11-17: semana en curso
+- De lunes a jueves el editor muestra un selector **Esta semana / Semana que viene** (por defecto, la que viene). De viernes a domingo solo existe la que viene.
+- En **Esta semana**, hoy y los días pasados quedan fijos (sin arrastrar, agregar ni quitar). Lo guardado rige **desde mañana** (`semanasEditables`, `desde` = hoy + 1) y se repite todas las semanas, igual que antes.
+- Sin cambios en la base: `fn_guardar_ruta` ya exige fecha posterior a hoy y conserva las rutas con sesiones.
 
 ## Enlaces Relacionados
 - [[decisiones/Registro de Decisiones|Registro de Decisiones]]
 - [[logs/Log-2026-11-08|Log 2026-11-08]]
 - [[pendientes/Pendientes|Pendientes]]
+- [[logs/Log-2026-11-17|Log 2026-11-17]]
